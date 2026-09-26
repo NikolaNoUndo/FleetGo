@@ -37,6 +37,16 @@ npm run dev                 # http://localhost:3000
 
 Za lokalni Postgres bez Supabase-a dovoljno je `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/fleetgo`.
 
+## Čist start za pravu firmu
+
+Kad završiš sa demo podacima, obriši sve i napravi praznu firmu sa pravim nazivom:
+
+```bash
+npm run db:fresh -- --name "Naziv Firme d.o.o." --pib 123456789 --address "Ulica 1, Grad" --yes
+```
+
+Bez `--yes` komanda samo ispiše šta je u bazi i ništa ne briše. Brisanje je trajno.
+
 ## Supabase
 
 1. Napravi projekat na supabase.com (region Frankfurt je najbliži).
