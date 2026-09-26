@@ -45,7 +45,7 @@ Kad je u Podešavanjima izabrano „NBS“, aplikacija jednom dnevno uzima zvani
 
 ## Tehnologija
 
-Next.js 16 (App Router, Server Actions) · TypeScript · Tailwind CSS 4 · Drizzle ORM · Postgres (Supabase) · Leaflet (OpenStreetMap / CARTO) · Wialon Remote API
+Next.js 16 (App Router, Server Actions) · TypeScript · Tailwind CSS 4 · Drizzle ORM · Postgres (Supabase) · Leaflet (OpenStreetMap) · Wialon Remote API
 
 ## Pokretanje lokalno
 

@@ -7,6 +7,15 @@ import type { Position } from "@/lib/telematics/types";
 
 export type MapPoint = Position & { label: string };
 
+/**
+ * Map tiles. CARTO basemaps now require an API key, so the default is the standard
+ * OpenStreetMap layer. Another provider (MapTiler, Stadia…) can be set with
+ * NEXT_PUBLIC_MAP_TILE_URL and NEXT_PUBLIC_MAP_ATTRIBUTION.
+ */
+const TILE_URL = process.env.NEXT_PUBLIC_MAP_TILE_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION =
+  process.env.NEXT_PUBLIC_MAP_ATTRIBUTION || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
 const COLORS = { moving: "#16a34a", stopped: "#3b82f6", offline: "#9ca3af" } as const;
 
 function icon(p: MapPoint, selected: boolean) {
@@ -63,12 +72,7 @@ export default function FleetMap({
       attributionControl
       className="h-full w-full"
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        subdomains="abcd"
-        maxZoom={19}
-      />
+      <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} maxZoom={19} className="rl-map-tiles" />
       <Fit points={valid} selected={selected} />
       {valid.map((p) => (
         <Marker

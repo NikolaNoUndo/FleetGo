@@ -221,6 +221,10 @@ dialog::backdrop {
 .leaflet-bar a {
   color: var(--ink-2);
 }
+.rl-map-tiles {
+  /* soften OpenStreetMap colors to sit with the lavender UI */
+  filter: saturate(0.55) contrast(0.96) brightness(1.03);
+}
 .fg-marker {
   background: transparent;
   border: 0;
