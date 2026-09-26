@@ -55,7 +55,7 @@ export function useLivePositions(intervalMs = 10000) {
   return { data, points, error };
 }
 
-const DOT = { moving: "bg-good", stopped: "bg-[#e19a06]", offline: "bg-ink-4" } as const;
+const DOT = { moving: "bg-good", stopped: "bg-info", offline: "bg-ink-4" } as const;
 
 export function LiveView() {
   const { t, locale } = usePrefs();
@@ -78,7 +78,7 @@ export function LiveView() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-      <div className="order-2 flex min-h-0 flex-col rounded-2xl border border-line bg-surface shadow-xs lg:order-1 lg:h-[calc(100dvh-190px)]">
+      <div className="order-2 flex min-h-0 flex-col rounded-xl border border-line bg-surface shadow-xs lg:order-1 lg:h-[calc(100dvh-236px)]">
         <div className="space-y-3 border-b border-line p-3">
           <Segmented
             size="sm"
@@ -104,22 +104,22 @@ export function LiveView() {
                   type="button"
                   onClick={() => setSelected(p.unitId)}
                   className={cn(
-                    "flex w-full items-start gap-3 rounded-[12px] border px-3 py-2.5 text-left transition-colors",
+                    "flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
                     active ? "border-line bg-surface-2" : "border-transparent hover:bg-surface-2/70",
                   )}
                 >
                   <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", DOT[p.state])} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
-                      <span className="truncate text-[14px] font-semibold">{p.label}</span>
-                      <span className="shrink-0 text-[12.5px] text-ink-2 tnum">
+                      <span className="truncate text-sm font-semibold">{p.label}</span>
+                      <span className="shrink-0 text-xs text-ink-2 tnum">
                         {p.state === "moving" ? `${Math.round(p.speed)} km/h` : t(p.state === "stopped" ? "l.stopped" : "l.offline")}
                       </span>
                     </span>
-                    <span className="mt-0.5 block truncate text-[12.5px] text-ink-3">
+                    <span className="mt-0.5 block truncate text-xs text-ink-3">
                       {(p.vehicleId && drivers.get(p.vehicleId)) || (p.vehicleId ? "—" : t("l.unassigned"))}
                     </span>
-                    <span className="mt-1 flex items-center justify-between gap-2 text-[12px] text-ink-3">
+                    <span className="mt-1 flex items-center justify-between gap-2 text-xs text-ink-3">
                       <span className="flex min-w-0 items-center gap-1 truncate">
                         <Navigation size={11} className="shrink-0" />
                         <span className="truncate">{p.place ?? `${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}`}</span>
@@ -129,15 +129,15 @@ export function LiveView() {
                   </span>
                 </button>
                 {active && p.vehicleId && (
-                  <Link href={`/vehicles/${p.vehicleId}`} className="mx-3 mb-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-accent hover:underline">
-                    {t("c.open")} <ArrowUpRight size={13} />
+                  <Link href={`/vehicles/${p.vehicleId}`} className="mx-3 mb-2 inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline">
+                    {t("c.open")} <ArrowUpRight />
                   </Link>
                 )}
               </li>
             );
           })}
         </ul>
-        <div className="flex items-center justify-between gap-2 border-t border-line px-4 py-2.5 text-[12px] text-ink-3">
+        <div className="flex items-center justify-between gap-2 border-t border-line px-4 py-2.5 text-xs text-ink-3">
           <span className="inline-flex items-center gap-1.5">
             <RefreshCw size={12} />
             {data ? `${t("l.updated")} ${relTime(data.fetchedAt, locale)}` : "…"}
@@ -148,15 +148,15 @@ export function LiveView() {
 
       <div className="order-1 flex flex-col gap-3 lg:order-2">
         {data?.source === "simulation" && (
-          <div className="flex items-start gap-2.5 rounded-[12px] border border-[#cfe0fb] bg-accent-soft px-3.5 py-2.5 text-[13px] text-accent-ink">
-            <Info size={16} className="mt-px shrink-0" />
+          <div className="flex items-start gap-2.5 rounded-lg border border-accent-line bg-accent-soft px-3.5 py-2.5 text-sm text-accent-ink">
+            <Info className="mt-px shrink-0" />
             <span>
               {t("l.simulationHint")}
               {data.error ? ` (${data.error})` : ""}
             </span>
           </div>
         )}
-        <div className="isolate h-[52vh] overflow-hidden rounded-2xl border border-line bg-surface shadow-xs lg:h-[calc(100dvh-190px)] lg:flex-1">
+        <div className="isolate h-[52vh] overflow-hidden rounded-xl border border-line bg-surface shadow-xs lg:h-[calc(100dvh-236px)] lg:flex-1">
           <FleetMap points={points} selected={selected} onSelect={setSelected} />
         </div>
       </div>
@@ -169,9 +169,9 @@ export function LiveMini() {
   const { points } = useLivePositions(15000);
   const moving = points.filter((p) => p.state === "moving").length;
   return (
-    <div className="relative isolate h-full min-h-[280px] overflow-hidden rounded-[13px]">
+    <div className="relative isolate h-full min-h-[280px] overflow-hidden rounded-lg">
       <FleetMap points={points} selected={null} interactive={false} />
-      <div className="pointer-events-none absolute top-3 left-3 z-[500] inline-flex items-center gap-2 rounded-[9px] border border-line bg-surface/95 px-2.5 py-1.5 text-[12.5px] font-medium shadow-xs">
+      <div className="pointer-events-none absolute top-3 left-3 z-[500] inline-flex items-center gap-2 rounded-md border border-line bg-surface/95 px-2.5 py-1.5 text-xs font-medium shadow-xs">
         <span className="relative flex size-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-good opacity-60" />
           <span className="relative inline-flex size-2 rounded-full bg-good" />

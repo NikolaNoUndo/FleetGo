@@ -7,14 +7,16 @@ import { deleteRecord } from "@/app/actions";
 import { RecordForm } from "./record-form";
 import { usePrefs } from "./prefs";
 import { Button } from "./ui/primitives";
-import { Modal, Segmented } from "./ui/client";
+import { Modal, UnderlineTabs } from "./ui/client";
 import { RESOURCES, type Refs, type ResourceKey } from "@/lib/resources";
 
 export function DetailTabs({ tabs }: { tabs: { key: string; label: string; count?: number; content: ReactNode }[] }) {
   const [tab, setTab] = useState(tabs[0]?.key);
   return (
-    <div>
-      <Segmented className="mb-3" value={tab} onChange={setTab} items={tabs.map((t) => ({ value: t.key, label: t.label, count: t.count }))} />
+    <div className="min-w-0">
+      <div className="mb-4">
+        <UnderlineTabs value={tab} onChange={setTab} items={tabs.map((t) => ({ value: t.key, label: t.label, count: t.count }))} />
+      </div>
       {tabs.map((t) => (
         <div key={t.key} hidden={t.key !== tab}>
           {t.content}
@@ -34,18 +36,18 @@ export function RecordActions({ resource, record, refs, listHref }: { resource: 
   return (
     <>
       <Button onClick={() => setDel(true)} variant="ghost" size="md" aria-label={t("c.delete")}>
-        <Trash2 size={16} />
+        <Trash2 />
       </Button>
       <Button onClick={() => setEdit(true)} variant="secondary">
-        <Pencil size={15} />
+        <Pencil />
         {t("c.edit")}
       </Button>
       <Modal open={edit} onClose={() => setEdit(false)} title={`${t("c.edit")} ${noun}`}>
         {edit && <RecordForm resource={resource} record={record} refs={refs} onDone={() => setEdit(false)} onCancel={() => setEdit(false)} />}
       </Modal>
       <Modal open={del} onClose={() => setDel(false)} title={`${t("c.delete")} ${noun}`}>
-        <p className="px-5 py-5 text-[14px] leading-relaxed text-ink-2">{t("c.confirmDelete")}</p>
-        <div className="flex justify-end gap-2 border-t border-line bg-surface-2/60 px-5 py-3.5">
+        <p className="px-4 py-4 text-sm leading-relaxed text-ink-2">{t("c.confirmDelete")}</p>
+        <div className="flex justify-end gap-2 border-t border-line bg-surface-2/60 px-4 py-3">
           <Button onClick={() => setDel(false)}>{t("c.cancel")}</Button>
           <Button
             variant="danger"
@@ -56,7 +58,7 @@ export function RecordActions({ resource, record, refs, listHref }: { resource: 
               router.push(listHref);
             }}
           >
-            <Trash2 size={15} />
+            <Trash2 />
             {t("c.delete")}
           </Button>
         </div>

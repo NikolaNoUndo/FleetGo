@@ -171,7 +171,7 @@ async function main() {
   }
   await db.insert(schema.documents).values(docs);
 
-  // Fuel: realistic full-tank refuels every few days for active vehicles (7 months back)
+  // Fuel: realistic full-tank refuels every few days for active vehicles (12 months back)
   const fuel: (typeof schema.fuelEntries.$inferInsert)[] = [];
   const stations: [string, string, string][] = [
     ["NIS Petrol", "RS", "RSD"], ["OMV", "RS", "RSD"], ["MOL", "HU", "EUR"], ["OMV", "AT", "EUR"], ["Shell", "DE", "EUR"],
@@ -180,8 +180,8 @@ async function main() {
   for (const [i, v] of vehicles.entries()) {
     if (v.status === "inactive") continue;
     const cons = v.type === "van" ? 10 : v.type === "truck" ? 22 : 27 + rnd() * 6; // l/100km
-    let odo = (v.odometerKm ?? 400000) - int(60000, 80000);
-    let day = -210 + int(0, 3);
+    let odo = (v.odometerKm ?? 400000) - int(115000, 135000);
+    let day = -372 + int(0, 3);
     while (day < 0) {
       const liters = v.type === "van" ? round2(55 + rnd() * 20) : round2(380 + rnd() * 260);
       odo += Math.round((liters / cons) * 100 * (0.95 + rnd() * 0.1));
@@ -210,7 +210,7 @@ async function main() {
     electrical: ["Dijagnostika i popravka instalacije", "Zamena akumulatora"],
     bodywork: ["Popravka branika i farova", "Popravka cerade"],
   };
-  for (let k = 0; k < 46; k++) {
+  for (let k = 0; k < 78; k++) {
     const onTrailer = rnd() < 0.25;
     const v = pick(vehicles.filter((x) => x.status !== "inactive"));
     const t = pick(trailers);
@@ -219,7 +219,7 @@ async function main() {
     const amountRsd = kind === "regular" ? int(35000, 120000) : kind === "repair" ? int(40000, 380000) : int(18000, 160000);
     svc.push({
       companyId, vehicleId: onTrailer ? null : v.id, trailerId: onTrailer ? t.id : null,
-      date: iso(addDays(-int(1, 205))), kind: onTrailer && kind === "electrical" ? "bodywork" : kind,
+      date: iso(addDays(-int(1, 360))), kind: onTrailer && kind === "electrical" ? "bodywork" : kind,
       description: pick(serviceTexts[kind]), odometerKm: onTrailer ? null : (v.odometerKm ?? 0) - int(1000, 60000),
       workshop: pick(workshops), invoiceNo: `${int(100, 999)}/${today.getFullYear()}`,
       amount: eur ? round2(amountRsd / 117.2) : amountRsd, currency: eur ? "EUR" : "RSD", paid: rnd() > 0.15,
@@ -247,14 +247,14 @@ async function main() {
     ["Cerada (popravka)", "—", 280, "EUR", "Cerade Jovanović"],
   ];
   const parts: (typeof schema.parts.$inferInsert)[] = [];
-  for (let k = 0; k < 52; k++) {
+  for (let k = 0; k < 88; k++) {
     const [name, partNumber, price, currency, supplier] = pick(partDefs);
     const qty = name.startsWith("Guma") ? pick([2, 2, 4]) : name.startsWith("Spanjer") ? 10 : name.startsWith("Motorno") ? pick([1, 2, 3]) : 1;
     const forTrailer = name.startsWith("Cerada") || (name.startsWith("Guma 385") && rnd() < 0.7) || name.startsWith("Spanjer");
     parts.push({
       companyId, name, partNumber, quantity: qty, supplier,
       vehicleId: forTrailer ? null : pick(vehicles).id, trailerId: forTrailer ? pick(trailers).id : null,
-      date: iso(addDays(-int(1, 205))), invoiceNo: `R-${int(1000, 9999)}`,
+      date: iso(addDays(-int(1, 360))), invoiceNo: `R-${int(1000, 9999)}`,
       amount: round2(price * qty), currency, paid: rnd() > 0.12,
     });
   }
@@ -262,7 +262,7 @@ async function main() {
 
   // Driver payments: salary (bank, RSD), per diems (cash, EUR), advances, trip expenses
   const pays: (typeof schema.driverPayments.$inferInsert)[] = [];
-  for (let m = 6; m >= 0; m--) {
+  for (let m = 11; m >= 0; m--) {
     const monthStart = new Date(today.getFullYear(), today.getMonth() - m, 1);
     for (const d of drivers) {
       const dayOf = (n: number) => {

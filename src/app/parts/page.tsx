@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui/primitives";
+import { SectionTabs } from "@/components/topbar";
 import { CostStats } from "@/components/cost-stats";
 import { PartsTable } from "@/components/tables/records";
 import { getT } from "@/lib/prefs";
@@ -11,7 +12,7 @@ export default async function PartsPage() {
   const [t, rows, { refs, names }] = await Promise.all([getT(), listParts(), getRefs()]);
   return (
     <>
-      <PageHeader title={t("p.parts.title")} sub={t("p.parts.sub")} />
+      <PageHeader title={t("p.parts.title")} sub={t("p.parts.sub")} tabs={<SectionTabs group="costs" />} />
       <CostStats rows={rows} />
       <PartsTable rows={rows} refs={refs} names={names} />
     </>

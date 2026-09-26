@@ -7,7 +7,7 @@ import type { Position } from "@/lib/telematics/types";
 
 export type MapPoint = Position & { label: string };
 
-const COLORS = { moving: "#16a34a", stopped: "#e19a06", offline: "#9ca3af" } as const;
+const COLORS = { moving: "#16a34a", stopped: "#3b82f6", offline: "#9ca3af" } as const;
 
 function icon(p: MapPoint, selected: boolean) {
   const c = COLORS[p.state];
@@ -17,7 +17,7 @@ function icon(p: MapPoint, selected: boolean) {
       : `<span style="width:8px;height:8px;border-radius:99px;background:${c};display:inline-block"></span>`;
   const html = `<div style="display:inline-flex;align-items:center;gap:6px;transform:translate(-50%,-50%);white-space:nowrap;
     background:${selected ? "#111" : "#fff"};color:${selected ? "#fff" : "#111"};border:1px solid ${selected ? "#111" : "#e2e2e2"};
-    box-shadow:0 2px 8px rgba(0,0,0,.12);border-radius:9px;padding:3px 8px 3px 6px;font:600 11.5px/1.2 var(--font-sans);letter-spacing:-.01em">
+    box-shadow:0 2px 8px rgba(0,0,0,.12);border-radius:9px;padding:3px 8px 3px 6px;font:600 12px/1.2 var(--font-sans);letter-spacing:-.01em">
     ${arrow}<span>${p.label.replace(/</g, "&lt;")}</span></div>`;
   return L.divIcon({ html, className: "fg-marker", iconSize: [0, 0] });
 }

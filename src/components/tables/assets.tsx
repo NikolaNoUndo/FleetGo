@@ -35,9 +35,9 @@ function NextDocCell({ doc, kind }: { doc: NextDoc; kind: "vehicle" | "trailer" 
   const { opt } = usePrefs();
   if (!doc) return <span className="text-ink-4">—</span>;
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className="flex items-center gap-2">
       <ExpiryBadge date={doc.expiresAt} compact />
-      <span className="text-[12px] text-ink-3">{opt(DOC_TYPES[kind], doc.docType)}</span>
+      <span className="text-xs text-ink-3">{opt(DOC_TYPES[kind], doc.docType)}</span>
     </div>
   );
 }

@@ -32,9 +32,9 @@ export default async function SettingsPage() {
           title={t("s.wialon")}
           action={<Badge tone={mode === "wialon" ? "good" : "neutral"}>{mode === "wialon" ? t("s.wialonOn") : t("s.wialonOff")}</Badge>}
         >
-          <div className="space-y-4 px-5 py-5">
-            <p className="text-[14px] leading-relaxed text-ink-2">{t("s.wialonHow")}</p>
-            <pre className="overflow-x-auto rounded-[10px] border border-line bg-surface-2 px-4 py-3 font-mono text-[12.5px] text-ink-2">
+          <div className="space-y-4 px-4 py-4">
+            <p className="text-sm leading-relaxed text-ink-2">{t("s.wialonHow")}</p>
+            <pre className="overflow-x-auto rounded-lg border border-line bg-surface-2 px-4 py-3 font-mono text-xs text-ink-2">
               {`WIALON_TOKEN=tvoj_token\n# opciono, za Wialon Local:\nWIALON_HOST=https://hst-api.wialon.com`}
             </pre>
             <TelematicsTest />
@@ -42,7 +42,7 @@ export default async function SettingsPage() {
         </Shell>
 
         <Shell icon={<KeyRound />} title={t("s.access")}>
-          <p className="px-5 py-5 text-[14px] leading-relaxed text-ink-2">{t("s.accessHint")}</p>
+          <p className="px-4 py-4 text-sm leading-relaxed text-ink-2">{t("s.accessHint")}</p>
         </Shell>
       </div>
     </>

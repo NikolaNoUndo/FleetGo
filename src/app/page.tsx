@@ -1,29 +1,24 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowUpRight, BarChart3, CalendarClock, Container, Droplets, Map as MapIcon, MonitorSmartphone, Receipt, Truck, Users, XCircle } from "lucide-react";
-import { PageHeader, Progress, Shell, cn } from "@/components/ui/primitives";
+import { eq } from "drizzle-orm";
+import { ArrowUpRight, Map as MapIcon } from "lucide-react";
+import { Dot, PageHeader, Shell } from "@/components/ui/primitives";
 import { ExpiryBadge } from "@/components/ui/client";
-import { Stat, StatRow } from "@/components/stat";
+import { KpiCard } from "@/components/stat";
 import { CostChart, type MonthCosts } from "@/components/charts/cost-chart";
+import { Distribution, StatusColumns } from "@/components/distribution";
+import { HBars } from "@/components/hbars";
 import { LiveMini } from "@/components/map/live-view";
 import { getPrefs, getT } from "@/lib/prefs";
-import {
-  consumptionByVehicle,
-  documentsWithOwner,
-  getAlertCounts,
-  listEmployees,
-  listFuel,
-  listParts,
-  listPayments,
-  listServices,
-  listTrailers,
-  listVehicles,
-} from "@/lib/queries";
+import { consumptionByVehicle, documentsWithOwner, listEmployees, listFuel, listParts, listPayments, listServices, listTrailers, listVehicles } from "@/lib/queries";
 import { getMoney, inMonth, monthBounds, pctDelta } from "@/lib/money-server";
-import { DOC_TYPES, type EntityType, optLabel } from "@/lib/catalog";
-import { daysUntil, fmtNum } from "@/lib/format";
+import { DOC_TYPES, ENTITY_TYPES, type EntityType, optLabel } from "@/lib/catalog";
+import { daysUntil, expiryState, fmtDate, fmtNum } from "@/lib/format";
+import { getPositions } from "@/lib/telematics";
+import { db, schema } from "@/db";
+import { getCompanyId } from "@/lib/tenant";
 
 export default async function OverviewPage() {
-  const [t, { locale }, m, vehicles, trailers, employees, fuel, services, parts, payments, docs, alerts] = await Promise.all([
+  const [t, { locale }, m, vehicles, trailers, employees, fuel, services, parts, payments, docs, companyId] = await Promise.all([
     getT(),
     getPrefs(),
     getMoney(),
@@ -35,45 +30,53 @@ export default async function OverviewPage() {
     listParts(),
     listPayments(),
     documentsWithOwner(),
-    getAlertCounts(),
+    getCompanyId(),
   ]);
+  const sr = locale === "sr";
 
-  // Monthly costs, last 6 months, in display currency
-  const months: MonthCosts[] = [-5, -4, -3, -2, -1, 0].map((off) => {
+  // ---- monthly costs (12 months, display currency)
+  const months: MonthCosts[] = Array.from({ length: 12 }, (_, i) => i - 11).map((off) => {
     const b = monthBounds(off);
     const inB = (r: { date: string }) => r.date >= b.from && r.date <= b.to;
-    return {
-      key: b.key,
-      fuel: m.sum(fuel.filter(inB)),
-      services: m.sum(services.filter(inB)),
-      parts: m.sum(parts.filter(inB)),
-      payments: m.sum(payments.filter(inB)),
-    };
+    return { key: b.key, fuel: m.sum(fuel.filter(inB)), services: m.sum(services.filter(inB)), parts: m.sum(parts.filter(inB)), payments: m.sum(payments.filter(inB)) };
   });
   const total = (x: MonthCosts) => x.fuel + x.services + x.parts + x.payments;
-  const thisMonth = total(months[5]);
-  // compare like with like: last month up to the same day of month
-  const dayOfMonth = new Date().getDate();
-  const lastSameDay = (() => {
-    const b = monthBounds(-1);
-    const cutoff = `${b.key}-${String(dayOfMonth).padStart(2, "0")}`;
-    const f = (r: { date: string }) => r.date >= b.from && r.date <= cutoff;
-    return m.sum(fuel.filter(f)) + m.sum(services.filter(f)) + m.sum(parts.filter(f)) + m.sum(payments.filter(f));
-  })();
-  const delta = pctDelta(thisMonth, lastSameDay);
+  const day = new Date().getDate();
+  const b1 = monthBounds(-1);
+  const cutoff = `${b1.key}-${String(day).padStart(2, "0")}`;
+  const sameDays = (rows: { date: string; amount: number; currency: string }[]) => m.sum(rows.filter((r) => r.date >= b1.from && r.date <= cutoff));
+  const thisMonth = total(months[11]);
+  const costDelta = pctDelta(thisMonth, sameDays(fuel) + sameDays(services) + sameDays(parts) + sameDays(payments));
 
-  const activeVehicles = vehicles.filter((v) => v.status === "active").length;
-  const drivers = employees.filter((e) => e.role === "driver");
-  const byType = (type: string) => vehicles.filter((v) => v.type === type).length;
+  const litres = (off: number) => fuel.filter((f) => inMonth(f.date, off)).reduce((s, f) => s + f.liters, 0);
+  const litresLastSame = fuel.filter((f) => f.date >= b1.from && f.date <= cutoff).reduce((s, f) => s + f.liters, 0);
+  const litresDelta = pctDelta(litres(0), litresLastSame);
 
-  const upcoming = docs
-    .filter((d) => {
-      const n = daysUntil(d.expiresAt);
-      return n !== null && n <= m.warnDays;
-    })
-    .slice(0, 7);
+  // ---- documents
+  const states = docs.map((d) => expiryState(d.expiresAt, m.warnDays));
+  const nExpired = states.filter((s) => s === "expired").length;
+  const nSoon = states.filter((s) => s === "soon").length;
+  const nOk = states.filter((s) => s === "ok").length;
+  const upcoming = docs.filter((d) => {
+    const n = daysUntil(d.expiresAt);
+    return n !== null && n <= m.warnDays;
+  });
 
-  // Cost per vehicle this month (fuel + services + parts)
+  // ---- fleet status (live positions + asset status)
+  const tracked = await db
+    .select({ id: schema.vehicles.id, plate: schema.vehicles.plate, wialonUnitId: schema.vehicles.wialonUnitId, status: schema.vehicles.status })
+    .from(schema.vehicles)
+    .where(eq(schema.vehicles.companyId, companyId));
+  const live = await getPositions(tracked.map((v) => ({ ...v, driverName: null })));
+  const stateOf = (id: string) => live.positions.find((p) => p.vehicleId === id)?.state ?? "offline";
+  const active = vehicles.filter((v) => v.status === "active");
+  const moving = active.filter((v) => stateOf(v.id) === "moving").length;
+  const stopped = active.filter((v) => stateOf(v.id) === "stopped").length;
+  const offline = active.length - moving - stopped;
+  const inService = vehicles.filter((v) => v.status === "in_service").length;
+  const inactive = vehicles.filter((v) => v.status === "inactive").length;
+
+  // ---- per vehicle
   const perVehicle = vehicles
     .map((v) => {
       const f = (r: { vehicleId: string | null; date: string }) => r.vehicleId === v.id && inMonth(r.date, 0);
@@ -82,183 +85,170 @@ export default async function OverviewPage() {
     .filter((x) => x.sum > 0)
     .sort((a, b) => b.sum - a.sum)
     .slice(0, 6);
-  const maxPer = Math.max(...perVehicle.map((x) => x.sum), 1);
-
   const cons = consumptionByVehicle(fuel);
   const consRows = vehicles
     .filter((v) => cons[v.id] && (v.type === "tractor" || v.type === "truck"))
     .map((v) => ({ v, l100: cons[v.id].l100 }))
     .sort((a, b) => b.l100 - a.l100)
     .slice(0, 6);
-  const fleetAvg = consRows.length ? consRows.reduce((s, x) => s + x.l100, 0) / consRows.length : 0;
 
-  const docHref = (d: { entityType: string; entityId: string }) =>
-    `/${d.entityType === "vehicle" ? "vehicles" : d.entityType === "trailer" ? "trailers" : "employees"}/${d.entityId}`;
-
-  const fleetRows = [
-    { href: "/vehicles", icon: Truck, label: locale === "sr" ? "Tegljači" : "Tractor units", value: byType("tractor"), accent: true },
-    { href: "/vehicles", icon: Truck, label: locale === "sr" ? "Kamioni i kombiji" : "Trucks & vans", value: byType("truck") + byType("van") + byType("car") },
-    { href: "/trailers", icon: Container, label: t("d.trailers"), value: trailers.length },
-    { href: "/employees", icon: Users, label: t("d.drivers"), value: drivers.length },
-  ];
+  const docHref = (d: { entityType: string; entityId: string }) => `/${d.entityType === "vehicle" ? "vehicles" : d.entityType === "trailer" ? "trailers" : "employees"}/${d.entityId}`;
+  const viewAll = (href: string) => (
+    <Link href={href} className="inline-flex items-center gap-1 text-xs font-medium text-accent-ink hover:underline">
+      {t("c.viewAll")} <ArrowUpRight size={12} />
+    </Link>
+  );
 
   return (
     <>
-      <PageHeader title={t("p.overview.title")} sub={t("p.overview.sub")} />
+      <PageHeader
+        title={t("p.overview.title")}
+        sub={
+          <span className="inline-flex flex-wrap items-center gap-1.5">
+            {t("p.overview.sub")}
+            <span className="text-ink-4">·</span>
+            <span className="inline-flex items-center gap-1.5">
+              <Dot tone={live.source === "wialon" ? "good" : "accent"} />
+              {live.source === "wialon" ? "Wialon" : t("l.source.simulation")}
+            </span>
+          </span>
+        }
+      />
 
-      <StatRow>
-        <Stat icon={<Truck />} label={t("d.activeVehicles")} value={`${activeVehicles}/${vehicles.length}`} sub={`${trailers.filter((x) => x.status === "active").length} ${t("d.trailers").toLowerCase()}`} />
-        <Stat
-          icon={<XCircle />}
-          label={t("d.expired")}
-          value={alerts.expired}
-          delta={alerts.expired ? (locale === "sr" ? "Hitno" : "Urgent") : undefined}
-          deltaTone="bad"
-          sub={
-            <Link href="/documents?filter=attention" className="hover:text-ink">
-              {t("c.viewAll")} →
-            </Link>
-          }
-        />
-        <Stat icon={<AlertTriangle />} label={t("d.soon", { n: m.warnDays })} value={alerts.soon} />
-        <Stat
-          icon={<Receipt />}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
           label={t("d.costsMonth")}
           value={m.fmt(thisMonth)}
-          delta={delta?.text}
-          deltaTone="neutral"
-          sub={delta ? `${t("d.vsLast")} (${dayOfMonth}.)` : undefined}
+          trend={costDelta}
+          trendUpIsGood={false}
+          spark={months.slice(-6).map(total)}
+          tone="accent"
+          sub={sr ? `vs. 1–${day}. prošlog meseca` : `vs. days 1–${day} last month`}
         />
-      </StatRow>
+        <KpiCard
+          label={sr ? "Gorivo ovog meseca" : "Fuel this month"}
+          value={`${fmtNum(litres(0), locale)} l`}
+          trend={litresDelta}
+          trendUpIsGood={false}
+          spark={[-5, -4, -3, -2, -1, 0].map(litres)}
+          sub={m.fmt(m.sum(fuel.filter((f) => inMonth(f.date, 0))))}
+          href="/fuel"
+        />
+        <KpiCard label={t("d.expired")} value={nExpired} sub={sr ? `${nSoon} ističe u narednih ${m.warnDays} dana` : `${nSoon} expiring in ${m.warnDays} days`} href="/documents?filter=attention" />
+        <KpiCard
+          label={t("d.activeVehicles")}
+          value={`${active.length}/${vehicles.length}`}
+          sub={`${moving} ${t("d.onRoad")} · ${trailers.filter((x) => x.status === "active").length} ${t("d.trailers").toLowerCase()} · ${employees.filter((e) => e.role === "driver").length} ${t("d.drivers").toLowerCase()}`}
+          href="/vehicles"
+        />
+      </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <Shell icon={<BarChart3 />} title={t("d.costsByMonth")} action={<span className="text-[12.5px] text-ink-3">{t("d.last6")} · {m.currency}</span>}>
-          <CostChart data={months} />
+      <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <Shell title={sr ? "Stanje flote" : "Fleet status"} action={viewAll("/live")} innerClassName="px-4 pt-3 pb-5">
+          <StatusColumns
+            segments={[
+              { key: "moving", label: t("l.moving"), count: moving, color: "#10b981" },
+              { key: "stopped", label: t("l.stopped"), count: stopped, color: "#3b82f6" },
+              { key: "offline", label: t("l.offline"), count: offline, color: "#9ca3af" },
+              { key: "service", label: sr ? "Na servisu" : "In service", count: inService, color: "#f59e0b" },
+              { key: "inactive", label: sr ? "Neaktivno" : "Inactive", count: inactive, color: "#ef4444" },
+            ]}
+          />
         </Shell>
-
-        <Shell icon={<MonitorSmartphone />} title={t("d.fleet")}>
-          <ul className="px-2 py-2">
-            {fleetRows.map((r) => {
-              const Icon = r.icon;
-              return (
-                <li key={r.label}>
-                  <Link
-                    href={r.href}
-                    className={cn(
-                      "flex h-12 items-center gap-3 rounded-[10px] px-3 text-[15px] transition-colors hover:bg-surface-2",
-                      r.accent ? "text-accent" : "text-ink-2",
-                    )}
-                  >
-                    <Icon size={20} strokeWidth={1.8} />
-                    <span className="flex-1 font-medium">{r.label}</span>
-                    <span className="text-[16px] font-medium tnum">{r.value}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="border-t border-line px-5 py-3.5">
-            <div className="mb-2 flex items-baseline justify-between text-[13px]">
-              <span className="text-ink-3">
-                <span className="font-semibold text-ink tnum">{activeVehicles}</span> {locale === "sr" ? "aktivno" : "active"} /{" "}
-                <span className="font-semibold text-ink tnum">{vehicles.length}</span> {locale === "sr" ? "vozila" : "vehicles"}
-              </span>
-            </div>
-            <Progress value={activeVehicles / Math.max(vehicles.length, 1)} />
-          </div>
+        <Shell title={sr ? "Stanje dokumenata" : "Document status"} action={viewAll("/documents")} innerClassName="px-4 pt-3 pb-3">
+          <Distribution
+            labels={{ category: "Status", count: sr ? "Broj" : "Count", total: sr ? "Ukupno" : "Total" }}
+            segments={[
+              { key: "ok", label: t("e.ok"), count: nOk, color: "var(--good)", href: "/documents" },
+              { key: "soon", label: t("e.soon"), count: nSoon, color: "var(--warn)", href: "/documents?filter=attention" },
+              { key: "expired", label: t("e.expired"), count: nExpired, color: "var(--bad)", href: "/documents?filter=attention" },
+            ]}
+          />
         </Shell>
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <Shell className="mt-3" tabbed title={t("d.costsByMonth")} action={<span>{m.currency}</span>}>
+        <CostChart data={months} />
+      </Shell>
+
+      <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <Shell
-          icon={<CalendarClock />}
           title={t("d.upcoming")}
           action={
-            <Link href="/documents?filter=attention" className="inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline">
-              {t("c.viewAll")} <ArrowUpRight size={14} />
-            </Link>
+            <span className="inline-flex items-center gap-3">
+              <span className="hidden items-center gap-1.5 sm:inline-flex">
+                <Dot tone="bad" /> {t("e.expired")}
+              </span>
+              <span className="hidden items-center gap-1.5 sm:inline-flex">
+                <Dot tone="warn" /> {t("e.soon")}
+              </span>
+            </span>
           }
         >
           {upcoming.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-ink-3">{t("d.upcomingEmpty")}</p>
+            <p className="px-4 py-10 text-center text-sm text-ink-3">{t("d.upcomingEmpty")}</p>
           ) : (
-            <ul className="divide-y divide-line/70">
-              {upcoming.map((d) => (
-                <li key={d.id}>
-                  <Link href={docHref(d)} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-2/60">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-medium">{optLabel(DOC_TYPES[d.entityType as EntityType] ?? [], d.docType, locale)}</span>
-                      <span className="block truncate text-[12.5px] text-ink-3">{d.ownerName}</span>
-                    </span>
-                    <ExpiryBadge date={d.expiresAt} compact />
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-xs text-ink-3">
+                      <th className="h-8 pl-4 text-left font-medium">{t("f.docType")}</th>
+                      <th className="px-3 text-left font-medium">{t("f.entityType")}</th>
+                      <th className="hidden px-3 text-left font-medium sm:table-cell">{t("f.expiresAt")}</th>
+                      <th className="pr-4 text-right font-medium">{t("f.status")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {upcoming.slice(0, 7).map((d) => (
+                      <tr key={d.id} className="border-b border-line/60 last:border-0 hover:bg-surface-2">
+                        <td className="h-10 pl-4">
+                          <Link href={docHref(d)} className="flex items-center gap-2.5 font-medium whitespace-nowrap text-ink">
+                            <Dot tone={expiryState(d.expiresAt, m.warnDays) === "expired" ? "bad" : "warn"} />
+                            {optLabel(DOC_TYPES[d.entityType as EntityType] ?? [], d.docType, locale)}
+                          </Link>
+                        </td>
+                        <td className="px-3 whitespace-nowrap text-ink-2">
+                          {d.ownerName} <span className="text-ink-4">· {optLabel(ENTITY_TYPES, d.entityType, locale).toLowerCase()}</span>
+                        </td>
+                        <td className="hidden px-3 whitespace-nowrap text-ink-2 tnum sm:table-cell">{fmtDate(d.expiresAt, locale)}</td>
+                        <td className="pr-4 text-right">
+                          <ExpiryBadge date={d.expiresAt} compact />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-between border-t border-line px-4 py-2.5 text-xs text-ink-3">
+                <span className="tnum">{sr ? `Prikazano ${Math.min(7, upcoming.length)} od ${upcoming.length}` : `Showing ${Math.min(7, upcoming.length)} of ${upcoming.length}`}</span>
+                {viewAll("/documents?filter=attention")}
+              </div>
+            </>
           )}
         </Shell>
 
-        <Shell
-          icon={<MapIcon />}
-          title={t("nav.live")}
-          action={
-            <Link href="/live" className="inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline">
-              {t("c.open")} <ArrowUpRight size={14} />
-            </Link>
-          }
-          innerClassName="h-[360px] overflow-hidden"
-        >
+        <Shell icon={<MapIcon />} title={t("nav.live")} action={viewAll("/live")} innerClassName="min-h-[340px] p-1.5 pt-0">
           <LiveMini />
         </Shell>
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-2">
-        <Shell icon={<Receipt />} title={`${t("d.costsByVehicle")} · ${t("c.thisMonth").toLowerCase()}`}>
-          {perVehicle.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-ink-3">{t("c.empty")}</p>
+      <div className="mt-3 grid gap-3 xl:grid-cols-2">
+        <Shell title={`${t("d.costsByVehicle")} · ${t("c.thisMonth").toLowerCase()}`} action={<span>{sr ? "gorivo, servisi, delovi" : "fuel, services, parts"}</span>}>
+          {perVehicle.length ? (
+            <HBars rows={perVehicle.map(({ v, sum }) => ({ key: v.id, label: v.plate, sub: [v.brand, v.model].filter(Boolean).join(" "), value: sum, display: m.fmt(sum), href: `/vehicles/${v.id}` }))} />
           ) : (
-            <ul className="divide-y divide-line/70">
-              {perVehicle.map(({ v, sum }) => (
-                <li key={v.id}>
-                  <Link href={`/vehicles/${v.id}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-center gap-4 px-5 py-3.5 hover:bg-surface-2/60">
-                    <span className="min-w-0">
-                      <span className="block truncate text-[14.5px] font-medium">{v.plate}</span>
-                      <span className="block truncate text-[12.5px] text-ink-3">{[v.brand, v.model].filter(Boolean).join(" ")}</span>
-                    </span>
-                    <span className="flex flex-col items-end gap-1.5">
-                      <span className="text-[13.5px] font-semibold tnum">{m.fmt(sum)}</span>
-                      <Progress value={sum / maxPer} tone="accent" />
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <p className="px-4 py-10 text-center text-sm text-ink-3">{t("c.empty")}</p>
           )}
         </Shell>
-
-        <Shell icon={<Droplets />} title={t("d.topConsumption")} action={<span className="text-[12.5px] text-ink-3">{t("d.consumptionHint")}</span>}>
-          {consRows.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-ink-3">{t("c.empty")}</p>
+        <Shell title={t("d.topConsumption")} action={<span className="hidden sm:inline">{t("d.consumptionHint")}</span>}>
+          {consRows.length ? (
+            <HBars
+              hue="green"
+              rows={consRows.map(({ v, l100 }) => ({ key: v.id, label: v.plate, sub: [v.brand, v.model].filter(Boolean).join(" "), value: l100, display: `${fmtNum(l100, locale, 1)} l`, href: `/vehicles/${v.id}` }))}
+            />
           ) : (
-            <ul className="divide-y divide-line/70">
-              {consRows.map(({ v, l100 }) => {
-                const high = l100 > fleetAvg * 1.05;
-                return (
-                  <li key={v.id}>
-                    <Link href={`/vehicles/${v.id}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-center gap-4 px-5 py-3.5 hover:bg-surface-2/60">
-                      <span className="min-w-0">
-                        <span className="block truncate text-[14.5px] font-medium">{v.plate}</span>
-                        <span className="block truncate text-[12.5px] text-ink-3">{[v.brand, v.model].filter(Boolean).join(" ")}</span>
-                      </span>
-                      <span className="flex flex-col items-end gap-1.5">
-                        <span className={cn("text-[13.5px] font-semibold tnum", high && "text-warn")}>{fmtNum(l100, locale, 1)} l/100 km</span>
-                        <Progress value={l100 / 45} tone={high ? "warn" : "good"} />
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <p className="px-4 py-10 text-center text-sm text-ink-3">{t("c.empty")}</p>
           )}
         </Shell>
       </div>

@@ -37,7 +37,8 @@ export function fmtDate(d: string | Date | null | undefined, locale: Locale): st
 
 export function fmtMonth(ym: string, locale: Locale, short = true): string {
   const [y, m] = ym.split("-").map(Number);
-  return new Intl.DateTimeFormat(intl(locale), { month: short ? "short" : "long", year: short ? undefined : "numeric" }).format(new Date(y, m - 1, 1));
+  const s = new Intl.DateTimeFormat(intl(locale), { month: short ? "short" : "long", year: short ? undefined : "numeric" }).format(new Date(y, m - 1, 1)).replace(/\.$/, "");
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 export function todayISO(): string {

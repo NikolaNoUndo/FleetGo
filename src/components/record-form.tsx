@@ -123,7 +123,7 @@ export function RecordForm({
         break;
       case "bool":
         return (
-          <label key={f.name} className={cn("flex h-10 cursor-pointer items-center gap-2.5 self-end text-[14px] font-medium text-ink-2", f.span === 2 && "sm:col-span-2")}>
+          <label key={f.name} className={cn("flex h-10 cursor-pointer items-center gap-2.5 self-end text-sm font-medium text-ink-2", f.span === 2 && "sm:col-span-2")}>
             <input type="checkbox" checked={Boolean(val)} onChange={(e) => set(f.name, e.target.checked)} className="size-[18px] rounded accent-[var(--accent)]" />
             {t(f.label)}
           </label>
@@ -202,9 +202,9 @@ export function RecordForm({
 
   return (
     <form onSubmit={submit} noValidate>
-      <div className="grid max-h-[65vh] grid-cols-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">{fields.map(renderField)}</div>
-      <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-5 py-3.5">
-        <span className="text-[13px] text-bad">{message}</span>
+      <div className="grid max-h-[65vh] grid-cols-1 gap-4 overflow-y-auto px-4 py-4 sm:grid-cols-2">{fields.map(renderField)}</div>
+      <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-4 py-3">
+        <span className="text-sm text-bad">{message}</span>
         <div className="flex gap-2">
           <Button onClick={onCancel}>{t("c.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={pending}>
@@ -245,8 +245,8 @@ export function useCrud(resource: ResourceKey, refs: Refs, fixed?: Record<string
         )}
       </Modal>
       <Modal open={!!deleting} onClose={() => setDeleting(null)} title={`${t("c.delete")} ${titleNoun}`}>
-        <p className="px-5 py-5 text-[14px] leading-relaxed text-ink-2">{t("c.confirmDelete")}</p>
-        <div className="flex justify-end gap-2 border-t border-line bg-surface-2/60 px-5 py-3.5">
+        <p className="px-4 py-4 text-sm leading-relaxed text-ink-2">{t("c.confirmDelete")}</p>
+        <div className="flex justify-end gap-2 border-t border-line bg-surface-2/60 px-4 py-3">
           <Button onClick={() => setDeleting(null)}>{t("c.cancel")}</Button>
           <Button
             variant="danger"
@@ -259,7 +259,7 @@ export function useCrud(resource: ResourceKey, refs: Refs, fixed?: Record<string
               })
             }
           >
-            <Trash2 size={15} />
+            <Trash2 />
             {t("c.delete")}
           </Button>
         </div>

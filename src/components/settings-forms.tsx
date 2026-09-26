@@ -34,7 +34,7 @@ export function CompanyForm({ initial }: { initial: { name: string; pib: string;
         });
       }}
     >
-      <div className="grid gap-4 px-5 py-5 sm:grid-cols-2">
+      <div className="grid gap-4 px-4 py-4 sm:grid-cols-2">
         <FieldShell label={t("s.companyName")} error={err("name")} span={2} htmlFor="s-name">
           <TextInput id="s-name" value={v.name} onChange={set("name")} />
         </FieldShell>
@@ -50,12 +50,12 @@ export function CompanyForm({ initial }: { initial: { name: string; pib: string;
         <FieldShell label={t("s.warnDays")} error={err("warnDays")} htmlFor="s-warn">
           <TextInput id="s-warn" inputMode="numeric" className="tnum" value={v.warnDays} onChange={set("warnDays")} />
         </FieldShell>
-        <p className="text-[12.5px] leading-relaxed text-ink-3 sm:col-span-2">{t("s.rateHint")}</p>
+        <p className="text-xs leading-relaxed text-ink-3 sm:col-span-2">{t("s.rateHint")}</p>
       </div>
-      <div className="flex items-center justify-end gap-3 border-t border-line px-5 py-3.5">
+      <div className="flex items-center justify-end gap-3 border-t border-line px-4 py-3">
         {saved && (
-          <span className="inline-flex items-center gap-1.5 text-[13px] text-good">
-            <CheckCircle2 size={15} />
+          <span className="inline-flex items-center gap-1.5 text-sm text-good">
+            <CheckCircle2 />
             {t("s.saved")}
           </span>
         )}
@@ -74,11 +74,11 @@ export function TelematicsTest() {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Button onClick={() => start(async () => setRes(await testTelematics()))} disabled={pending}>
-        <PlugZap size={15} />
+        <PlugZap />
         {t("s.test")}
       </Button>
       {res && (
-        <span className="flex flex-wrap items-center gap-2 text-[13px] text-ink-2">
+        <span className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
           <Badge tone={res.source === "wialon" ? "good" : "neutral"}>{t(res.source === "wialon" ? "l.source.wialon" : "l.source.simulation")}</Badge>
           <span className="tnum">
             {res.units} {t("s.units").toLowerCase()} · {res.matched} {t("s.matched")}

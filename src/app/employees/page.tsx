@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui/primitives";
+import { SectionTabs } from "@/components/topbar";
 import { EmployeesTable } from "@/components/tables/assets";
 import { getT } from "@/lib/prefs";
 import { getRefs } from "@/lib/queries";
@@ -11,7 +12,7 @@ export default async function EmployeesPage() {
   const [t, rows, { refs }] = await Promise.all([getT(), employeeRows(), getRefs()]);
   return (
     <>
-      <PageHeader title={t("p.employees.title")} sub={t("p.employees.sub")} />
+      <PageHeader title={t("p.employees.title")} sub={t("p.employees.sub")} tabs={<SectionTabs group="fleet" />} />
       <EmployeesTable rows={rows} refs={refs} />
     </>
   );

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Info, ShieldCheck, Wallet } from "lucide-react";
 import { Kv, PageHeader, Shell } from "@/components/ui/primitives";
-import { Crumbs, DocsMeter } from "@/components/entity-parts";
+import { DocsMeter } from "@/components/entity-parts";
 import { DetailTabs, RecordActions } from "@/components/detail";
 import { EmployeeStatus } from "@/components/tables/common";
 import { DocumentsTable, FuelTable, PaymentsTable } from "@/components/tables/records";
@@ -43,15 +43,14 @@ export default async function EmployeePage(props: PageProps<"/employees/[id]">) 
   return (
     <>
       <PageHeader
-        crumbs={<Crumbs href="/employees" label={t("nav.employees")} current={name} />}
         title={name}
         sub={[optLabel(EMPLOYEE_ROLES, e.role, locale), e.phone].filter(Boolean).join(" · ")}
         actions={<RecordActions resource="employees" record={e} refs={refs} listHref="/employees" />}
       />
-      <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="flex flex-col gap-5">
+      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="flex flex-col gap-4">
           <Shell icon={<Info />} title={t("c.details")}>
-            <div className="divide-y divide-line/70 px-5 py-1.5">
+            <div className="divide-y divide-line/70 px-4 pb-1.5">
               <Kv label={t("f.status")}>
                 <EmployeeStatus status={e.status} />
               </Kv>
@@ -74,7 +73,7 @@ export default async function EmployeePage(props: PageProps<"/employees/[id]">) 
             <DocsMeter docs={docs} warnDays={m.warnDays} locale={locale} />
           </Shell>
           <Shell icon={<Wallet />} title={t("x.payments")}>
-            <div className="divide-y divide-line/70 px-5 py-1.5">
+            <div className="divide-y divide-line/70 px-4 pb-1.5">
               <Kv label={t("c.thisMonth")}>{m.fmt(m.sum(pays.filter((p) => inMonth(p.date, 0))))}</Kv>
               <Kv label={locale === "sr" ? "Prošli mesec" : "Last month"}>{m.fmt(m.sum(pays.filter((p) => inMonth(p.date, -1))))}</Kv>
               <Kv label={locale === "sr" ? "Ova godina" : "This year"}>{m.fmt(m.sum(pays.filter((p) => p.date.startsWith(String(new Date().getFullYear())))))}</Kv>

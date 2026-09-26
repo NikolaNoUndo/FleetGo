@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { usePrefs } from "../prefs";
-import { Badge, Button } from "../ui/primitives";
+import { Button, Dot, StatusDot } from "../ui/primitives";
 import { Select } from "../ui/client";
 import { ASSET_STATUS, EMPLOYEE_STATUS } from "@/lib/catalog";
 import { todayISO } from "@/lib/format";
@@ -44,7 +44,7 @@ export function PeriodSelect({ value, onChange }: { value: Period; onChange: (p:
       : { month: "This month", prev: "Last month", "3m": "Last 3 months", year: "This year", all: "All time" };
   return (
     <div className="w-full sm:w-44">
-      <Select value={value} onChange={(e) => onChange(e.target.value as Period)} className="h-9 text-[13.5px]">
+      <Select value={value} onChange={(e) => onChange(e.target.value as Period)}>
         {(Object.keys(L) as Period[]).map((k) => (
           <option key={k} value={k}>
             {L[k]}
@@ -58,8 +58,8 @@ export function PeriodSelect({ value, onChange }: { value: Period; onChange: (p:
 export function AddButton({ onClick }: { onClick: () => void }) {
   const { t } = usePrefs();
   return (
-    <Button variant="primary" size="md" onClick={onClick} className="h-9">
-      <Plus size={16} strokeWidth={2.2} />
+    <Button variant="dark" size="md" onClick={onClick}>
+      <Plus strokeWidth={2.2} />
       {t("c.add")}
     </Button>
   );
@@ -72,37 +72,28 @@ export function Amount({ amount, currency }: { amount: number | null; currency: 
 
 export function PaidBadge({ paid }: { paid: boolean }) {
   const { t } = usePrefs();
-  return paid ? <Badge tone="good">{t("c.paid")}</Badge> : <Badge tone="warn">{t("c.unpaid")}</Badge>;
+  return paid ? <StatusDot tone="good">{t("c.paid")}</StatusDot> : <StatusDot tone="warn">{t("c.unpaid")}</StatusDot>;
 }
 
 export function AssetStatus({ status }: { status: string }) {
   const { opt } = usePrefs();
-  const tone = status === "active" ? "good" : status === "in_service" ? "warn" : "neutral";
-  return (
-    <Badge tone={tone}>
-      <span className={`size-1.5 rounded-full ${tone === "good" ? "bg-good" : tone === "warn" ? "bg-warn" : "bg-ink-4"}`} />
-      {opt(ASSET_STATUS, status)}
-    </Badge>
-  );
+  return <StatusDot tone={status === "active" ? "good" : status === "in_service" ? "warn" : "neutral"}>{opt(ASSET_STATUS, status)}</StatusDot>;
 }
 
 export function EmployeeStatus({ status }: { status: string }) {
   const { opt } = usePrefs();
-  const tone = status === "active" ? "good" : status === "leave" ? "warn" : "neutral";
-  return (
-    <Badge tone={tone}>
-      <span className={`size-1.5 rounded-full ${tone === "good" ? "bg-good" : tone === "warn" ? "bg-warn" : "bg-ink-4"}`} />
-      {opt(EMPLOYEE_STATUS, status)}
-    </Badge>
-  );
+  return <StatusDot tone={status === "active" ? "good" : status === "leave" ? "warn" : "neutral"}>{opt(EMPLOYEE_STATUS, status)}</StatusDot>;
 }
 
 /** Two-line cell: strong primary text and a muted line under it. */
-export function Stack({ main, sub }: { main: React.ReactNode; sub?: React.ReactNode }) {
+export function Stack({ main, sub, dot }: { main: React.ReactNode; sub?: React.ReactNode; dot?: "good" | "warn" | "bad" | "neutral" | "accent" }) {
   return (
-    <div className="max-w-[300px] min-w-0 leading-tight">
-      <div className="truncate font-medium text-ink">{main}</div>
-      {sub && <div className="mt-0.5 truncate text-[12.5px] text-ink-3">{sub}</div>}
+    <div className="flex max-w-[300px] min-w-0 items-center gap-2.5">
+      {dot && <Dot tone={dot} />}
+      <div className="min-w-0">
+        <div className="truncate font-medium text-ink">{main}</div>
+        {sub && <div className="truncate text-xs text-ink-3">{sub}</div>}
+      </div>
     </div>
   );
 }
@@ -112,11 +103,11 @@ export function TotalRow({ colSpan, before, total, after = 0, extra }: { colSpan
   const { t, currency, locale } = usePrefs();
   const fmt = new Intl.NumberFormat(locale === "sr" ? "sr-Latn-RS" : "en-GB", { maximumFractionDigits: currency === "RSD" ? 0 : 2, minimumFractionDigits: currency === "RSD" ? 0 : 2 }).format(total);
   return (
-    <tr className="border-t border-line bg-surface-2/60">
-      <td colSpan={before ?? colSpan} className="h-12 pl-5 text-[13px] font-medium text-ink-3">
+    <tr className="border-t border-line bg-surface-2">
+      <td colSpan={before ?? colSpan} className="h-10 pl-4 text-xs font-medium text-ink-3">
         {t("c.total")} {extra}
       </td>
-      <td className="px-4 text-right text-[14px] font-semibold whitespace-nowrap tnum">{currency === "EUR" ? `€${fmt}` : `${fmt} RSD`}</td>
+      <td className="px-3 text-right font-semibold whitespace-nowrap tnum">{currency === "EUR" ? `€${fmt}` : `${fmt} RSD`}</td>
       {after > 0 && <td colSpan={after} />}
     </tr>
   );

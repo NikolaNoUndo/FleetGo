@@ -18,6 +18,7 @@ const sr = {
   "nav.settings": "Podešavanja",
   "nav.owner": "Vlasnik",
   "nav.menu": "Meni",
+  "q.new": "Novi unos",
 
   // common
   "c.add": "Dodaj",
@@ -264,6 +265,7 @@ const en: Dict = {
   "nav.settings": "Settings",
   "nav.owner": "Owner",
   "nav.menu": "Menu",
+  "q.new": "New entry",
 
   "c.add": "Add",
   "c.edit": "Edit",

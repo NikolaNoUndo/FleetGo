@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo } from "react";
+import { LucideProvider } from "lucide-react";
 import type { Currency, Locale, Option } from "@/lib/catalog";
 import { translate, type TKey } from "@/lib/i18n";
 import { fmtDate, fmtMoney, fmtNum, toCurrency } from "@/lib/format";
@@ -41,7 +42,14 @@ export function PrefsProvider({ value, children }: { value: Prefs; children: Rea
     }),
     [value, t, locale, currency, rate],
   );
-  return <PrefsCtx.Provider value={ctx}>{children}</PrefsCtx.Provider>;
+  return (
+    <PrefsCtx.Provider value={ctx}>
+      {/* lucide icons default to 14px across the app */}
+      <LucideProvider size={14} strokeWidth={1.75}>
+        {children}
+      </LucideProvider>
+    </PrefsCtx.Provider>
+  );
 }
 
 export function usePrefs() {

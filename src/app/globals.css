@@ -34,46 +34,69 @@
 }
 
 
+/*
+ * FleetGo design tokens
+ * Dark rail sidebar + cool lavender workspace with an indigo accent.
+ * Type scale: 12 / 13 / 20 px (Inter). Icons: lucide, 14 px.
+ */
 :root {
-  --bg: #fafafa;
+  --bg: #eef1f8;
+  --panel: #f8f9fd;
   --surface: #ffffff;
-  --surface-2: #f5f5f5;
-  --surface-3: #efefef;
-  --side: #f3f4f7;
-  --line: #e7e7e7;
-  --line-strong: #d9d9d9;
-  --ink: #111111;
-  --ink-2: #4d4d4d;
-  --ink-3: #8a8a8a;
-  --ink-4: #b3b3b3;
-  --accent: #2b7bf3;
-  --accent-soft: #eaf2fe;
-  --accent-ink: #1d63d1;
+  --surface-2: #f5f6fb;
+  --surface-3: #eceef6;
+  --line: #e2e5ef;
+  --line-strong: #d3d8e5;
+  --ink: #111427;
+  --ink-2: #474c61;
+  --ink-3: #7b8095;
+  --ink-4: #adb2c3;
 
-  --good: #16a34a;
-  --good-soft: #e9f8ee;
-  --warn: #c27803;
-  --warn-soft: #fff5e0;
-  --bad: #dc2626;
-  --bad-soft: #fdeceb;
+  --accent: #4540d6;
+  --accent-hover: #3833bd;
+  --accent-soft: #ededfd;
+  --accent-line: #d4d3fa;
+  --accent-ink: #3a35c2;
 
-  /* chart series (validated categorical order: blue, orange, aqua, yellow) */
-  --s1: #2a78d6;
+  --side: #0e1013;
+  --side-2: #181b1f;
+  --side-3: #262a2f;
+  --side-line: #23272c;
+  --side-ink: #eceef1;
+  --side-ink-2: #a3a8b0;
+  --side-ink-3: #6b7078;
+
+  --good: #10b981;
+  --good-ink: #047857;
+  --good-soft: #e8f8f1;
+  --good-line: #bfead7;
+  --warn: #f59e0b;
+  --warn-ink: #b45309;
+  --warn-soft: #fef5e4;
+  --warn-line: #f7dca6;
+  --bad: #ef4444;
+  --bad-ink: #b91c1c;
+  --bad-soft: #fdeded;
+  --bad-line: #f6c7c7;
+  --info: #3b82f6;
+
+  /* chart series – validated categorical order (indigo, orange, aqua, yellow) */
+  --s1: #4f46e5;
   --s2: #eb6834;
   --s3: #1baf7a;
   --s4: #eda100;
-  --s5: #4a3aa7;
 
-  --shadow-xs: 0 1px 0 rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-pop: 0 12px 32px -8px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-xs: 0 1px 2px rgba(17, 20, 39, 0.04);
+  --shadow-sm: 0 1px 2px rgba(17, 20, 39, 0.05), 0 1px 0 rgba(17, 20, 39, 0.02);
+  --shadow-pop: 0 16px 36px -10px rgba(17, 20, 39, 0.18), 0 2px 6px rgba(17, 20, 39, 0.06);
 }
 
 @theme inline {
   --color-bg: var(--bg);
+  --color-panel: var(--panel);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
-  --color-side: var(--side);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-ink: var(--ink);
@@ -81,44 +104,73 @@
   --color-ink-3: var(--ink-3);
   --color-ink-4: var(--ink-4);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
   --color-accent-ink: var(--accent-ink);
+  --color-side: var(--side);
+  --color-side-2: var(--side-2);
+  --color-side-3: var(--side-3);
+  --color-side-line: var(--side-line);
+  --color-side-ink: var(--side-ink);
+  --color-side-ink-2: var(--side-ink-2);
+  --color-side-ink-3: var(--side-ink-3);
   --color-good: var(--good);
+  --color-good-ink: var(--good-ink);
   --color-good-soft: var(--good-soft);
+  --color-good-line: var(--good-line);
   --color-warn: var(--warn);
+  --color-warn-ink: var(--warn-ink);
   --color-warn-soft: var(--warn-soft);
+  --color-warn-line: var(--warn-line);
   --color-bad: var(--bad);
+  --color-bad-ink: var(--bad-ink);
   --color-bad-soft: var(--bad-soft);
+  --color-bad-line: var(--bad-line);
+  --color-info: var(--info);
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
+  --color-s3: var(--s3);
+  --color-s4: var(--s4);
+
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* The whole app runs on three sizes: 12 (meta), 13 (body), 20 (titles & figures). */
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-base: 13px;
+  --text-base--line-height: 18px;
+  --text-xl: 20px;
+  --text-xl--line-height: 26px;
+
   --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
   --shadow-pop: var(--shadow-pop);
 }
 
 html {
   background: var(--bg);
   color: var(--ink);
+  font-size: 13px;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "cv11", "ss01";
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01", "ss03";
 }
 body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .tnum {
   font-variant-numeric: tabular-nums;
 }
 
-/* Soft raised control – white surface with a hairline border and a 1px bottom lip */
-.raised {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-xs);
-}
-
-.focus-ring:focus-visible,
-.focus-ring:focus-within {
+.focus-ring:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
   outline-offset: 2px;
 }
@@ -128,7 +180,7 @@ body {
 }
 
 dialog::backdrop {
-  background: rgba(20, 20, 20, 0.28);
+  background: rgba(14, 16, 19, 0.32);
   backdrop-filter: blur(2px);
 }
 
@@ -143,7 +195,7 @@ dialog::backdrop {
   }
 }
 .animate-pop {
-  animation: pop-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: pop-in 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-pop {
@@ -151,13 +203,23 @@ dialog::backdrop {
   }
 }
 
-/* Leaflet tweaks */
+/* dark rail scrollbars */
+.side-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #2b3036 transparent;
+}
+
+/* Leaflet */
 .leaflet-container {
   font-family: var(--font-sans);
-  background: #eef0f3;
+  font-size: 12px;
+  background: #e9ecf3;
 }
 .leaflet-control-attribution {
   font-size: 10px;
+}
+.leaflet-bar a {
+  color: var(--ink-2);
 }
 .fg-marker {
   background: transparent;
@@ -171,9 +233,10 @@ dialog::backdrop {
   transition: none;
 }
 .leaflet-tooltip {
-  border-radius: 9px;
+  border-radius: 8px;
   border: 1px solid var(--line);
   box-shadow: var(--shadow-pop);
   font-size: 12px;
   padding: 4px 8px;
+  color: var(--ink);
 }

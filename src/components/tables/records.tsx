@@ -64,7 +64,7 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
         const I = Icon[r.entityType as EntityType] ?? Truck;
         return (
           <Link href={entityHref(r)} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-2 text-ink-2 hover:text-accent">
-            <I size={15} className="text-ink-3" />
+            <I className="text-ink-3" />
             <span className="font-medium">{r.ownerName}</span>
           </Link>
         );
@@ -97,7 +97,7 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
           <>
             {!fixed && (
               <div className="w-full sm:w-40">
-                <Select value={entity} onChange={(e) => setEntity(e.target.value as typeof entity)} className="h-9 text-[13.5px]">
+                <Select value={entity} onChange={(e) => setEntity(e.target.value as typeof entity)} className="h-9 text-sm">
                   <option value="all">{t("c.all")}</option>
                   {ENTITY_TYPES.map((o) => (
                     <option key={o.value} value={o.value}>

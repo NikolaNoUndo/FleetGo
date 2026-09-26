@@ -85,9 +85,9 @@ export function DataTable<T extends { id: string }>({
   const hasToolbar = filters || searchText || toolbar;
 
   return (
-    <div className={cn(!flush && "rounded-2xl border border-line bg-surface shadow-xs")}>
+    <div className={cn(!flush && "rounded-xl border border-line bg-surface shadow-xs")}>
       {hasToolbar && (
-        <div className="flex flex-col gap-3 border-b border-line p-3 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-2.5 border-b border-line px-3 py-2.5 lg:flex-row lg:items-center">
           {filters && (
             <Segmented
               value={filter}
@@ -102,7 +102,7 @@ export function DataTable<T extends { id: string }>({
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-[14px]">
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-line">
               {columns.map((c) => (
@@ -110,7 +110,7 @@ export function DataTable<T extends { id: string }>({
                   key={c.key}
                   scope="col"
                   className={cn(
-                    "h-10 px-4 text-[12.5px] font-medium whitespace-nowrap text-ink-3 first:pl-5 last:pr-5",
+                    "h-9 px-3 text-xs font-medium whitespace-nowrap text-ink-3 first:pl-4 last:pr-4",
                     c.align === "right" ? "text-right" : "text-left",
                     c.hide && hideCls[c.hide],
                   )}
@@ -119,14 +119,14 @@ export function DataTable<T extends { id: string }>({
                   {c.sortValue ? (
                     <button type="button" onClick={() => toggleSort(c.key)} className={cn("inline-flex items-center gap-1 hover:text-ink", c.align === "right" && "flex-row-reverse")}>
                       {c.header}
-                      {sort?.key === c.key && (sort.dir === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}
+                      {sort?.key === c.key && (sort.dir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
                     </button>
                   ) : (
                     c.header
                   )}
                 </th>
               ))}
-              {actions && <th className="w-12 pr-3" aria-label={t("c.actions")} />}
+              {actions && <th className="w-10 pr-2" aria-label={t("c.actions")} />}
             </tr>
           </thead>
           <tbody>
@@ -134,13 +134,13 @@ export function DataTable<T extends { id: string }>({
               <tr
                 key={row.id}
                 onClick={rowHref ? () => router.push(rowHref(row)) : undefined}
-                className={cn("group border-b border-line/70 last:border-0", rowHref && "cursor-pointer hover:bg-surface-2/70")}
+                className={cn("group border-b border-line/60 last:border-0", rowHref ? "cursor-pointer hover:bg-surface-2" : "hover:bg-surface-2/50")}
               >
                 {columns.map((c) => (
                   <td
                     key={c.key}
                     className={cn(
-                      "h-[52px] px-4 align-middle whitespace-nowrap first:pl-5 last:pr-5",
+                      "h-11 px-3 align-middle whitespace-nowrap first:pl-4 last:pr-4",
                       c.align === "right" ? "text-right tnum" : "text-left",
                       c.hide && hideCls[c.hide],
                       c.className,
@@ -150,7 +150,7 @@ export function DataTable<T extends { id: string }>({
                   </td>
                 ))}
                 {actions && (
-                  <td className="pr-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  <td className="pr-2 text-right" onClick={(e) => e.stopPropagation()}>
                     <Menu items={actions(row)} />
                   </td>
                 )}
@@ -161,11 +161,16 @@ export function DataTable<T extends { id: string }>({
         </table>
       </div>
       {visible.length === 0 && <Empty>{rows.length === 0 ? t("c.empty") : t("c.noResults")}</Empty>}
-      {visible.length > limit && (
-        <div className="border-t border-line p-3 text-center">
-          <button type="button" onClick={() => setLimit((l) => l + pageSize)} className="text-[13px] font-medium text-accent hover:underline">
-            {locale === "sr" ? `Prikaži još (${visible.length - limit})` : `Show more (${visible.length - limit})`}
-          </button>
+      {visible.length > 0 && (
+        <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-2.5 text-xs text-ink-3">
+          <span className="tnum">
+            {locale === "sr" ? `Prikazano ${Math.min(limit, visible.length)} od ${visible.length}` : `Showing ${Math.min(limit, visible.length)} of ${visible.length}`}
+          </span>
+          {visible.length > limit && (
+            <button type="button" onClick={() => setLimit((l) => l + pageSize)} className="font-medium text-accent-ink hover:underline">
+              {locale === "sr" ? "Prikaži još" : "Show more"}
+            </button>
+          )}
         </div>
       )}
     </div>
