@@ -91,7 +91,7 @@ Mapa prikazuje samo prave pozicije, nema simulacije. Svaka firma ima svoj Wialon
 
 Aplikacija se prijavljuje preko `token/login`, čita jedinice i poslednje pozicije preko `core/search_items` i osvežava mapu na 10 sekundi. Jedinica se vezuje za vozilo:
 
-1. preko polja **Wialon ID jedinice** na vozilu, ili
+1. preko polja **Wialon ID / IMEI** na vozilu: upiše se Wialon ID jedinice ili „Unique ID“ (IMEI) sa kartice Hardver u Wialonu, ili
 2. automatski, ako se registarska oznaka vozila nalazi u nazivu jedinice u Wialonu (npr. jedinica „BG 1742-TK Scania“).
 
 Dugme „Proveri vezu“ pokazuje koliko jedinica je pronađeno i koliko ih je povezano sa vozilima. Bez tokena mapa piše „Wialon nije povezan“, a ako Wialon ne odgovori, prikazuje grešku.

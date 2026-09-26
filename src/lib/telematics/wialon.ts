@@ -10,6 +10,8 @@ import type { Position, TrackedVehicle, WialonConfig } from "./types";
 type WialonUnit = {
   id: number;
   nm: string;
+  /** hardware unique ID (IMEI etc.) – "Unique ID" on the unit's Hardware tab */
+  uid?: string;
   pos?: { t: number; y: number; x: number; s: number; c: number } | null;
 };
 
@@ -53,7 +55,7 @@ async function searchUnits(host: string, token: string, retry = true): Promise<W
       {
         spec: { itemsType: "avl_unit", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
         force: 1,
-        flags: 1 | 1024, // base info + last position
+        flags: 1 | 256 | 1024, // base info + hardware unique ID + last position
         from: 0,
         to: 0,
       },
@@ -78,15 +80,17 @@ export async function wialonPositions(cfg: { token: string; host: string }, vehi
   const byPlate = vehicles.map((v) => ({ key: norm(v.plate), v })).filter((x) => x.key.length >= 4);
 
   return units.map((u) => {
-    const match = byUnitId.get(String(u.id)) ?? byPlate.find((x) => norm(u.nm).includes(x.key))?.v ?? null;
+    // The vehicle field accepts the Wialon unit ID or the device's unique ID (IMEI).
+    const match = byUnitId.get(String(u.id)) ?? (u.uid ? byUnitId.get(u.uid.trim()) : undefined) ?? byPlate.find((x) => norm(u.nm).includes(x.key))?.v ?? null;
     const p = u.pos;
     if (!p) {
-      return { unitId: String(u.id), unitName: u.nm, vehicleId: match?.id ?? null, lat: 0, lng: 0, speed: 0, course: 0, ts: 0, state: "offline" } satisfies Position;
+      return { unitId: String(u.id), uid: u.uid ?? null, unitName: u.nm, vehicleId: match?.id ?? null, lat: 0, lng: 0, speed: 0, course: 0, ts: 0, state: "offline" } satisfies Position;
     }
     const ts = p.t * 1000;
     const stale = now - ts > 60 * 60 * 1000;
     return {
       unitId: String(u.id),
+      uid: u.uid ?? null,
       unitName: u.nm,
       vehicleId: match?.id ?? null,
       lat: p.y,

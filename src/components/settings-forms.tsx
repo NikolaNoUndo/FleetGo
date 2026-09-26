@@ -221,6 +221,33 @@ export function TelematicsSettings({ hasToken, hint, host, canEdit }: { hasToken
           {res.error && <span className="text-bad-ink">{res.error}</span>}
         </div>
       )}
+      {res && res.unmatched.length > 0 && (
+        <div className="rounded-lg border border-line">
+          <div className="border-b border-line px-3 py-2 text-xs font-medium text-ink-2">
+            {sr
+              ? "Jedinice koje nisu povezane sa vozilom – upiši njihov ID ili IMEI u polje „Wialon ID / IMEI“ na vozilu:"
+              : "Units not linked to a vehicle – enter their ID or IMEI in the vehicle's “Wialon ID / IMEI” field:"}
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-ink-3">
+                <th className="px-3 py-1.5 font-medium">{sr ? "Naziv u Wialonu" : "Name in Wialon"}</th>
+                <th className="px-3 py-1.5 font-medium">Wialon ID</th>
+                <th className="px-3 py-1.5 font-medium">IMEI / Unique ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {res.unmatched.map((u) => (
+                <tr key={u.id} className="border-t border-line">
+                  <td className="px-3 py-1.5">{u.name}</td>
+                  <td className="px-3 py-1.5 font-mono text-xs tnum">{u.id}</td>
+                  <td className="px-3 py-1.5 font-mono text-xs tnum">{u.uid || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

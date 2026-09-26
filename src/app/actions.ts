@@ -295,6 +295,11 @@ export async function testTelematics() {
     error: res.error ?? null,
     units: res.positions.length,
     matched: res.positions.filter((p) => p.vehicleId).length,
+    // Units not linked to any vehicle, so the owner can see which ID to enter.
+    unmatched: res.positions
+      .filter((p) => !p.vehicleId)
+      .slice(0, 30)
+      .map((p) => ({ name: p.unitName, id: p.unitId, uid: p.uid ?? null })),
   };
 }
 

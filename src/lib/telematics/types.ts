@@ -8,6 +8,8 @@ export type TrackedVehicle = {
 
 export type Position = {
   unitId: string;
+  /** device unique ID (IMEI) from Wialon, when available */
+  uid?: string | null;
   unitName: string;
   vehicleId: string | null;
   lat: number;
