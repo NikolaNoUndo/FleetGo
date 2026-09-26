@@ -1,6 +1,7 @@
 import {
   CalendarClock,
   Container,
+  FileText,
   Fuel,
   House,
   Map as MapIcon,
@@ -22,6 +23,7 @@ export type NavGroup = { key: "fleet" | "costs"; label: TKey; icon: LucideIcon; 
 export const TOP: NavItem[] = [
   { href: "/", label: "nav.overview", icon: House },
   { href: "/live", label: "nav.live", icon: MapIcon },
+  { href: "/reports", label: "nav.reports", icon: FileText },
 ];
 
 export const GROUPS: NavGroup[] = [

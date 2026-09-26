@@ -24,7 +24,7 @@ export default async function OverviewPage() {
   if (!allow("overview")) {
     const first = [...TOP, ...GROUPS.flatMap((g) => g.items), ...BOTTOM].find((it) => {
       const m = ROUTE_MODULE[it.href];
-      return m && m !== "suppliers" && m !== "overview" && can(ctx.perms, m);
+      return m && m !== "suppliers" && m !== "reports" && m !== "overview" && can(ctx.perms, m);
     });
     redirect(first?.href ?? "/no-access");
   }

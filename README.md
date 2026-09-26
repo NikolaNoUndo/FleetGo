@@ -18,6 +18,7 @@ Upravljanje voznim parkom za prevozničke, transportne i logističke firme: vozi
 | Servisi / Delovi | Šta je rađeno ili kupljeno, za koje vozilo ili prikolicu, dobavljač/servis, iznos, plaćeno / nije plaćeno |
 | Dobavljači | Servisi i dobavljači delova. Novi se dodaje direktno iz forme (upišeš naziv → „Dodaj …“) i ostaje u bazi za filtriranje |
 | Uplate vozačima | Dnevnice, akontacije, plate, bonusi, troškovi puta |
+| Izveštaji | Gorivo, uplate vozačima, servisi i delovi, troškovi po vozilu – za izabrani period i filtere (vozilo, vozač, dobavljač, plaćeno). Štampa ili „Sačuvaj kao PDF“ na A4 sa zaglavljem firme i zbirovima |
 | Podešavanja | Podaci o firmi, kurs (NBS automatski ili ručno), broj dana za upozorenje, članovi tima i njihova prava, provera Wialon veze |
 
 Interfejs je na srpskom i engleskom (klik na svoje ime dole levo → Jezik / Valuta / Odjava). Svaki trošak se čuva u valuti u kojoj je plaćen (EUR ili RSD), a zbirovi se prikazuju u izabranoj valuti.

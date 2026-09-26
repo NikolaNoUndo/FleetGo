@@ -244,3 +244,28 @@ dialog::backdrop {
   padding: 4px 8px;
   color: var(--ink);
 }
+
+/* Reports */
+@media (min-width: 640px) {
+  .report-summary {
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  }
+}
+@media print {
+  .report-summary {
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  }
+  .report-table tr {
+    break-inside: avoid;
+  }
+  .report-table thead {
+    display: table-header-group;
+  }
+  .report-table tfoot {
+    display: table-row-group;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

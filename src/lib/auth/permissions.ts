@@ -91,6 +91,11 @@ export function can(perms: Perms, module: ModuleKey, level: "view" | "edit" = "v
   return level === "view" ? a === "view" || a === "edit" : a === "edit";
 }
 
+/** Reports are open to anyone who can see at least one cost module. */
+export function canReports(perms: Perms) {
+  return (["fuel", "payments", "services", "parts"] as const).some((m) => can(perms, m));
+}
+
 /** Suppliers are shared by parts and services. */
 export function canSuppliers(perms: Perms, level: "view" | "edit" = "view") {
   return can(perms, "parts", level) || can(perms, "services", level);
@@ -109,7 +114,7 @@ export const RESOURCE_MODULE = {
 } as const satisfies Record<string, ModuleKey>;
 
 /** Sidebar route → module. */
-export const ROUTE_MODULE: Record<string, ModuleKey | "suppliers"> = {
+export const ROUTE_MODULE: Record<string, ModuleKey | "suppliers" | "reports"> = {
   "/": "overview",
   "/live": "live",
   "/vehicles": "vehicles",
@@ -122,4 +127,5 @@ export const ROUTE_MODULE: Record<string, ModuleKey | "suppliers"> = {
   "/suppliers": "suppliers",
   "/payments": "payments",
   "/settings": "settings",
+  "/reports": "reports",
 };

@@ -5,7 +5,7 @@ import { LucideProvider } from "lucide-react";
 import type { Currency, Locale, Option } from "@/lib/catalog";
 import { translate, type TKey } from "@/lib/i18n";
 import { fmtDate, fmtMoney, fmtNum, toCurrency } from "@/lib/format";
-import { can as canAccess, canSuppliers, type ModuleKey, type Perms } from "@/lib/auth/permissions";
+import { can as canAccess, canReports, canSuppliers, type ModuleKey, type Perms } from "@/lib/auth/permissions";
 
 type Prefs = {
   locale: Locale;
@@ -26,7 +26,7 @@ type Ctx = Prefs & {
   date: (d: string | null | undefined) => string;
   opt: (set: Option[], value: string | null | undefined) => string;
   /** Permission check for the signed-in member (false everywhere outside the app). */
-  can: (module: ModuleKey | "suppliers", level?: "view" | "edit") => boolean;
+  can: (module: ModuleKey | "suppliers" | "reports", level?: "view" | "edit") => boolean;
 };
 
 const PrefsCtx = createContext<Ctx | null>(null);
@@ -44,7 +44,8 @@ export function PrefsProvider({ value, children }: { value: Prefs; children: Rea
       num: (n, d = 0) => fmtNum(n, locale, d),
       date: (d) => fmtDate(d, locale),
       opt: (set, v) => (v ? (set.find((x) => x.value === v)?.label[locale] ?? v) : ""),
-      can: (m, level = "view") => (value.perms ? (m === "suppliers" ? canSuppliers(value.perms, level) : canAccess(value.perms, m, level)) : false),
+      can: (m, level = "view") =>
+        value.perms ? (m === "suppliers" ? canSuppliers(value.perms, level) : m === "reports" ? canReports(value.perms) : canAccess(value.perms, m, level)) : false,
     }),
     [value, t, locale, currency, rate],
   );
