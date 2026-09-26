@@ -132,7 +132,7 @@ export function Sidebar({
         <>
           <UserAvatar email={user.email} size={28} className="shrink-0" />
           {!rail && <span className="min-w-0 flex-1 truncate text-left text-sm text-side-ink">{user.email}</span>}
-          {!rail && <ChevronDown className="shrink-0 text-side-ink-3 transition-transform duration-200 group-aria-expanded:rotate-180" />}
+          {!rail && <ChevronDown size={16} className="shrink-0 text-side-ink-2 transition-transform duration-200 group-aria-expanded:rotate-180" />}
         </>
       }
     >
