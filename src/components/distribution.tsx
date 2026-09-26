@@ -66,8 +66,13 @@ export function StatusColumns({ segments }: { segments: Seg[] }) {
         {shown.map((s) => (
           <div key={s.key} className="min-w-[84px]" style={{ flex: `${s.count} 1 0%` }}>
             <div
-              className="grid h-7 place-items-center rounded-md text-xs font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
-              style={{ background: `linear-gradient(90deg, ${s.color}, color-mix(in srgb, ${s.color} 78%, white))` }}
+              className="grid h-8 place-items-center rounded-lg border text-xs font-semibold tnum"
+              style={{
+                background: `linear-gradient(90deg, ${s.color} 0%, color-mix(in srgb, ${s.color} 72%, white) 50%, ${s.color} 100%)`,
+                borderColor: `color-mix(in srgb, ${s.color} 72%, black)`,
+                color: `color-mix(in srgb, ${s.color} 45%, black)`,
+                boxShadow: `inset 0 1px 0 rgba(255,255,255,.35), 0 3px 8px -3px color-mix(in srgb, ${s.color} 60%, transparent)`,
+              }}
             >
               {s.count}
             </div>

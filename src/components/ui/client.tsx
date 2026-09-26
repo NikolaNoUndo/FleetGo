@@ -195,6 +195,63 @@ export function Menu({
   );
 }
 
+/* ---------- Popover (free content, opens up or down) ---------- */
+export function Popover({
+  trigger,
+  children,
+  placement = "bottom",
+  align = "left",
+  triggerClassName,
+  label,
+  panelClassName,
+}: {
+  trigger: ReactNode;
+  children: (close: () => void) => ReactNode;
+  placement?: "top" | "bottom" | "right";
+  align?: "left" | "right";
+  triggerClassName?: string;
+  label?: string;
+  panelClassName?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" aria-haspopup="dialog" aria-expanded={open} aria-label={label} onClick={() => setOpen((o) => !o)} className={triggerClassName}>
+        {trigger}
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          className={cn(
+            "animate-pop absolute z-50 min-w-[232px] rounded-xl border border-line bg-surface p-1.5 text-ink shadow-pop",
+            placement === "top" && "bottom-full mb-2",
+            placement === "bottom" && "top-full mt-2",
+            placement === "right" && "bottom-0 left-full ml-2",
+            placement !== "right" && (align === "right" ? "right-0" : "left-0"),
+            panelClassName,
+          )}
+        >
+          {children(() => setOpen(false))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- Info tooltip ---------- */
 export function InfoTip({ children, className }: { children: ReactNode; className?: string }) {
   const id = useId();

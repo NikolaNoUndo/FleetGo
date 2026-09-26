@@ -3,7 +3,7 @@ import { getMoney, inMonth, pctDelta } from "@/lib/money-server";
 import { getT } from "@/lib/prefs";
 import { fmtNum } from "@/lib/format";
 
-type Row = { date: string; amount: number; currency: string; paid?: boolean; liters?: number; employeeId?: string | null };
+type Row = { date: string; amount: number | null; currency: string; paid?: boolean; liters?: number; employeeId?: string | null };
 
 /** Inline KPI row for cost pages: this month vs. the same days last month, plus two page-specific figures. */
 export async function CostStats({ rows, fuel, payments, names }: { rows: Row[]; fuel?: boolean; payments?: boolean; names?: Record<string, string> }) {
@@ -21,9 +21,11 @@ export async function CostStats({ rows, fuel, payments, names }: { rows: Row[]; 
   let fourth: React.ReactNode;
   if (fuel) {
     const liters = cur.reduce((s, r) => s + (r.liters ?? 0), 0);
-    const perL = liters ? curSum / liters : 0;
+    const priced = cur.filter((r) => r.amount != null && r.liters);
+    const pricedL = priced.reduce((s, r) => s + (r.liters ?? 0), 0);
+    const perL = pricedL ? m.sum(priced) / pricedL : 0;
     third = <Stat label={sr ? "Litara ovog meseca" : "Litres this month"} value={`${fmtNum(liters, m.locale)} l`} sub={`${cur.length} ${sr ? "sipanja" : "refuels"}`} />;
-    fourth = <Stat label={sr ? "Prosečna cena po litru" : "Average price per litre"} value={m.fmt(perL)} info={sr ? "Svi unosi ovog meseca, preračunati u izabranu valutu." : "All refuels this month, converted to the selected currency."} />;
+    fourth = <Stat label={sr ? "Prosečna cena po litru" : "Average price per litre"} value={pricedL ? m.fmt(perL) : "—"} info={sr ? "Samo unosi sa cenom, preračunati u izabranu valutu." : "Only refuels with a price, converted to the selected currency."} />;
   } else if (payments) {
     const byEmp = new Map<string, number>();
     for (const r of cur) if (r.employeeId) byEmp.set(r.employeeId, (byEmp.get(r.employeeId) ?? 0) + m.conv(r.amount, r.currency));

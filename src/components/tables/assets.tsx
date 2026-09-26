@@ -68,7 +68,7 @@ export function VehiclesTable({ rows, refs }: { rows: VehicleRow[]; refs: Refs }
           { value: "in_service", label: t("flt.inService"), predicate: (r) => r.status === "in_service" },
           { value: "inactive", label: t("flt.inactive"), predicate: (r) => r.status === "inactive" },
         ]}
-        toolbar={<AddButton onClick={crud.create} />}
+        toolbar={crud.canEdit ? <AddButton onClick={crud.create} /> : undefined}
         actions={(r) => crud.menu(r, [{ label: t("c.open"), icon: <ExternalLink />, onSelect: () => router.push(`/vehicles/${r.id}`) }])}
         initialSort={{ key: "plate", dir: "asc" }}
       />
@@ -129,7 +129,7 @@ export function TrailersTable({ rows, refs }: { rows: TrailerRow[]; refs: Refs }
           { value: "all", label: t("c.all"), predicate: () => true },
           ...types.map((ty) => ({ value: ty, label: opt(TRAILER_TYPES, ty), predicate: (r: TrailerRow) => r.type === ty })),
         ]}
-        toolbar={<AddButton onClick={crud.create} />}
+        toolbar={crud.canEdit ? <AddButton onClick={crud.create} /> : undefined}
         actions={(r) => crud.menu(r, [{ label: t("c.open"), icon: <ExternalLink />, onSelect: () => router.push(`/trailers/${r.id}`) }])}
         initialSort={{ key: "plate", dir: "asc" }}
       />
@@ -154,16 +154,17 @@ export type EmployeeRow = {
 };
 
 export function EmployeesTable({ rows, refs }: { rows: EmployeeRow[]; refs: Refs }) {
-  const { t, opt, conv, currency, money } = usePrefs();
+  const { t, opt, conv, currency, money, can } = usePrefs();
   const crud = useCrud("employees", refs);
+  const showPaid = can("payments");
   const router = useRouter();
   const paid = (r: EmployeeRow) => r.paidThisMonth.reduce((s, p) => s + conv(p.amount, p.currency), 0);
-  const cols: Column<EmployeeRow>[] = [
+  const cols = ([
     { key: "name", header: t("f.name"), sortValue: (r) => `${r.lastName} ${r.firstName}`, render: (r) => <Stack main={`${r.firstName} ${r.lastName}`} sub={r.phone} /> },
     { key: "role", header: t("f.role"), sortValue: (r) => r.role, hide: "sm", render: (r) => <span className="text-ink-2">{opt(EMPLOYEE_ROLES, r.role)}</span> },
     { key: "veh", header: t("x.assignedVehicle"), sortValue: (r) => r.vehiclePlate, hide: "md", render: (r) => <span className="text-ink-2">{r.vehiclePlate ?? "—"}</span> },
     { key: "next", header: t("f.nextExpiry"), sortValue: (r) => r.nextDoc?.expiresAt ?? "9999", render: (r) => <NextDocCell doc={r.nextDoc} kind="employee" /> },
-    {
+    showPaid && {
       key: "paid",
       header: `${t("x.payments")} · ${t("c.thisMonth").toLowerCase()}`,
       align: "right",
@@ -172,7 +173,7 @@ export function EmployeesTable({ rows, refs }: { rows: EmployeeRow[]; refs: Refs
       render: (r) => <span className="font-medium">{r.paidThisMonth.length ? money(paid(r), currency) : "—"}</span>,
     },
     { key: "status", header: t("f.status"), sortValue: (r) => r.status, hide: "sm", render: (r) => <EmployeeStatus status={r.status} /> },
-  ];
+  ] as (Column<EmployeeRow> | false)[]).filter(Boolean) as Column<EmployeeRow>[];
   return (
     <>
       <DataTable
@@ -185,7 +186,7 @@ export function EmployeesTable({ rows, refs }: { rows: EmployeeRow[]; refs: Refs
           { value: "drivers", label: t("flt.drivers"), predicate: (r) => r.role === "driver" },
           { value: "staff", label: t("flt.staff"), predicate: (r) => r.role !== "driver" },
         ]}
-        toolbar={<AddButton onClick={crud.create} />}
+        toolbar={crud.canEdit ? <AddButton onClick={crud.create} /> : undefined}
         actions={(r) => crud.menu(r, [{ label: t("c.open"), icon: <ExternalLink />, onSelect: () => router.push(`/employees/${r.id}`) }])}
         initialSort={{ key: "name", dir: "asc" }}
       />

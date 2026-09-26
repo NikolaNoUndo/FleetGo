@@ -5,8 +5,8 @@ import { translate, type TKey } from "./i18n";
 
 export async function getPrefs(): Promise<{ locale: Locale; currency: Currency }> {
   const c = await cookies();
-  const locale = c.get("fg_locale")?.value === "en" ? "en" : "sr";
-  const currency = c.get("fg_currency")?.value === "RSD" ? "RSD" : "EUR";
+  const locale = c.get("rl_locale")?.value === "en" ? "en" : "sr";
+  const currency = c.get("rl_currency")?.value === "RSD" ? "RSD" : "EUR";
   return { locale, currency };
 }
 

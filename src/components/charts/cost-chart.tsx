@@ -28,7 +28,8 @@ const H = 300;
 const PAD = { top: 16, right: 20, bottom: 34, left: 72 };
 
 /** Total monthly cost as an area with a crosshair tooltip that breaks it down by category. */
-export function CostChart({ data }: { data: MonthCosts[] }) {
+export function CostChart({ data, keys }: { data: MonthCosts[]; keys?: (keyof Omit<MonthCosts, "key">)[] }) {
+  const series = keys ? SERIES.filter((s) => keys.includes(s.key)) : SERIES;
   const { t, locale, currency } = usePrefs();
   const [range, setRange] = useState<"6" | "12">("6");
   const [view, setView] = useState<"chart" | "table">("chart");
@@ -70,7 +71,7 @@ export function CostChart({ data }: { data: MonthCosts[] }) {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <ul className="flex flex-wrap gap-x-4 gap-y-1">
-          {SERIES.map((s) => (
+          {series.map((s) => (
             <li key={s.key} className="inline-flex items-center gap-1.5 text-xs text-ink-2">
               <span className="size-2.5 rounded-[3px]" style={{ background: s.color }} />
               {t(s.label)}
@@ -94,7 +95,7 @@ export function CostChart({ data }: { data: MonthCosts[] }) {
             <thead>
               <tr className="border-b border-line text-xs text-ink-3">
                 <th className="h-8 text-left font-medium" />
-                {SERIES.map((s) => (
+                {series.map((s) => (
                   <th key={s.key} className="px-2 text-right font-medium whitespace-nowrap">
                     {t(s.label)}
                   </th>
@@ -106,7 +107,7 @@ export function CostChart({ data }: { data: MonthCosts[] }) {
               {rows.map((m, i) => (
                 <tr key={m.key} className="border-b border-line/60 last:border-0">
                   <td className="h-9 font-medium capitalize">{fmtMonth(m.key, locale, false)}</td>
-                  {SERIES.map((s) => (
+                  {series.map((s) => (
                     <td key={s.key} className="px-2 text-right whitespace-nowrap text-ink-2 tnum">
                       {money(m[s.key])}
                     </td>
@@ -169,7 +170,7 @@ export function CostChart({ data }: { data: MonthCosts[] }) {
               >
                 <div className="border-b border-line pb-2 text-sm font-semibold capitalize">{fmtMonth(d.key, locale, false)}</div>
                 <ul className="space-y-1.5 border-b border-line py-2">
-                  {SERIES.map((s) => (
+                  {series.map((s) => (
                     <li key={s.key} className="flex items-center justify-between gap-3 text-sm">
                       <span className="inline-flex items-center gap-2 text-ink-2">
                         <span className="size-2.5 rounded-[3px]" style={{ background: s.color }} />

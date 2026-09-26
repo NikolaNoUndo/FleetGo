@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "./ui/primitives";
 import { InfoTip } from "./ui/client";
@@ -52,48 +52,62 @@ export function Stat({
   );
 }
 
-/** KPI card with a trend line (Open Purchase Order style). */
+/** KPI card with a trend line (Open Purchase Order / YTD Spend style). */
 export function KpiCard({
   label,
   value,
   trend,
+  trendLabel,
   trendUpIsGood = true,
   spark,
   sub,
   href,
-  tone = "good",
+  flatLabel = "bez promene",
 }: {
   label: ReactNode;
   value: ReactNode;
-  trend?: { text: string; up: boolean } | null;
+  trend?: { pct: number } | null;
+  trendLabel?: string;
   trendUpIsGood?: boolean;
   spark?: number[];
   sub?: ReactNode;
   href?: string;
-  tone?: "good" | "accent" | "bad" | "warn";
+  flatLabel?: string;
 }) {
-  const good = trend ? trend.up === trendUpIsGood : true;
+  const flat = !trend || Math.abs(trend.pct) < 1;
+  const up = !!trend && trend.pct > 0;
+  const good = flat ? null : up === trendUpIsGood;
+  const tone = good === null ? "neutral" : good ? "good" : "bad";
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
         <span className="text-sm font-medium text-ink-2">{label}</span>
-        {trend && (
-          <span className={cn("inline-flex shrink-0 items-center gap-0.5 text-xs font-medium tnum", good ? "text-good-ink" : "text-bad-ink")}>
-            {trend.up ? <ArrowUpRight /> : <ArrowDownRight />}
-            {trend.text}
+        {trend !== undefined && (
+          <span className="inline-flex shrink-0 items-center gap-1 text-xs text-ink-3">
+            {flat ? (
+              flatLabel
+            ) : (
+              <>
+                <span className={cn("inline-flex items-center gap-0.5 font-medium tnum", good ? "text-good-ink" : "text-bad-ink")}>
+                  {up ? <ArrowUp size={12} strokeWidth={2.2} /> : <ArrowDown size={12} strokeWidth={2.2} />}
+                  {Math.abs(Math.round(trend!.pct))}%
+                </span>
+                {trendLabel}
+              </>
+            )}
           </span>
         )}
       </div>
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-xl font-semibold tracking-[-0.01em] text-ink tnum">{value}</div>
-          {sub && <div className="mt-0.5 text-xs text-ink-3">{sub}</div>}
+      <div className="mt-4 flex items-end justify-between gap-4">
+        <div className="min-w-0 pb-0.5">
+          <div className={cn("text-xl font-semibold tracking-[-0.01em] tnum", tone === "bad" ? "text-bad-ink" : "text-ink")}>{value}</div>
+          {sub && <div className="mt-1 text-xs text-ink-3">{sub}</div>}
         </div>
-        {spark && spark.length > 1 && <Sparkline data={spark} tone={tone} />}
+        {spark && spark.length > 1 && <Sparkline data={spark} tone={tone === "neutral" ? "neutral" : tone} width={112} height={44} />}
       </div>
     </>
   );
-  const cls = "block rounded-xl border border-line bg-surface p-4 shadow-xs";
+  const cls = "block rounded-xl border border-line bg-surface p-5 shadow-xs";
   return href ? (
     <Link href={href} className={cn(cls, "transition-colors hover:border-line-strong")}>
       {body}

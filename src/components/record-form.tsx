@@ -2,9 +2,10 @@
 
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { saveRecord, deleteRecord } from "@/app/actions";
 import { RESOURCES, type FieldDef, type Refs, type ResourceKey } from "@/lib/resources";
+import { RESOURCE_MODULE } from "@/lib/auth/permissions";
 import { DOC_TYPES, DOC_VALIDITY_DAYS, OPTION_SETS, addDaysISO, type EntityType } from "@/lib/catalog";
 import { todayISO } from "@/lib/format";
 import { usePrefs } from "./prefs";
@@ -31,12 +32,69 @@ function initialValues(fields: FieldDef[], record: Row | null, fixed?: Record<st
   return v;
 }
 
+/**
+ * Pick an existing supplier or type a new name. The value is either the supplier id
+ * or "new:<name>"; new names are saved to the supplier list on submit.
+ */
+function SupplierPicker({ id, value, options, onChange }: { id: string; value: string; options: { id: string; label: string }[]; onChange: (v: string) => void }) {
+  const { locale } = usePrefs();
+  const current = value.startsWith("new:") ? value.slice(4) : (options.find((o) => o.id === value)?.label ?? "");
+  const [text, setText] = useState(current);
+  const [open, setOpen] = useState(false);
+  const q = text.trim().toLowerCase();
+  const matches = options.filter((o) => !q || o.label.toLowerCase().includes(q)).slice(0, 8);
+  const exact = options.find((o) => o.label.toLowerCase() === q);
+  const pick = (v: string, label: string) => {
+    onChange(v);
+    setText(label);
+    setOpen(false);
+  };
+  return (
+    <div className="relative">
+      <TextInput
+        id={id}
+        value={text}
+        autoComplete="off"
+        placeholder={locale === "sr" ? "Izaberi ili upiši novog…" : "Pick or type a new one…"}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        onChange={(e) => {
+          const v = e.target.value;
+          setText(v);
+          setOpen(true);
+          const hit = options.find((o) => o.label.toLowerCase() === v.trim().toLowerCase());
+          onChange(!v.trim() ? "" : hit ? hit.id : `new:${v.trim()}`);
+        }}
+      />
+      {open && (matches.length > 0 || (q && !exact)) && (
+        <ul className="animate-pop absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-pop">
+          {matches.map((o) => (
+            <li key={o.id}>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o.id, o.label)} className="flex h-8 w-full items-center rounded-md px-2 text-left text-sm hover:bg-surface-2">
+                {o.label}
+              </button>
+            </li>
+          ))}
+          {q && !exact && (
+            <li>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(`new:${text.trim()}`, text.trim())} className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm font-medium text-accent-ink hover:bg-accent-soft">
+                <Plus size={13} /> {locale === "sr" ? "Dodaj" : "Add"} „{text.trim()}“
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 const ERR: Record<string, TKey> = {
   required: "c.required",
   number: "err.number",
   date: "err.date",
   option: "err.option",
   ref: "err.ref",
+  duplicate: "err.duplicate",
 };
 
 export function RecordForm({
@@ -190,6 +248,9 @@ export function RecordForm({
         );
         break;
       }
+      case "supplier":
+        control = <SupplierPicker id={id} value={String(val ?? "")} options={refs.suppliers ?? []} onChange={(v) => set(f.name, v)} />;
+        break;
       default:
         control = <TextInput id={id} value={String(val ?? "")} onChange={(e) => set(f.name, e.target.value)} placeholder={f.placeholder} />;
     }
@@ -218,7 +279,8 @@ export function RecordForm({
 
 /** One hook per table: open create/edit modals and delete confirmation for a resource. */
 export function useCrud(resource: ResourceKey, refs: Refs, fixed?: Record<string, string>) {
-  const { t } = usePrefs();
+  const { t, can } = usePrefs();
+  const canEdit = resource === "suppliers" ? can("suppliers", "edit") : can(RESOURCE_MODULE[resource], "edit");
   const router = useRouter();
   const [editing, setEditing] = useState<{ record: Row | null } | null>(null);
   const [deleting, setDeleting] = useState<Row | null>(null);
@@ -269,12 +331,17 @@ export function useCrud(resource: ResourceKey, refs: Refs, fixed?: Record<string
 
   const menu = (row: Row, extra: MenuItem[] = []): MenuItem[] => [
     ...extra,
-    { label: t("c.edit"), icon: <Pencil />, onSelect: () => setEditing({ record: row }) },
-    { label: t("c.delete"), icon: <Trash2 />, onSelect: () => setDeleting(row), danger: true },
+    ...(canEdit
+      ? [
+          { label: t("c.edit"), icon: <Pencil />, onSelect: () => setEditing({ record: row }) },
+          { label: t("c.delete"), icon: <Trash2 />, onSelect: () => setDeleting(row), danger: true },
+        ]
+      : []),
   ];
 
   return useMemo(
     () => ({
+      canEdit,
       create: () => setEditing({ record: null }),
       edit: (row: Row) => setEditing({ record: row }),
       remove: (row: Row) => setDeleting(row),
@@ -282,6 +349,6 @@ export function useCrud(resource: ResourceKey, refs: Refs, fixed?: Record<string
       node,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [editing, deleting, pending, refs, fixed, t],
+    [editing, deleting, pending, refs, fixed, t, canEdit],
   );
 }

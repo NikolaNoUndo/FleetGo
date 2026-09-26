@@ -14,6 +14,7 @@ const sr = {
   "nav.services": "Servisi",
   "nav.parts": "Delovi i nabavka",
   "nav.payments": "Uplate vozačima",
+  "nav.suppliers": "Dobavljači",
   "nav.company": "Firma",
   "nav.settings": "Podešavanja",
   "nav.owner": "Vlasnik",
@@ -61,6 +62,7 @@ const sr = {
   "err.date": "Unesi ispravan datum",
   "err.option": "Izaberi jednu od ponuđenih opcija",
   "err.ref": "Izaberi postojeći unos",
+  "err.duplicate": "Već postoji sa tim nazivom",
   "err.generic": "Nešto nije u redu, pokušaj ponovo.",
   "flt.active": "Aktivna",
   "flt.inService": "Na servisu",
@@ -167,6 +169,7 @@ const sr = {
   "r.parts": "deo",
   "r.fuel": "sipanje goriva",
   "r.payments": "uplatu",
+  "r.suppliers": "dobavljača",
 
   // dashboard
   "d.activeVehicles": "Aktivna vozila",
@@ -261,6 +264,7 @@ const en: Dict = {
   "nav.services": "Services",
   "nav.parts": "Parts & purchases",
   "nav.payments": "Driver payments",
+  "nav.suppliers": "Suppliers",
   "nav.company": "Company",
   "nav.settings": "Settings",
   "nav.owner": "Owner",
@@ -314,6 +318,7 @@ const en: Dict = {
   "err.date": "Enter a valid date",
   "err.option": "Pick one of the options",
   "err.ref": "Pick an existing entry",
+  "err.duplicate": "Already exists with this name",
   "err.generic": "Something went wrong, please try again.",
   "f.plate": "Plate number",
   "f.type": "Type",
@@ -409,6 +414,7 @@ const en: Dict = {
   "r.parts": "part",
   "r.fuel": "refuel",
   "r.payments": "payment",
+  "r.suppliers": "supplier",
 
   "d.activeVehicles": "Active vehicles",
   "d.onRoad": "on the road",

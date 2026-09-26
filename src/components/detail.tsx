@@ -10,8 +10,11 @@ import { Button } from "./ui/primitives";
 import { Modal, UnderlineTabs } from "./ui/client";
 import { RESOURCES, type Refs, type ResourceKey } from "@/lib/resources";
 
-export function DetailTabs({ tabs }: { tabs: { key: string; label: string; count?: number; content: ReactNode }[] }) {
+type Tab = { key: string; label: string; count?: number; content: ReactNode };
+export function DetailTabs({ tabs: all }: { tabs: (Tab | false)[] }) {
+  const tabs = all.filter(Boolean) as Tab[];
   const [tab, setTab] = useState(tabs[0]?.key);
+  if (!tabs.length) return <div />;
   return (
     <div className="min-w-0">
       <div className="mb-4">

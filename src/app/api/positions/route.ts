@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { getCompanyId } from "@/lib/tenant";
+import { getContext } from "@/lib/auth/context";
+import { can } from "@/lib/auth/permissions";
 import { getPositions } from "@/lib/telematics";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const companyId = await getCompanyId();
+  const ctx = await getContext();
+  if (!ctx) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!can(ctx.perms, "live") && !can(ctx.perms, "overview")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const companyId = ctx.company.id;
   const rows = await db
     .select({
       id: schema.vehicles.id,

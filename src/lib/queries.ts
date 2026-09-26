@@ -41,6 +41,11 @@ export const listPayments = cache(async () => {
   return db.select().from(S.driverPayments).where(eq(S.driverPayments.companyId, id)).orderBy(desc(S.driverPayments.date), desc(S.driverPayments.createdAt));
 });
 
+export const listSuppliers = cache(async () => {
+  const { id } = await getCompany();
+  return db.select().from(S.suppliers).where(eq(S.suppliers.companyId, id)).orderBy(asc(S.suppliers.name));
+});
+
 export type Vehicle = Awaited<ReturnType<typeof listVehicles>>[number];
 export type Trailer = Awaited<ReturnType<typeof listTrailers>>[number];
 export type Employee = Awaited<ReturnType<typeof listEmployees>>[number];
@@ -49,22 +54,25 @@ export type Service = Awaited<ReturnType<typeof listServices>>[number];
 export type Part = Awaited<ReturnType<typeof listParts>>[number];
 export type FuelEntry = Awaited<ReturnType<typeof listFuel>>[number];
 export type Payment = Awaited<ReturnType<typeof listPayments>>[number];
+export type Supplier = Awaited<ReturnType<typeof listSuppliers>>[number];
 
 export const fullName = (e: { firstName: string; lastName: string }) => `${e.firstName} ${e.lastName}`;
 
 /** Options for every <select> that points at another record, plus id → label lookups for tables. */
 export const getRefs = cache(async () => {
-  const [vehicles, trailers, employees] = await Promise.all([listVehicles(), listTrailers(), listEmployees()]);
+  const [vehicles, trailers, employees, suppliers] = await Promise.all([listVehicles(), listTrailers(), listEmployees(), listSuppliers()]);
   const refs: Refs = {
     vehicles: vehicles.map((v) => ({ id: v.id, label: v.plate, sub: [v.brand, v.model].filter(Boolean).join(" ") })),
     trailers: trailers.map((t) => ({ id: t.id, label: t.plate, sub: t.brand ?? undefined })),
     employees: employees.map((e) => ({ id: e.id, label: fullName(e) })),
     drivers: employees.filter((e) => e.role === "driver").map((e) => ({ id: e.id, label: fullName(e) })),
+    suppliers: suppliers.map((x) => ({ id: x.id, label: x.name })),
   };
   const names: Record<string, string> = {};
   for (const v of vehicles) names[v.id] = v.plate;
   for (const t of trailers) names[t.id] = t.plate;
   for (const e of employees) names[e.id] = fullName(e);
+  for (const x of suppliers) names[x.id] = x.name;
   return { refs, names };
 });
 

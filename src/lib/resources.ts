@@ -1,10 +1,10 @@
 import type { OptionSetKey } from "./catalog";
 import type { TKey } from "./i18n";
 
-export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments";
-export type RefKey = "vehicles" | "trailers" | "employees" | "drivers";
+export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers";
+export type RefKey = "vehicles" | "trailers" | "employees" | "drivers" | "suppliers";
 
-export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType";
+export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier";
 
 export type FieldDef = {
   name: string;
@@ -88,7 +88,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
       { name: "vehicleId", label: "f.vehicle", type: "ref", ref: "vehicles" },
       { name: "trailerId", label: "f.trailer", type: "ref", ref: "trailers" },
       { name: "description", label: "f.description", type: "textarea", span: 2 },
-      { name: "workshop", label: "f.workshop", type: "text" },
+      { name: "supplierId", label: "f.workshop", type: "supplier" },
       { name: "odometerKm", label: "f.odometerKm", type: "int" },
       { name: "invoiceNo", label: "f.invoiceNo", type: "text" },
       { name: "amount", label: "f.amount", type: "money", required: true, defaultValue: "RSD" },
@@ -104,7 +104,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
       { name: "quantity", label: "f.quantity", type: "int", required: true, defaultValue: 1 },
       { name: "vehicleId", label: "f.vehicle", type: "ref", ref: "vehicles" },
       { name: "trailerId", label: "f.trailer", type: "ref", ref: "trailers" },
-      { name: "supplier", label: "f.supplier", type: "text" },
+      { name: "supplierId", label: "f.supplier", type: "supplier" },
       { name: "invoiceNo", label: "f.invoiceNo", type: "text" },
       { name: "amount", label: "f.amount", type: "money", required: true, defaultValue: "RSD" },
       { name: "paid", label: "f.paid", type: "bool", defaultValue: true },
@@ -117,7 +117,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
       { name: "vehicleId", label: "f.vehicle", type: "ref", ref: "vehicles", required: true },
       { name: "employeeId", label: "f.driver", type: "ref", ref: "drivers" },
       { name: "liters", label: "f.liters", type: "decimal", required: true },
-      { name: "amount", label: "f.amount", type: "money", required: true, defaultValue: "EUR" },
+      { name: "amount", label: "f.amount", type: "money", defaultValue: "EUR" },
       { name: "odometerKm", label: "f.odometerKm", type: "int" },
       { name: "station", label: "f.station", type: "text", placeholder: "OMV, MOL, NIS…" },
       { name: "country", label: "f.country", type: "select", options: "countries", defaultValue: "RS" },
@@ -134,6 +134,14 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
       { name: "method", label: "f.method", type: "select", options: "paymentMethods", required: true, defaultValue: "cash" },
       { name: "amount", label: "f.amount", type: "money", required: true, defaultValue: "EUR" },
       { name: "note", label: "f.note", type: "textarea", span: 2 },
+    ],
+  },
+  suppliers: {
+    title: "r.suppliers",
+    fields: [
+      { name: "name", label: "f.name", type: "text", required: true, span: 2 },
+      { name: "phone", label: "f.phone", type: "text" },
+      { name: "note", label: "f.note", type: "text" },
     ],
   },
 };

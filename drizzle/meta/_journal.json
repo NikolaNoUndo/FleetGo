@@ -15,6 +15,27 @@
       "when": 1790414439897,
       "tag": "0001_enable_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790424065423,
+      "tag": "0002_v02_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790424076652,
+      "tag": "0003_v02_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790424077912,
+      "tag": "0004_v02_drop_text",
+      "breakpoints": true
     }
   ]
 }

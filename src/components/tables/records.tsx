@@ -107,10 +107,10 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
                 </Select>
               </div>
             )}
-            <AddButton onClick={crud.create} />
+            {crud.canEdit && <AddButton onClick={crud.create} />}
           </>
         }
-        actions={(r) => crud.menu(r, [{ label: t("c.renew"), icon: <RefreshCw />, onSelect: () => renew(r) }])}
+        actions={crud.canEdit ? (r) => crud.menu(r, [{ label: t("c.renew"), icon: <RefreshCw />, onSelect: () => renew(r) }]) : undefined}
         initialSort={{ key: "expires", dir: "asc" }}
       />
       {crud.node}
@@ -127,7 +127,7 @@ export type ServiceRow = {
   kind: string;
   description: string | null;
   odometerKm: number | null;
-  workshop: string | null;
+  supplierId: string | null;
   invoiceNo: string | null;
   amount: number;
   currency: string;
@@ -135,15 +135,18 @@ export type ServiceRow = {
 };
 
 export function ServicesTable({ rows, refs, names, fixed, hide, flush }: Common & { rows: ServiceRow[] }) {
-  const { t, opt, date, conv } = usePrefs();
+  const { t, opt, date, conv, locale } = usePrefs();
   const crud = useCrud("services", refs, fixed);
   const { period, setPeriod, filtered } = usePeriod(rows);
+  const [sup, setSup] = useState("all");
+  const shown = sup === "all" ? filtered : filtered.filter((r) => r.supplierId === sup);
+  const supplierIds = [...new Set(rows.map((r) => r.supplierId).filter(Boolean))] as string[];
   const cols = keep<ServiceRow>(
     [
       { key: "date", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
       { key: "for", header: t("f.for"), sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}</span> },
       { key: "kind", header: t("f.kind"), sortValue: (r) => r.kind, render: (r) => <Stack main={opt(SERVICE_KINDS, r.kind)} sub={r.description} /> },
-      { key: "workshop", header: t("f.workshop"), sortValue: (r) => r.workshop, hide: "lg", render: (r) => <span className="text-ink-2">{r.workshop ?? "—"}</span> },
+      { key: "workshop", header: t("f.workshop"), sortValue: (r) => names[r.supplierId ?? ""] ?? "", hide: "lg", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
       { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => conv(r.amount, r.currency), render: (r) => <Amount amount={r.amount} currency={r.currency} /> },
       { key: "paid", header: t("f.paid"), sortValue: (r) => Number(r.paid), hide: "sm", render: (r) => <PaidBadge paid={r.paid} /> },
     ],
@@ -154,20 +157,35 @@ export function ServicesTable({ rows, refs, names, fixed, hide, flush }: Common 
     <>
       <DataTable
         flush={flush}
-        rows={filtered}
+        rows={shown}
         columns={cols}
-        searchText={(r) => [names[r.vehicleId ?? ""], names[r.trailerId ?? ""], r.description, r.workshop, r.invoiceNo, opt(SERVICE_KINDS, r.kind)].join(" ")}
+        searchText={(r) => [names[r.vehicleId ?? ""], names[r.trailerId ?? ""], r.description, names[r.supplierId ?? ""], r.invoiceNo, opt(SERVICE_KINDS, r.kind)].join(" ")}
         filters={[
           { value: "all", label: t("c.all"), predicate: () => true },
           { value: "unpaid", label: t("c.unpaid"), predicate: (r) => !r.paid },
         ]}
         toolbar={
           <>
+            {supplierIds.length > 0 && (
+              <div className="w-full sm:w-48">
+                <Select value={sup} onChange={(e) => setSup(e.target.value)} aria-label={t("f.supplier")}>
+                  <option value="all">{locale === "sr" ? "Svi dobavljači" : "All suppliers"}</option>
+                  {supplierIds
+                    .map((id) => ({ id, name: names[id] ?? "—" }))
+                    .sort((x, y) => x.name.localeCompare(y.name))
+                    .map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.name}
+                      </option>
+                    ))}
+                </Select>
+              </div>
+            )}
             <PeriodSelect value={period} onChange={setPeriod} />
-            <AddButton onClick={crud.create} />
+            {crud.canEdit && <AddButton onClick={crud.create} />}
           </>
         }
-        actions={(r) => crud.menu(r)}
+        actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
         footer={(v) => <TotalRow colSpan={cols.length} before={amountIdx} total={v.reduce((s, r) => s + conv(r.amount, r.currency), 0)} after={cols.length - amountIdx} />}
       />
@@ -182,7 +200,7 @@ export type PartRow = {
   name: string;
   partNumber: string | null;
   quantity: number;
-  supplier: string | null;
+  supplierId: string | null;
   vehicleId: string | null;
   trailerId: string | null;
   date: string;
@@ -193,16 +211,19 @@ export type PartRow = {
 };
 
 export function PartsTable({ rows, refs, names, fixed, hide, flush }: Common & { rows: PartRow[] }) {
-  const { t, date, conv, num } = usePrefs();
+  const { t, date, conv, num, locale } = usePrefs();
   const crud = useCrud("parts", refs, fixed);
   const { period, setPeriod, filtered } = usePeriod(rows);
+  const [sup, setSup] = useState("all");
+  const shown = sup === "all" ? filtered : filtered.filter((r) => r.supplierId === sup);
+  const supplierIds = [...new Set(rows.map((r) => r.supplierId).filter(Boolean))] as string[];
   const cols = keep<PartRow>(
     [
       { key: "date", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
       { key: "name", header: t("f.partName"), sortValue: (r) => r.name, render: (r) => <Stack main={r.name} sub={r.partNumber} /> },
       { key: "qty", header: t("f.quantity"), align: "right", sortValue: (r) => r.quantity, hide: "sm", render: (r) => <span className="text-ink-2">{num(r.quantity)}</span> },
       { key: "for", header: t("f.for"), sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}</span> },
-      { key: "supplier", header: t("f.supplier"), sortValue: (r) => r.supplier, hide: "lg", render: (r) => <span className="text-ink-2">{r.supplier ?? "—"}</span> },
+      { key: "supplier", header: t("f.supplier"), sortValue: (r) => names[r.supplierId ?? ""] ?? "", hide: "lg", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
       { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => conv(r.amount, r.currency), render: (r) => <Amount amount={r.amount} currency={r.currency} /> },
       { key: "paid", header: t("f.paid"), sortValue: (r) => Number(r.paid), hide: "sm", render: (r) => <PaidBadge paid={r.paid} /> },
     ],
@@ -213,20 +234,35 @@ export function PartsTable({ rows, refs, names, fixed, hide, flush }: Common & {
     <>
       <DataTable
         flush={flush}
-        rows={filtered}
+        rows={shown}
         columns={cols}
-        searchText={(r) => [r.name, r.partNumber, r.supplier, r.invoiceNo, names[r.vehicleId ?? ""], names[r.trailerId ?? ""]].join(" ")}
+        searchText={(r) => [r.name, r.partNumber, names[r.supplierId ?? ""], r.invoiceNo, names[r.vehicleId ?? ""], names[r.trailerId ?? ""]].join(" ")}
         filters={[
           { value: "all", label: t("c.all"), predicate: () => true },
           { value: "unpaid", label: t("c.unpaid"), predicate: (r) => !r.paid },
         ]}
         toolbar={
           <>
+            {supplierIds.length > 0 && (
+              <div className="w-full sm:w-48">
+                <Select value={sup} onChange={(e) => setSup(e.target.value)} aria-label={t("f.supplier")}>
+                  <option value="all">{locale === "sr" ? "Svi dobavljači" : "All suppliers"}</option>
+                  {supplierIds
+                    .map((id) => ({ id, name: names[id] ?? "—" }))
+                    .sort((x, y) => x.name.localeCompare(y.name))
+                    .map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.name}
+                      </option>
+                    ))}
+                </Select>
+              </div>
+            )}
             <PeriodSelect value={period} onChange={setPeriod} />
-            <AddButton onClick={crud.create} />
+            {crud.canEdit && <AddButton onClick={crud.create} />}
           </>
         }
-        actions={(r) => crud.menu(r)}
+        actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
         footer={(v) => <TotalRow colSpan={cols.length} before={amountIdx} total={v.reduce((s, r) => s + conv(r.amount, r.currency), 0)} after={cols.length - amountIdx} />}
       />
@@ -242,7 +278,7 @@ export type FuelRow = {
   employeeId: string | null;
   date: string;
   liters: number;
-  amount: number;
+  amount: number | null;
   currency: string;
   station: string | null;
   country: string | null;
@@ -262,7 +298,7 @@ export function FuelTable({ rows, refs, names, fixed, hide, flush }: Common & { 
       { key: "driver", header: t("f.driver"), sortValue: (r) => names[r.employeeId ?? ""] ?? "", hide: "md", render: (r) => <span className="text-ink-2">{names[r.employeeId ?? ""] ?? "—"}</span> },
       { key: "station", header: t("f.station"), sortValue: (r) => r.country, hide: "lg", render: (r) => <Stack main={<span className="font-normal text-ink-2">{r.station ?? "—"}</span>} sub={opt(COUNTRIES, r.country)} /> },
       { key: "liters", header: t("f.liters"), align: "right", sortValue: (r) => r.liters, render: (r) => <span className="text-ink-2">{num(r.liters, 1)} l</span> },
-      { key: "ppl", header: t("f.pricePerL"), align: "right", hide: "sm", sortValue: (r) => conv(r.amount / r.liters, r.currency), render: (r) => <span className="text-ink-3">{money(r.amount / r.liters, r.currency === "RSD" ? "RSD" : "EUR")}</span> },
+      { key: "ppl", header: t("f.pricePerL"), align: "right", hide: "sm", sortValue: (r) => (r.amount ? conv(r.amount / r.liters, r.currency) : null), render: (r) => <span className="text-ink-3">{r.amount ? money(r.amount / r.liters, r.currency === "RSD" ? "RSD" : "EUR") : "—"}</span> },
       { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => conv(r.amount, r.currency), render: (r) => <Amount amount={r.amount} currency={r.currency} /> },
       { key: "km", header: t("f.odometerKm"), align: "right", hide: "lg", sortValue: (r) => r.odometerKm, render: (r) => <span className="text-ink-3">{r.odometerKm ? num(r.odometerKm) : "—"}</span> },
     ],
@@ -285,10 +321,10 @@ export function FuelTable({ rows, refs, names, fixed, hide, flush }: Common & { 
         toolbar={
           <>
             <PeriodSelect value={period} onChange={setPeriod} />
-            <AddButton onClick={crud.create} />
+            {crud.canEdit && <AddButton onClick={crud.create} />}
           </>
         }
-        actions={(r) => crud.menu(r)}
+        actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
         footer={(v) => (
           <TotalRow
@@ -346,10 +382,10 @@ export function PaymentsTable({ rows, refs, names, fixed, hide, flush }: Common 
         toolbar={
           <>
             <PeriodSelect value={period} onChange={setPeriod} />
-            <AddButton onClick={crud.create} />
+            {crud.canEdit && <AddButton onClick={crud.create} />}
           </>
         }
-        actions={(r) => crud.menu(r)}
+        actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
         footer={(v) => <TotalRow colSpan={cols.length} before={amountIdx} total={v.reduce((s, r) => s + conv(r.amount, r.currency), 0)} after={cols.length - amountIdx} />}
       />

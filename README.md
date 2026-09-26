@@ -1,8 +1,8 @@
-# FleetGo
+# Roadline
 
-Upravljanje voznim parkom za prevozničke, transportne i logističke firme: vozila, prikolice, zaposleni, rokovi dokumenata, gorivo, servisi, delovi i uplate vozačima, uz mapu uživo preko Wialona.
+Upravljanje voznim parkom za prevozničke, transportne i logističke firme: vozila, prikolice, zaposleni, rokovi dokumenata, gorivo, servisi, delovi, dobavljači i uplate vozačima, uz mapu uživo preko Wialona.
 
-**Verzija 0.1** radi kao vlasnik firme i vidi sve podatke. Verzija 0.2 dodaje prijavu (naziv firme + korisničko ime + lozinka) i prava pristupa po ulozi; šema baze je već multi-tenant (`company_id` na svakoj tabeli).
+**Verzija 0.2**: prijava emailom i lozinkom, uloge i prava po modulu, više firmi po jednom emailu, admin panel za celu platformu, dnevni kurs NBS i posebna lista dobavljača.
 
 ## Šta radi
 
@@ -14,12 +14,34 @@ Upravljanje voznim parkom za prevozničke, transportne i logističke firme: vozi
 | Prikolice | Tip (cerada, hladnjača, cisterna…), osovine, nosivost, na koje vozilo je prikačena; dokumenta, servisi, delovi |
 | Zaposleni | Vozači i ostali; dokumenta vozača, uplate, sipanja |
 | Rokovi i dokumenta | Registracija, tehnički, šestomesečni, zeleni karton, bela potvrda, baždarenje tahografa, CEMT, licenca, ATP, ADR, PP aparat, prva pomoć; za vozače: vozačka, kartica za tahograf, CPC/kod 95, lekarsko, ADR kartica, pasoš, radna dozvola. „Obnovi“ predlaže novi rok po tipičnom trajanju dokumenta |
-| Gorivo | Litri, iznos, cena po litru, pumpa, država, kilometraža, način plaćanja |
-| Servisi / Delovi | Šta je rađeno ili kupljeno, za koje vozilo ili prikolicu, iznos, plaćeno / nije plaćeno |
+| Gorivo | Litri (obavezno), iznos (opciono), cena po litru, pumpa, država, kilometraža, način plaćanja |
+| Servisi / Delovi | Šta je rađeno ili kupljeno, za koje vozilo ili prikolicu, dobavljač/servis, iznos, plaćeno / nije plaćeno |
+| Dobavljači | Servisi i dobavljači delova. Novi se dodaje direktno iz forme (upišeš naziv → „Dodaj …“) i ostaje u bazi za filtriranje |
 | Uplate vozačima | Dnevnice, akontacije, plate, bonusi, troškovi puta |
-| Podešavanja | Podaci o firmi, kurs EUR→RSD, broj dana za upozorenje, provera Wialon veze |
+| Podešavanja | Podaci o firmi, kurs (NBS automatski ili ručno), broj dana za upozorenje, članovi tima i njihova prava, provera Wialon veze |
 
-Interfejs je na srpskom i engleskom (prekidač u meniju). Svaki trošak se čuva u valuti u kojoj je plaćen (EUR ili RSD), a zbirovi se prikazuju u izabranoj valuti po kursu iz podešavanja.
+Interfejs je na srpskom i engleskom (klik na svoje ime dole levo → Jezik / Valuta / Odjava). Svaki trošak se čuva u valuti u kojoj je plaćen (EUR ili RSD), a zbirovi se prikazuju u izabranoj valuti.
+
+## Prijava, uloge i admin
+
+- **Admin panel** (`/admin`) je samo za tebe kao developera. Korisničko ime i hash lozinke su u env promenljivama `ADMIN_USERNAME` i `ADMIN_PASSWORD_HASH` (lozinka se nigde ne čuva u čistom obliku). Tu vidiš zahteve za pristup, firme, korisnike i dnevnik aktivnosti; praviš firmu sa vlasnikom, dodaješ člana/vlasnika postojećoj firmi, šalješ link za lozinku ili privremenu lozinku, blokiraš korisnika ili firmu i možeš da „uđeš kao“ vlasnik (2 sata, uz traku na vrhu).
+- **Lozinke se ne mogu videti** ni u adminu ni u bazi; čuvaju se kao scrypt hash. Umesto toga admin šalje jednokratni link (važi 7 dana) ili privremenu lozinku koju korisnik menja pri prvoj prijavi.
+- **Registracija** (`/register`) je samo zahtev. Kad ga odobriš u adminu, pravi se firma i vlasnik, a ti dobiješ link koji mu pošalješ.
+- **Vlasnik** u Podešavanjima → Članovi dodaje ljude emailom i bira ulogu: dispečer, servis ili knjigovodstvo. Za svaki modul može da podesi Nema / Gleda / Menja.
+- **Jedan email u više firmi**: posle prijave bira se firma, a menja se klikom na naziv firme u meniju.
+- Posle 8 pogrešnih pokušaja u 15 minuta prijava se privremeno blokira.
+
+Hash admin lozinke pravi se ovako (lozinku stavi pod navodnike, ništa se ne čuva):
+
+```bash
+npm run admin:hash -- "tvoja-lozinka"
+```
+
+Dobijeni red `ADMIN_PASSWORD_HASH=…` ide u `.env` i u Vercel env promenljive, zajedno sa `ADMIN_USERNAME`.
+
+## Kurs NBS
+
+Kad je u Podešavanjima izabrano „NBS“, aplikacija jednom dnevno uzima zvanični srednji kurs EUR iz NBS kursne liste (preko javnog API-ja kurs.resenje.org) i čuva ga u bazi. Ako servis nije dostupan, koristi se poslednji sačuvani kurs. „Ručno“ ostavlja kurs koji sam upišeš.
 
 ## Tehnologija
 
@@ -29,10 +51,10 @@ Next.js 16 (App Router, Server Actions) · TypeScript · Tailwind CSS 4 · Drizz
 
 ```bash
 npm install
-cp .env.example .env        # upiši DATABASE_URL (i DIRECT_URL)
+cp .env.example .env        # upiši DATABASE_URL, DIRECT_URL, ADMIN_USERNAME, ADMIN_PASSWORD_HASH
 npm run db:migrate          # pravi tabele
 npm run db:seed             # opciono: demo firma sa podacima
-npm run dev                 # http://localhost:3000
+npm run dev                 # http://localhost:3000 → /admin/login, pa dodaj vlasnika firmi
 ```
 
 Za lokalni Postgres bez Supabase-a dovoljno je `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/fleetgo`.
@@ -45,7 +67,7 @@ Kad završiš sa demo podacima, obriši sve i napravi praznu firmu sa pravim naz
 npm run db:fresh -- --name "Naziv Firme d.o.o." --pib 123456789 --address "Ulica 1, Grad" --yes
 ```
 
-Bez `--yes` komanda samo ispiše šta je u bazi i ništa ne briše. Brisanje je trajno.
+Bez `--yes` komanda samo ispiše šta je u bazi i ništa ne briše. Brisanje je trajno. Posle toga u admin panelu dodaj vlasnika toj firmi. (Firmu možeš napraviti i direktno iz admin panela, bez ove komande.)
 
 ## Supabase
 
@@ -53,13 +75,14 @@ Bez `--yes` komanda samo ispiše šta je u bazi i ništa ne briše. Brisanje je 
 2. **Connect → ORMs / Connection string**: kopiraj *Transaction pooler* (port 6543) u `DATABASE_URL`, a *Session pooler* (port 5432) u `DIRECT_URL`.
 3. Pokreni `npm run db:migrate` (i po želji `npm run db:seed`).
 
-Migracija `0001_enable_rls.sql` uključuje Row Level Security na svim tabelama bez politika, tako da javni Supabase API ključevi ne mogu da čitaju podatke. Aplikacija se na bazu povezuje direktno sa servera. Politike po firmi dolaze u v0.2 zajedno sa prijavom.
+Row Level Security je uključen na svim tabelama bez politika, tako da javni Supabase API ključevi ne mogu da čitaju podatke. Aplikacija se na bazu povezuje direktno sa servera, a svaki upit je ograničen na firmu i prava prijavljenog korisnika.
 
 ## Deploy na Vercel
 
 1. Importuj repo na vercel.com.
-2. U **Settings → Environment Variables** dodaj `DATABASE_URL` (i kasnije `WIALON_TOKEN`).
-3. Deploy. Migracije pokreći lokalno protiv Supabase baze (`npm run db:migrate`) kad se šema promeni.
+2. U **Settings → Environment Variables** dodaj `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` (i kasnije `WIALON_TOKEN`).
+3. Po želji **Settings → Functions → Region**: Frankfurt (`fra1`), da server bude blizu Supabase baze.
+4. Deploy. Migracije pokreći lokalno protiv Supabase baze (`npm run db:migrate`) kad se šema promeni.
 
 ## Wialon
 
@@ -85,7 +108,11 @@ Kod: `src/lib/telematics/` (jedan interfejs, provajderi `wialon.ts` i `simulator
 
 ```
 src/
-  app/                 stranice (App Router) + actions.ts (unos, izmena, brisanje)
+  app/(app)/           stranice aplikacije (traže prijavu)
+  app/(auth)/          prijava, zahtev za pristup, postavljanje lozinke, izbor firme
+  app/admin/           admin panel
+  app/actions.ts       unos, izmena, brisanje (uz proveru prava)
+  proxy.ts             preusmerava neprijavljene na /login
   app/api/positions    pozicije za mapu
   components/          UI, tabele, forme, grafikon, mapa
   db/                  Drizzle šema i seed
@@ -93,13 +120,14 @@ src/
   lib/resources.ts     definicija polja za svaki unos (forme i validacija iz istog izvora)
   lib/i18n.ts          prevodi
   lib/telematics/      Wialon i simulacija
+  lib/auth/            sesije, lozinke, uloge i prava, dnevnik
+  lib/fx.ts            kurs NBS
 drizzle/               SQL migracije
 ```
 
 Novo polje se dodaje na tri mesta: `src/db/schema.ts` (pa `npm run db:generate`), `src/lib/resources.ts` (forma i validacija) i kolona u odgovarajućoj tabeli u `src/components/tables/`.
 
-## Plan za 0.2
+## Plan dalje
 
-- Prijava: naziv firme + korisničko ime + lozinka
-- Uloge (vlasnik, dispečer, knjigovodstvo, vozač) i prava pristupa po modulu
-- RLS politike po `company_id`
+- 0.3 / 0.4: uloga vozača sa mobilnim prikazom (dani prelaska granice, sipanje goriva, troškovi sa slikom računa, oznaka „fizički račun predat“)
+- Slanje emailova (odobren zahtev, link za lozinku) umesto ručnog slanja linka

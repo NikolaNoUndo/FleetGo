@@ -4,8 +4,12 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { getCompanyId } from "@/lib/tenant";
 import { RESOURCES, type ResourceKey } from "@/lib/resources";
+import { assertAccess, getContext } from "@/lib/auth/context";
+import { can, canSuppliers, RESOURCE_MODULE } from "@/lib/auth/permissions";
+import { setSessionCompany } from "@/lib/auth/session";
+import { audit } from "@/lib/auth/audit";
+import { getNbsRate } from "@/lib/fx";
 import { DOC_TYPES, OPTION_SETS, type EntityType } from "@/lib/catalog";
 import { getPositions } from "@/lib/telematics";
 
@@ -18,6 +22,7 @@ const TABLES = {
   parts: schema.parts,
   fuel: schema.fuelEntries,
   payments: schema.driverPayments,
+  suppliers: schema.suppliers,
 } as const;
 
 export type ActionResult = { ok: true; id: string } | { ok: false; errors: Record<string, string>; message?: string };
@@ -40,6 +45,8 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
   const refChecks: { table: "vehicles" | "trailers" | "employees"; id: string; field: string }[] = [];
+  /** supplier fields: an existing id, or "new:<name>" to create one on save */
+  const supplierFields: { field: string; value: string }[] = [];
 
   for (const f of RESOURCES[resource].fields) {
     const v = raw[f.name];
@@ -101,6 +108,9 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
         else out[f.name] = s;
         break;
       }
+      case "supplier":
+        supplierFields.push({ field: f.name, value: s.slice(0, 200) });
+        break;
       case "ref":
       case "entity": {
         if (!UUID.test(s)) {
@@ -120,14 +130,52 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
       }
     }
   }
-  return { out, errors, refChecks };
+  return { out, errors, refChecks, supplierFields };
+}
+
+/** Access check for an editable resource; returns the company id. */
+async function editContext(resource: ResourceKey) {
+  const ctx = await getContext();
+  if (!ctx) throw new Error("Not signed in");
+  const ok = resource === "suppliers" ? canSuppliers(ctx.perms, "edit") : can(ctx.perms, RESOURCE_MODULE[resource], "edit");
+  if (!ok) throw new Error("Forbidden");
+  return ctx;
+}
+
+/** Resolve a supplier field value to an id, creating the supplier when it is new. */
+async function resolveSupplier(companyId: string, value: string): Promise<string | null> {
+  if (value.startsWith("new:")) {
+    const name = value.slice(4).trim().replace(/\s+/g, " ");
+    if (!name) return null;
+    const [existing] = await db
+      .select({ id: schema.suppliers.id })
+      .from(schema.suppliers)
+      .where(and(eq(schema.suppliers.companyId, companyId), eq(schema.suppliers.name, name)))
+      .limit(1);
+    if (existing) return existing.id;
+    const [created] = await db.insert(schema.suppliers).values({ companyId, name }).returning({ id: schema.suppliers.id });
+    return created.id;
+  }
+  if (!UUID.test(value)) return null;
+  const [found] = await db
+    .select({ id: schema.suppliers.id })
+    .from(schema.suppliers)
+    .where(and(eq(schema.suppliers.id, value), eq(schema.suppliers.companyId, companyId)))
+    .limit(1);
+  return found?.id ?? null;
 }
 
 export async function saveRecord(resourceName: string, id: string | null, raw: Record<string, unknown>): Promise<ActionResult> {
   if (!isResource(resourceName)) return { ok: false, errors: {}, message: "Unknown resource" };
-  const companyId = await getCompanyId();
-  const { out, errors, refChecks } = coerce(resourceName, raw);
+  let companyId: string;
+  try {
+    companyId = (await editContext(resourceName)).company.id;
+  } catch {
+    return { ok: false, errors: {}, message: "Nemaš pravo izmene za ovaj deo aplikacije." };
+  }
+  const { out, errors, refChecks, supplierFields } = coerce(resourceName, raw);
   if (Object.keys(errors).length) return { ok: false, errors };
+  for (const sf of supplierFields) out[sf.field] = await resolveSupplier(companyId, sf.value);
 
   // Tenant safety: every referenced row must belong to the same company.
   for (const r of refChecks) {
@@ -156,6 +204,8 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
     revalidatePath("/", "layout");
     return { ok: true, id: (res as { id: string }[])[0].id };
   } catch (e) {
+    const msg = String((e as { cause?: { message?: string } })?.cause?.message ?? (e as Error).message);
+    if (resourceName === "suppliers" && msg.includes("suppliers_company_name_uq")) return { ok: false, errors: { name: "duplicate" } };
     console.error("saveRecord failed", e);
     return { ok: false, errors: {}, message: "Database error" };
   }
@@ -163,7 +213,13 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
 
 export async function deleteRecord(resourceName: string, id: string): Promise<{ ok: boolean }> {
   if (!isResource(resourceName) || !UUID.test(id)) return { ok: false };
-  const companyId = await getCompanyId();
+  let ctx;
+  try {
+    ctx = await editContext(resourceName);
+  } catch {
+    return { ok: false };
+  }
+  const companyId = ctx.company.id;
   const table = TABLES[resourceName];
   await db.delete(table).where(and(eq(table.id, id), eq(table.companyId, companyId)));
   // Documents are polymorphic, so clean them up with their owner.
@@ -173,36 +229,61 @@ export async function deleteRecord(resourceName: string, id: string): Promise<{ 
       .delete(schema.documents)
       .where(and(eq(schema.documents.companyId, companyId), eq(schema.documents.entityType, entityType), inArray(schema.documents.entityId, [id])));
   }
+  if (["vehicles", "trailers", "employees"].includes(resourceName)) await audit(ctx.user.email, `delete.${resourceName}`, { id }, companyId);
   revalidatePath("/", "layout");
   return { ok: true };
 }
 
 export async function setPreference(key: "locale" | "currency", value: string) {
   const c = await cookies();
-  if (key === "locale" && (value === "sr" || value === "en")) c.set("fg_locale", value, { path: "/", maxAge: 60 * 60 * 24 * 365 });
-  if (key === "currency" && (value === "EUR" || value === "RSD")) c.set("fg_currency", value, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+  if (key === "locale" && (value === "sr" || value === "en")) c.set("rl_locale", value, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+  if (key === "currency" && (value === "EUR" || value === "RSD")) c.set("rl_currency", value, { path: "/", maxAge: 60 * 60 * 24 * 365 });
   revalidatePath("/", "layout");
 }
 
-export async function saveSettings(raw: { name: string; pib: string; address: string; eurRsdRate: string; warnDays: string }) {
-  const companyId = await getCompanyId();
+export async function saveSettings(raw: { name: string; pib: string; address: string; eurRsdRate: string; warnDays: string; rateMode: string }) {
+  const ctx = await assertAccess("settings", "edit");
   const rate = parseNumber(raw.eurRsdRate);
   const warn = parseNumber(raw.warnDays);
+  const rateMode = raw.rateMode === "manual" ? "manual" : "nbs";
   const errors: Record<string, string> = {};
   if (!raw.name?.trim()) errors.name = "required";
-  if (rate === null || Number.isNaN(rate) || rate <= 0) errors.eurRsdRate = "number";
+  if (rateMode === "manual" && (rate === null || Number.isNaN(rate) || rate <= 0)) errors.eurRsdRate = "number";
   if (warn === null || Number.isNaN(warn) || warn < 1 || warn > 365) errors.warnDays = "number";
   if (Object.keys(errors).length) return { ok: false as const, errors };
   await db
     .update(schema.companies)
-    .set({ name: raw.name.trim(), pib: raw.pib?.trim() || null, address: raw.address?.trim() || null, eurRsdRate: rate!, warnDays: Math.round(warn!) })
-    .where(eq(schema.companies.id, companyId));
+    .set({
+      name: raw.name.trim(),
+      pib: raw.pib?.trim() || null,
+      address: raw.address?.trim() || null,
+      rateMode,
+      ...(rate && !Number.isNaN(rate) && rate > 0 ? { eurRsdRate: rate } : {}),
+      warnDays: Math.round(warn!),
+    })
+    .where(eq(schema.companies.id, ctx.company.id));
   revalidatePath("/", "layout");
   return { ok: true as const };
 }
 
+/** Re-read today's NBS rate (shown in Settings). */
+export async function refreshRate() {
+  await assertAccess("settings", "view");
+  return getNbsRate();
+}
+
+/** Switch the active company (only to one the user is a member of). */
+export async function switchCompany(companyId: string) {
+  const ctx = await getContext();
+  if (!ctx || !UUID.test(companyId)) return { ok: false };
+  if (!ctx.companies.some((c) => c.id === companyId)) return { ok: false };
+  await setSessionCompany(companyId);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 export async function testTelematics() {
-  const companyId = await getCompanyId();
+  const companyId = (await assertAccess("live", "view")).company.id;
   const vs = await db
     .select({ id: schema.vehicles.id, plate: schema.vehicles.plate, wialonUnitId: schema.vehicles.wialonUnitId })
     .from(schema.vehicles)

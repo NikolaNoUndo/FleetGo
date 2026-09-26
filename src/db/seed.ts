@@ -201,6 +201,12 @@ async function main() {
 
   // Services
   const workshops = ["Scania Srbija, Beograd", "Volvo Truck Center Novi Sad", "MAN servis Batajnica", "Auto centar Zemun", "Servis Vasić (interno)", "Vulkanizer Petrović"];
+  const partSuppliers = ["Auto delovi Vojvodina", "Bosch servis centar", "Kamion delovi Zemun", "Tigar Tyres", "Akumulatori Beograd", "Shell Srbija", "Petrohemija", "Oprema Transport", "Protivpožarna zaštita doo", "Apoteka Zemun", "Cerade Jovanović"];
+  const supplierRows = await db
+    .insert(schema.suppliers)
+    .values([...workshops, ...partSuppliers].map((name) => ({ companyId, name })))
+    .returning();
+  const supplierId = (name: string) => supplierRows.find((x) => x.name === name)?.id ?? null;
   const svc: (typeof schema.services.$inferInsert)[] = [];
   const serviceTexts: Record<string, string[]> = {
     regular: ["Veliki servis, zamena ulja i filtera", "Mali servis, ulje + filteri", "Redovan servis na 100.000 km"],
@@ -221,7 +227,7 @@ async function main() {
       companyId, vehicleId: onTrailer ? null : v.id, trailerId: onTrailer ? t.id : null,
       date: iso(addDays(-int(1, 360))), kind: onTrailer && kind === "electrical" ? "bodywork" : kind,
       description: pick(serviceTexts[kind]), odometerKm: onTrailer ? null : (v.odometerKm ?? 0) - int(1000, 60000),
-      workshop: pick(workshops), invoiceNo: `${int(100, 999)}/${today.getFullYear()}`,
+      supplierId: supplierId(pick(workshops)), invoiceNo: `${int(100, 999)}/${today.getFullYear()}`,
       amount: eur ? round2(amountRsd / 117.2) : amountRsd, currency: eur ? "EUR" : "RSD", paid: rnd() > 0.15,
     });
   }
@@ -252,7 +258,7 @@ async function main() {
     const qty = name.startsWith("Guma") ? pick([2, 2, 4]) : name.startsWith("Spanjer") ? 10 : name.startsWith("Motorno") ? pick([1, 2, 3]) : 1;
     const forTrailer = name.startsWith("Cerada") || (name.startsWith("Guma 385") && rnd() < 0.7) || name.startsWith("Spanjer");
     parts.push({
-      companyId, name, partNumber, quantity: qty, supplier,
+      companyId, name, partNumber, quantity: qty, supplierId: supplierId(supplier),
       vehicleId: forTrailer ? null : pick(vehicles).id, trailerId: forTrailer ? pick(trailers).id : null,
       date: iso(addDays(-int(1, 360))), invoiceNo: `R-${int(1000, 9999)}`,
       amount: round2(price * qty), currency, paid: rnd() > 0.12,

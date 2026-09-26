@@ -10,15 +10,16 @@ import { Menu, Modal, UnderlineTabs } from "./ui/client";
 import { btnClass } from "./ui/primitives";
 import { crumbsFor, GROUPS, isActive } from "@/lib/nav";
 import { RESOURCES, type Refs, type ResourceKey } from "@/lib/resources";
+import { RESOURCE_MODULE, ROUTE_MODULE } from "@/lib/auth/permissions";
 
 export function Topbar({ refs }: { refs: Refs }) {
-  const { t } = usePrefs();
+  const { t, can } = usePrefs();
   const pathname = usePathname();
   const crumbs = crumbsFor(pathname);
   const [adding, setAdding] = useState<ResourceKey | null>(null);
   const isDetail = /^\/(vehicles|trailers|employees)\/[^/]+$/.test(pathname);
 
-  const items: { r: ResourceKey; icon: React.ReactNode }[] = [
+  const items = ([
     { r: "fuel", icon: <Fuel /> },
     { r: "services", icon: <Wrench /> },
     { r: "parts", icon: <Package /> },
@@ -27,7 +28,7 @@ export function Topbar({ refs }: { refs: Refs }) {
     { r: "vehicles", icon: <Truck /> },
     { r: "trailers", icon: <Container /> },
     { r: "employees", icon: <UserPlus /> },
-  ];
+  ] as { r: Exclude<ResourceKey, "suppliers">; icon: React.ReactNode }[]).filter((x) => can(RESOURCE_MODULE[x.r], "edit"));
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   return (
@@ -53,7 +54,7 @@ export function Topbar({ refs }: { refs: Refs }) {
         )}
       </nav>
       <div className="ml-auto">
-        <Menu
+        {items.length > 0 && <Menu
           label={t("q.new")}
           triggerClassName={btnClass("primary", "md")}
           trigger={
@@ -63,7 +64,7 @@ export function Topbar({ refs }: { refs: Refs }) {
             </>
           }
           items={items.map(({ r, icon }) => ({ label: cap(t(RESOURCES[r].title)), icon, onSelect: () => setAdding(r) }))}
-        />
+        />}
       </div>
       <Modal open={!!adding} onClose={() => setAdding(null)} title={adding ? `${t("c.add")} ${t(RESOURCES[adding].title)}` : ""}>
         {adding && <RecordForm key={adding} resource={adding} record={null} refs={refs} onDone={() => setAdding(null)} onCancel={() => setAdding(null)} />}
@@ -74,9 +75,10 @@ export function Topbar({ refs }: { refs: Refs }) {
 
 /** Underline tabs for a sidebar group (Flota → Vozila · Prikolice · …). */
 export function SectionTabs({ group }: { group: "fleet" | "costs" }) {
-  const { t } = usePrefs();
+  const { t, can } = usePrefs();
   const pathname = usePathname();
-  const g = GROUPS.find((x) => x.key === group)!;
+  const g0 = GROUPS.find((x) => x.key === group)!;
+  const g = { ...g0, items: g0.items.filter((it) => { const m = ROUTE_MODULE[it.href]; return !m || can(m); }) };
   const active = g.items.find((it) => isActive(pathname, it.href))?.href ?? g.items[0].href;
   return <UnderlineTabs value={active} items={g.items.map((it) => ({ value: it.href, label: t(it.label), href: it.href }))} />;
 }

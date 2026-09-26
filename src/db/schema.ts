@@ -8,12 +8,15 @@ import {
   boolean,
   timestamp,
   index,
+  uniqueIndex,
+  jsonb,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 /**
- * Multi-tenant from day one: every business table carries company_id.
- * v0.1 runs as the owner of a single company; v0.2 adds users, roles and
- * login (company + username + password) on top of this same shape.
+ * Multi-tenant: every business table carries company_id.
+ * People sign in with email + password; one email can be a member of several
+ * companies, each membership carrying its own role and per-module permissions.
  */
 
 const id = () => uuid("id").primaryKey().defaultRandom();
@@ -31,6 +34,9 @@ export const companies = pgTable("companies", {
   address: text("address"),
   eurRsdRate: numeric("eur_rsd_rate", { precision: 10, scale: 4, mode: "number" }).notNull().default(117.2),
   warnDays: integer("warn_days").notNull().default(30),
+  /** "nbs" = official NBS middle rate, refreshed daily; "manual" = eurRsdRate above */
+  rateMode: text("rate_mode").notNull().default("nbs"),
+  status: text("status").notNull().default("active"), // active | blocked
   createdAt: createdAt(),
 });
 
@@ -129,7 +135,7 @@ export const services = pgTable(
     kind: text("kind").notNull().default("regular"),
     description: text("description"),
     odometerKm: integer("odometer_km"),
-    workshop: text("workshop"),
+    supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
     invoiceNo: text("invoice_no"),
     amount: money("amount").notNull(),
     currency: text("currency").notNull().default("RSD"),
@@ -147,7 +153,7 @@ export const parts = pgTable(
     name: text("name").notNull(),
     partNumber: text("part_number"),
     quantity: integer("quantity").notNull().default(1),
-    supplier: text("supplier"),
+    supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
     vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
     trailerId: uuid("trailer_id").references(() => trailers.id, { onDelete: "set null" }),
     date: date("date").notNull(),
@@ -169,7 +175,7 @@ export const fuelEntries = pgTable(
     employeeId: uuid("employee_id").references(() => employees.id, { onDelete: "set null" }),
     date: date("date").notNull(),
     liters: numeric("liters", { precision: 10, scale: 2, mode: "number" }).notNull(),
-    amount: money("amount").notNull(),
+    amount: money("amount"),
     currency: text("currency").notNull().default("EUR"),
     station: text("station"),
     country: text("country"),
@@ -198,4 +204,133 @@ export const driverPayments = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("payments_company_idx").on(t.companyId), index("payments_date_idx").on(t.date)],
+);
+
+/** Suppliers, workshops and vendors – kept per company for picking and filtering. */
+export const suppliers = pgTable(
+  "suppliers",
+  {
+    id: id(),
+    companyId: companyId(),
+    name: text("name").notNull(),
+    phone: text("phone"),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("suppliers_company_idx").on(t.companyId), uniqueIndex("suppliers_company_name_uq").on(t.companyId, t.name)],
+);
+
+/* ------------------------------------------------------------------ */
+/* Auth & access                                                       */
+/* ------------------------------------------------------------------ */
+
+export const users = pgTable(
+  "users",
+  {
+    id: id(),
+    email: text("email").notNull(), // stored lower-case
+    name: text("name"),
+    passwordHash: text("password_hash"), // null until the person sets a password
+    mustChangePassword: boolean("must_change_password").notNull().default(false),
+    status: text("status").notNull().default("active"), // active | blocked
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("users_email_uq").on(t.email)],
+);
+
+export const memberships = pgTable(
+  "memberships",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    companyId: companyId(),
+    role: text("role").notNull().default("dispatcher"), // owner | dispatcher | service | accounting (driver later)
+    permissions: jsonb("permissions").$type<Record<string, "none" | "view" | "edit">>().notNull().default({}),
+    /** future: a driver login is tied to an employee record */
+    employeeId: uuid("employee_id").references(() => employees.id, { onDelete: "set null" }),
+    status: text("status").notNull().default("active"), // active | disabled
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("memberships_user_company_uq").on(t.userId, t.companyId), index("memberships_company_idx").on(t.companyId)],
+);
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(), // sha256 of the cookie token
+    kind: text("kind").notNull().default("user"), // user | admin
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+    impersonatedBy: text("impersonated_by"), // "admin" when the developer is viewing as this user
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("sessions_user_idx").on(t.userId)],
+);
+
+/** One-time links for setting / resetting a password. */
+export const authTokens = pgTable("auth_tokens", {
+  id: text("id").primaryKey(), // sha256 of the token in the link
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  purpose: text("purpose").notNull().default("set_password"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+export const registrationRequests = pgTable("registration_requests", {
+  id: id(),
+  companyName: text("company_name").notNull(),
+  pib: text("pib"),
+  contactName: text("contact_name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone"),
+  message: text("message"),
+  fleetSize: text("fleet_size"),
+  status: text("status").notNull().default("pending"), // pending | approved | rejected
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+  handledAt: timestamp("handled_at", { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: id(),
+    actor: text("actor").notNull(), // "admin" or the user's email
+    companyId: uuid("company_id"),
+    action: text("action").notNull(),
+    details: jsonb("details").$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("audit_created_idx").on(t.createdAt), index("audit_company_idx").on(t.companyId)],
+);
+
+export const loginAttempts = pgTable(
+  "login_attempts",
+  {
+    id: id(),
+    key: text("key").notNull(), // email or "admin"
+    ok: boolean("ok").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [index("login_attempts_key_idx").on(t.key, t.createdAt)],
+);
+
+/** Official NBS middle rate, one row per day. */
+export const fxRates = pgTable(
+  "fx_rates",
+  {
+    day: date("day").notNull(),
+    currency: text("currency").notNull().default("EUR"),
+    rate: numeric("rate", { precision: 10, scale: 4, mode: "number" }).notNull(),
+    source: text("source").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.currency] })],
 );

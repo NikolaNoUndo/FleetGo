@@ -57,7 +57,7 @@ async function main() {
       warnDays: 30,
     })
     .returning();
-  console.log(`\n✓ Gotovo. Baza je prazna, firma "${company.name}" je spremna. Pokreni npm run dev.`);
+  console.log(`\n✓ Gotovo. Baza je prazna, firma "${company.name}" je spremna. Uloguj se na /admin/login i dodaj vlasnika toj firmi.`);
   await client.end();
 }
 

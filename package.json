@@ -1,6 +1,6 @@
 {
-  "name": "fleetgo",
-  "version": "0.1.0",
+  "name": "roadline",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,7 +12,8 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit",
-    "db:fresh": "tsx src/db/fresh.ts"
+    "db:fresh": "tsx src/db/fresh.ts",
+    "admin:hash": "tsx scripts/admin-hash.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
