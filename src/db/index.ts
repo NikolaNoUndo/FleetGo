@@ -1,21 +1,34 @@
 import "server-only";
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import { attachDatabasePool } from "@vercel/functions";
 import * as schema from "./schema";
 
-type DB = PostgresJsDatabase<typeof schema>;
+type DB = NodePgDatabase<typeof schema>;
 
 // Created on first use, so `next build` works even when DATABASE_URL is only
-// available at runtime (e.g. not yet set on Vercel).
+// available at runtime.
 const g = globalThis as unknown as { __roadlineDb?: DB };
 
 function connect(): DB {
   if (g.__roadlineDb) return g.__roadlineDb;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL nije podešen. Pogledaj README i .env.example.");
-  // Supabase transaction pooler (port 6543) does not support prepared statements.
-  const sql = postgres(url, { prepare: false, max: process.env.NODE_ENV === "production" ? 5 : 3 });
-  g.__roadlineDb = drizzle(sql, { schema });
+  const local = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url);
+  const pool = new Pool({
+    connectionString: url,
+    // Encrypt traffic to Supabase; its pooler uses Supabase's own CA.
+    ssl: local ? undefined : { rejectUnauthorized: false },
+    max: process.env.NODE_ENV === "production" ? 5 : 3,
+    idleTimeoutMillis: 5_000,
+    connectionTimeoutMillis: 10_000,
+    // A request never waits forever on a dead connection.
+    query_timeout: 20_000,
+  });
+  // On Vercel, closes idle connections before the function is suspended so the
+  // next request never reuses a stale socket. No-op elsewhere.
+  attachDatabasePool(pool);
+  g.__roadlineDb = drizzle({ client: pool, schema });
   return g.__roadlineDb;
 }
 

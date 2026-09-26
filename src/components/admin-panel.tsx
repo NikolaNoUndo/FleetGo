@@ -49,6 +49,12 @@ type User = {
 };
 type Log = { id: string; actor: string; action: string; company: string | null; details: unknown; createdAt: string };
 
+/** Turns a failed server call into a readable message instead of failing silently. */
+const failMsg = (e: unknown) =>
+  e instanceof Error && /admin only/i.test(e.message)
+    ? "Admin sesija je istekla. Osveži stranicu i prijavi se ponovo."
+    : "Server nije odgovorio. Osveži stranicu (Ctrl+Shift+R) i pokušaj ponovo.";
+
 const roleLabel = (r: string) => ROLES.find((x) => x.value === r)?.label.sr ?? r;
 const dt = (iso: string | null) => (iso ? new Intl.DateTimeFormat("sr-Latn-RS", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso)) : "—");
 
@@ -92,7 +98,7 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log }:
   const run = (fn: () => Promise<AdminResult>, who?: string) =>
     start(async () => {
       setError(null);
-      const r = await fn();
+      const r = await fn().catch((e: unknown) => ({ ok: false as const, error: failMsg(e) }));
       if (!r.ok) setError(r.error);
       else if (r.link) setSecret({ kind: "link", value: r.link, who });
       else if (r.password) setSecret({ kind: "password", value: r.password, who });
@@ -285,7 +291,7 @@ function FormModal({ open, onClose, title, children, onSubmit, pending, submitLa
           <div className="flex gap-2">
             <Button onClick={onClose}>Otkaži</Button>
             <Button type="submit" variant="primary" disabled={pending}>
-              {submitLabel}
+              {pending ? "Čuvam…" : submitLabel}
             </Button>
           </div>
         </div>
@@ -310,8 +316,8 @@ function NewCompanyModal({ open, onClose, onDone }: { open: boolean; onClose: ()
       submitLabel="Napravi firmu"
       onSubmit={() =>
         start(async () => {
-          const r = await createCompany(v);
-          if (!r.ok) return setError(r.error === "email" ? "Unesi ispravan email vlasnika." : "Unesi naziv firme.");
+          const r = await createCompany(v).catch((e: unknown) => ({ ok: false as const, error: failMsg(e) }));
+          if (!r.ok) return setError(r.error === "email" ? "Unesi ispravan email vlasnika." : r.error === "name" ? "Unesi naziv firme." : r.error);
           setError(null);
           onClose();
           onDone(r.link, v.email);
@@ -358,8 +364,8 @@ function AddMemberModal({ company, onClose, onDone }: { company: Company | null;
       onSubmit={() =>
         start(async () => {
           if (!company) return;
-          const r = await addCompanyMember(company.id, v);
-          if (!r.ok) return setError("Proveri email i ulogu.");
+          const r = await addCompanyMember(company.id, v).catch((e: unknown) => ({ ok: false as const, error: failMsg(e) }));
+          if (!r.ok) return setError(r.error === "bad" ? "Proveri email i ulogu." : r.error);
           setError(null);
           onClose();
           onDone(r.link, v.email);

@@ -81,7 +81,7 @@ Row Level Security je uključen na svim tabelama bez politika, tako da javni Sup
 
 1. Importuj repo na vercel.com.
 2. U **Settings → Environment Variables** dodaj `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` (i kasnije `WIALON_TOKEN`).
-3. Po želji **Settings → Functions → Region**: Frankfurt (`fra1`), da server bude blizu Supabase baze.
+3. Region funkcija je podešen u `vercel.json` na Dablin (`dub1`), pored Supabase baze u Irskoj (`eu-west-1`). Ako je baza u drugom regionu, promeni ga tamo.
 4. Deploy. Vercel pri svakom deployu prvo pokrene migracije (`scripts/vercel-build.mjs`: `drizzle-kit migrate`, pa `next build`), pa se baza sama ažurira. Za to mora da postoji `DIRECT_URL` (ili bar `DATABASE_URL`).
 
 ## Wialon
