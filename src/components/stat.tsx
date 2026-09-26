@@ -89,7 +89,7 @@ export function KpiCard({
             ) : (
               <>
                 <span className={cn("inline-flex items-center gap-0.5 font-medium tnum", good ? "text-good-ink" : "text-bad-ink")}>
-                  {up ? <ArrowUp size={12} strokeWidth={2.2} /> : <ArrowDown size={12} strokeWidth={2.2} />}
+                  {up ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
                   {Math.abs(Math.round(trend!.pct))}%
                 </span>
                 {trendLabel}

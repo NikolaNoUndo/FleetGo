@@ -59,7 +59,7 @@ export function Topbar({ refs }: { refs: Refs }) {
           triggerClassName={btnClass("primary", "md")}
           trigger={
             <>
-              <Plus size={14} strokeWidth={2.2} />
+              <Plus size={14} />
               <span className="hidden sm:inline">{t("q.new")}</span>
             </>
           }

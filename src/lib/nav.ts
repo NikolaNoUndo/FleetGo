@@ -63,5 +63,6 @@ export function crumbsFor(pathname: string): { label: TKey; href?: string }[] {
     for (const it of g.items)
       if (isActive(pathname, it.href)) return [{ label: g.label, href: g.items[0].href }, { label: it.label, href: it.href }];
   for (const it of BOTTOM) if (isActive(pathname, it.href)) return [{ label: "nav.company" }, { label: it.label, href: it.href }];
+  if (isActive(pathname, "/profile")) return [{ label: "nav.profile", href: "/profile" }];
   return [];
 }

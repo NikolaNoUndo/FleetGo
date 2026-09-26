@@ -270,6 +270,9 @@ export const sessions = pgTable(
     companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
     impersonatedBy: text("impersonated_by"), // "admin" when the developer is viewing as this user
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    /** browser / device the session was started from (shown under Profile → active sessions) */
+    userAgent: text("user_agent"),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [index("sessions_user_idx").on(t.userId)],

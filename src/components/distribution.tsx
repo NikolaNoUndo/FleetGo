@@ -62,7 +62,7 @@ export function StatusColumns({ segments }: { segments: Seg[] }) {
   const empty = segments.filter((s) => s.count === 0);
   return (
     <div>
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
         {shown.map((s) => (
           <div key={s.key} className="min-w-[84px]" style={{ flex: `${s.count} 1 0%` }}>
             <div

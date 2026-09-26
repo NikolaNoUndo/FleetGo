@@ -43,6 +43,13 @@
       "when": 1790442309948,
       "tag": "0005_v021_wialon_per_company",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790449830563,
+      "tag": "0006_v022_session_device",
+      "breakpoints": true
     }
   ]
 }

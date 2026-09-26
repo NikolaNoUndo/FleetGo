@@ -25,7 +25,7 @@ export function Segmented<T extends string>({
   dark?: boolean;
 }) {
   return (
-    <div role="tablist" className={cn("inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg p-0.5", dark ? "bg-side-2" : "bg-surface-3", className)}>
+    <div role="tablist" className={cn("no-scrollbar inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg p-0.5", dark ? "bg-side-2" : "bg-surface-3", className)}>
       {items.map((it) => {
         const active = it.value === value;
         return (
@@ -67,7 +67,7 @@ export function UnderlineTabs<T extends string>({
   onChange?: (v: T) => void;
 }) {
   return (
-    <div role="tablist" className="flex gap-6 overflow-x-auto border-b border-line">
+    <div role="tablist" className="no-scrollbar flex gap-6 overflow-x-auto border-b border-line">
       {items.map((it) => {
         const active = it.value === value;
         const cls = cn(

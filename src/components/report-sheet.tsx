@@ -41,7 +41,7 @@ export function ReportSheet({ report, locale }: { report: Report; locale: "sr" |
         report.tables.map((tb, i) => (
           <section key={i} className="mt-6">
             {tb.title && <h2 className="mb-2 text-sm font-semibold">{tb.title}</h2>}
-            <div className="overflow-x-auto print:overflow-visible">
+            <div className="no-scrollbar overflow-x-auto print:overflow-visible">
               <table className="report-table w-full border-collapse text-xs">
                 <thead>
                   <tr>

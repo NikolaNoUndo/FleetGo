@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Check, ChevronDown, ChevronsUpDown, Languages, LogOut, Menu as MenuIcon, PanelLeftClose, PanelLeftOpen, Wallet, X } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, Languages, LogOut, Menu as MenuIcon, PanelLeftClose, PanelLeftOpen, UserRound, Wallet, X } from "lucide-react";
 import { setPreference, switchCompany } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
 import { usePrefs } from "./prefs";
@@ -121,53 +121,6 @@ export function Sidebar({
     );
   };
 
-  /* company block: static when there is one, a switcher when there are more */
-  const companyBlock = (rail?: boolean) => {
-    const face = (
-      <>
-        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-side-3 text-xs font-semibold text-white">{initials(company.name)}</span>
-        {!rail && (
-          <span className="min-w-0 flex-1 text-left">
-            <span className="block truncate text-sm text-side-ink">{company.name}</span>
-            <span className="block text-xs text-side-ink-3">{companies.length > 1 ? `${companies.length} ${locale === "sr" ? "firme" : "companies"}` : locale === "sr" ? "Firma" : "Company"}</span>
-          </span>
-        )}
-        {!rail && companies.length > 1 && <ChevronsUpDown className="text-side-ink-3" />}
-      </>
-    );
-    if (companies.length <= 1)
-      return <div className={cn("flex items-center gap-2.5 rounded-lg px-2 py-1.5", rail && "justify-center")} title={company.name}>{face}</div>;
-    return (
-      <Popover
-        placement={rail ? "right" : "top"}
-        label={company.name}
-        triggerClassName={cn("focus-ring flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-side-2", rail && "justify-center")}
-        trigger={face}
-      >
-        {(close) => (
-          <div>
-            <div className="px-2.5 pt-1.5 pb-2 text-xs font-medium text-ink-3">{locale === "sr" ? "Promeni firmu" : "Switch company"}</div>
-            {companies.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => {
-                  close();
-                  if (c.id !== company.id) goCompany(c.id);
-                }}
-                className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm hover:bg-surface-2"
-              >
-                <span className="grid size-6 place-items-center rounded-md bg-surface-3 text-[10px] font-semibold">{initials(c.name)}</span>
-                <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                {c.id === company.id && <Check className="text-accent" />}
-              </button>
-            ))}
-          </div>
-        )}
-      </Popover>
-    );
-  };
-
   /* user block: language, currency, sign out */
   const userBlock = (rail?: boolean) => (
     <Popover
@@ -180,18 +133,45 @@ export function Sidebar({
           {!rail && (
             <span className="min-w-0 flex-1 text-left">
               <span className="block truncate text-sm text-side-ink">{user.name || user.email}</span>
-              <span className="block truncate text-xs text-side-ink-3">{roleLabel}</span>
+              <span className="block truncate text-xs text-side-ink-3">{company.name}</span>
             </span>
           )}
           {!rail && <ChevronsUpDown className="text-side-ink-3" />}
         </>
       }
     >
-      {() => (
-        <div className="w-[248px]">
-          <div className="border-b border-line px-2.5 pt-1.5 pb-2.5">
-            <div className="truncate text-sm font-medium">{user.name || user.email}</div>
-            <div className="truncate text-xs text-ink-3">{user.email}</div>
+      {(close) => (
+        <div className="w-[256px]">
+          {/* company on top; a switcher when the member belongs to more than one */}
+          <div className="border-b border-line px-1 pt-1 pb-2">
+            <div className="flex items-center gap-2.5 px-1.5 py-1">
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-side text-xs font-semibold text-white">{initials(company.name)}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{company.name}</span>
+                <span className="block truncate text-xs text-ink-3">{roleLabel}</span>
+              </span>
+            </div>
+            {companies.length > 1 && (
+              <div className="mt-1.5">
+                <div className="px-1.5 pb-1 text-xs font-medium text-ink-3">{locale === "sr" ? "Promeni firmu" : "Switch company"}</div>
+                {companies
+                  .filter((c) => c.id !== company.id)
+                  .map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        close();
+                        goCompany(c.id);
+                      }}
+                      className="flex h-9 w-full items-center gap-2.5 rounded-lg px-1.5 text-left text-sm hover:bg-surface-2"
+                    >
+                      <span className="grid size-6 place-items-center rounded-md bg-surface-3 text-[10px] font-semibold">{initials(c.name)}</span>
+                      <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
           <div className="space-y-1 border-b border-line px-1 py-2">
             <div className="flex h-9 items-center justify-between gap-2 px-1.5">
@@ -209,8 +189,21 @@ export function Sidebar({
               <Segmented size="sm" value={currency} onChange={(v) => setPref("currency", v)} items={[{ value: "EUR", label: "EUR" }, { value: "RSD", label: "RSD" }]} />
             </div>
           </div>
-          <form action={logout} className="pt-1">
-            <button type="submit" className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-ink-2 hover:bg-surface-2 hover:text-ink">
+          <div className="border-b border-line px-1 py-1">
+            <Link
+              href="/profile"
+              onClick={() => {
+                close();
+                setMobileOpen(false);
+              }}
+              className="flex h-9 w-full items-center gap-2.5 rounded-lg px-1.5 text-sm text-ink-2 hover:bg-surface-2 hover:text-ink"
+            >
+              <UserRound className="text-ink-3" />
+              {locale === "sr" ? "Profil i bezbednost" : "Profile & security"}
+            </Link>
+          </div>
+          <form action={logout} className="px-1 pt-1">
+            <button type="submit" className="flex h-9 w-full items-center gap-2.5 rounded-lg px-1.5 text-left text-sm text-ink-2 hover:bg-surface-2 hover:text-ink">
               <LogOut className="text-ink-3" />
               {locale === "sr" ? "Odjavi se" : "Sign out"}
             </button>
@@ -279,8 +272,7 @@ export function Sidebar({
         {bottom.map((it) => (
           <Row key={it.href} it={it} />
         ))}
-        <div className="mt-2 border-t border-side-line pt-3">{companyBlock()}</div>
-        <div className="border-t border-side-line pt-2">{userBlock()}</div>
+        <div className="mt-2 border-t border-side-line pt-3">{userBlock()}</div>
       </div>
     </div>
   );
@@ -315,8 +307,7 @@ export function Sidebar({
         {bottom.map((it) => (
           <Row key={it.href} it={it} rail />
         ))}
-        <div className="mt-2 border-t border-side-line pt-2">{companyBlock(true)}</div>
-        <div className="border-t border-side-line pt-2">{userBlock(true)}</div>
+        <div className="mt-2 border-t border-side-line pt-2">{userBlock(true)}</div>
       </div>
     </div>
   );

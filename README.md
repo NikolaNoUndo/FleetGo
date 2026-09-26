@@ -31,6 +31,7 @@ Interfejs je na srpskom i engleskom (klik na svoje ime dole levo → Jezik / Val
 - **Vlasnik** u Podešavanjima → Članovi dodaje ljude emailom i bira ulogu: dispečer, servis ili knjigovodstvo. Za svaki modul može da podesi Nema / Gleda / Menja.
 - **Jedan email u više firmi**: posle prijave bira se firma, a menja se klikom na naziv firme u meniju.
 - Posle 8 pogrešnih pokušaja u 15 minuta prijava se privremeno blokira.
+- **Profil i bezbednost** (klik na ime dole levo): promena lozinke (ostali uređaji se odjave) i spisak aktivnih prijava sa odjavom pojedinačnih ili svih ostalih uređaja.
 
 Hash admin lozinke pravi se ovako (lozinku stavi pod navodnike, ništa se ne čuva):
 

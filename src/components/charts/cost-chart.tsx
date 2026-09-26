@@ -90,7 +90,7 @@ export function CostChart({ data, keys }: { data: MonthCosts[]; keys?: (keyof Om
       </div>
 
       {view === "table" ? (
-        <div className="overflow-x-auto px-4 py-2">
+        <div className="no-scrollbar overflow-x-auto px-4 py-2">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-ink-3">

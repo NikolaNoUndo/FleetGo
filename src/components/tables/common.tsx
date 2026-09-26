@@ -59,7 +59,7 @@ export function AddButton({ onClick }: { onClick: () => void }) {
   const { t } = usePrefs();
   return (
     <Button variant="dark" size="md" onClick={onClick}>
-      <Plus strokeWidth={2.2} />
+      <Plus />
       {t("c.add")}
     </Button>
   );

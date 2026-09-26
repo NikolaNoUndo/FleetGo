@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { and, eq, gt, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { newToken, sha256 } from "./crypto";
@@ -22,12 +22,15 @@ const cookieOpts = (maxAge: number) => ({
 export async function startUserSession(userId: string, companyId: string | null, impersonatedBy: string | null = null) {
   const token = newToken();
   const maxAge = impersonatedBy ? 2 * 3600 : USER_DAYS * 86400;
+  const userAgent = (await headers()).get("user-agent")?.slice(0, 400) ?? null;
   await db.insert(schema.sessions).values({
     id: sha256(token),
     kind: "user",
     userId,
     companyId,
     impersonatedBy,
+    userAgent,
+    lastSeenAt: new Date(),
     expiresAt: new Date(Date.now() + maxAge * 1000),
   });
   (await cookies()).set(USER_COOKIE, token, cookieOpts(maxAge));
@@ -60,8 +63,19 @@ export const getUserSession = cache(async () => {
     .limit(1);
   if (!row) return null;
   if (row.user.status !== "active" && !row.session.impersonatedBy) return null;
+  // "last active" for Profile → active sessions; written at most every 10 minutes
+  const seen = row.session.lastSeenAt?.getTime() ?? 0;
+  if (Date.now() - seen > 10 * 60_000) {
+    await db.update(schema.sessions).set({ lastSeenAt: new Date() }).where(eq(schema.sessions.id, row.session.id));
+  }
   return row;
 });
+
+/** Id (hash) of the session this request is using, to mark "this device". */
+export async function currentSessionId(): Promise<string | null> {
+  const token = (await cookies()).get(USER_COOKIE)?.value;
+  return token ? sha256(token) : null;
+}
 
 /* ----------------------------- admin ----------------------------- */
 

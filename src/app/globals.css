@@ -269,3 +269,11 @@ dialog::backdrop {
     print-color-adjust: exact;
   }
 }
+
+/* Scroll without a visible scrollbar (tables, tab strips) */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
