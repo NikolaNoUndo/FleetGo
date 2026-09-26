@@ -1,5 +1,6 @@
 import type { Report } from "@/lib/reports";
 import { cn } from "./ui/primitives";
+import { RoadlineLogo } from "./brand";
 
 /** The printable report: A4 paper look on screen, clean black-on-white when printed. */
 export function ReportSheet({ report, locale }: { report: Report; locale: "sr" | "en" }) {
@@ -84,7 +85,7 @@ export function ReportSheet({ report, locale }: { report: Report; locale: "sr" |
         <p>{report.note}</p>
         <p className="mt-1 flex flex-wrap justify-between gap-2">
           <span>{report.generated}</span>
-          <span>Roadline</span>
+          <RoadlineLogo tone="onLight" height={8} className="opacity-60" />
         </p>
       </footer>
     </article>

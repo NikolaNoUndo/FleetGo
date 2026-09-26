@@ -7,7 +7,7 @@ import { ChevronDown, ChevronsUpDown, Languages, LogOut, Menu as MenuIcon, Panel
 import { setPreference, switchCompany } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
 import { usePrefs } from "./prefs";
-import { RoadlineMark } from "./brand";
+import { RoadlineLogo, RoadlineMark } from "./brand";
 import { cn } from "./ui/primitives";
 import { Popover, Segmented } from "./ui/client";
 import { BOTTOM, GROUPS, TOP, isActive, type NavItem } from "@/lib/nav";
@@ -216,8 +216,7 @@ export function Sidebar({
   const full = (mobile?: boolean) => (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center gap-2.5 pr-2 pl-3">
-        <RoadlineMark />
-        <span className="text-sm font-semibold tracking-[-0.01em] text-white">Roadline</span>
+        <RoadlineLogo height={15} className="opacity-95" />
         <span className="rounded border border-side-line px-1 text-[10px] font-medium text-side-ink-3">v0.2</span>
         {!mobile && (
           <button
@@ -280,7 +279,7 @@ export function Sidebar({
   const rail = (
     <div className="flex h-full flex-col items-center">
       <div className="flex h-14 items-center">
-        <RoadlineMark />
+        <RoadlineMark height={18} className="opacity-95" />
       </div>
       <button
         type="button"
@@ -315,8 +314,7 @@ export function Sidebar({
   return (
     <>
       <div className="sticky top-[var(--bar-h,0px)] z-40 flex h-12 items-center gap-2.5 bg-side px-4 lg:hidden">
-        <RoadlineMark />
-        <span className="text-sm font-semibold text-white">Roadline</span>
+        <RoadlineLogo height={14} className="opacity-95" />
         <button type="button" onClick={() => setMobileOpen(true)} className="focus-ring ml-auto grid size-8 place-items-center rounded-lg text-side-ink-2 hover:bg-side-2" aria-label={t("nav.menu")}>
           <MenuIcon size={18} />
         </button>
