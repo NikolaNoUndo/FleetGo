@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, CheckCircle2, ChevronsUpDown, CircleDashed, Info, MoreHorizontal, Search, X, XCircle } from "lucide-react";
 import { cn, Badge } from "./primitives";
 import { usePrefs } from "@/components/prefs";
@@ -141,58 +142,101 @@ export function Menu({
   triggerClassName?: string;
   label?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ style: React.CSSProperties; layer: Element } | null>(null);
+  const open = pos !== null;
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * The list is rendered in <body> with fixed coordinates, so tables with
+   * scrolling or clipped containers can never hide it. Opens upward when
+   * there is not enough room below.
+   */
+  const place = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (!r) return null;
+    const h = items.length * 32 + 12;
+    const below = window.innerHeight - r.bottom;
+    const up = below < h + 12 && r.top > below;
+    const s: React.CSSProperties = { position: "fixed", minWidth: 196 };
+    if (up) s.bottom = window.innerHeight - r.top + 6;
+    else s.top = r.bottom + 6;
+    if (align === "right") s.right = Math.max(8, window.innerWidth - r.right);
+    else s.left = Math.max(8, r.left);
+    return { style: s, layer: layerFor(btnRef.current) };
+  };
+
   useEffect(() => {
     if (!open) return;
+    const close = () => setPos(null);
     const onDoc = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!btnRef.current?.contains(t) && !menuRef.current?.contains(t)) close();
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    const onScroll = (e: Event) => {
+      if (!menuRef.current?.contains(e.target as Node)) close();
+    };
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", close);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", close);
     };
   }, [open]);
+
   return (
-    <div ref={ref} className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+    <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
       <button
+        ref={btnRef}
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setPos((p) => (p ? null : place()))}
         className={triggerClassName ?? "focus-ring grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-3 hover:text-ink"}
       >
         {trigger ?? <MoreHorizontal />}
       </button>
-      {open && (
-        <div role="menu" className={cn("animate-pop absolute z-40 mt-1.5 min-w-[196px] rounded-xl border border-line bg-surface p-1 shadow-pop", align === "right" ? "right-0" : "left-0")}>
-          {items.map((it) => (
-            <button
-              key={it.label}
-              role="menuitem"
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                it.onSelect();
-              }}
-              className={cn(
-                "flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm hover:bg-surface-2",
-                it.danger ? "text-bad-ink" : "text-ink-2 hover:text-ink",
-              )}
-            >
-              {it.icon && <span className={it.danger ? "" : "text-ink-3"}>{it.icon}</span>}
-              <span className="flex-1">{it.label}</span>
-              {it.hint && <span className="text-xs text-ink-4">{it.hint}</span>}
-            </button>
-          ))}
-        </div>
-      )}
+      {open &&
+        createPortal(
+          <div ref={menuRef} role="menu" style={pos.style} className="animate-pop z-[300] rounded-xl border border-line bg-surface p-1 shadow-pop" onClick={(e) => e.stopPropagation()}>
+            {items.map((it) => (
+              <button
+                key={it.label}
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setPos(null);
+                  it.onSelect();
+                }}
+                className={cn(
+                  "flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm whitespace-nowrap hover:bg-surface-2",
+                  it.danger ? "text-bad-ink" : "text-ink-2 hover:text-ink",
+                )}
+              >
+                {it.icon && <span className={it.danger ? "" : "text-ink-3"}>{it.icon}</span>}
+                <span className="flex-1">{it.label}</span>
+                {it.hint && <span className="text-xs text-ink-4">{it.hint}</span>}
+              </button>
+            ))}
+          </div>,
+          pos.layer,
+        )}
     </div>
   );
+}
+
+/**
+ * Where floating lists are rendered: <body>, or the open <dialog> when inside one
+ * (a modal dialog sits in the browser's top layer, above anything in <body>).
+ */
+export function layerFor(el: Element | null): Element {
+  return el?.closest("dialog") ?? document.body;
 }
 
 /* ---------- Popover (free content, opens up or down) ---------- */

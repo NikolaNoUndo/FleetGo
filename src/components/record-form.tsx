@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { saveRecord, deleteRecord } from "@/app/actions";
@@ -10,7 +11,7 @@ import { DOC_TYPES, DOC_VALIDITY_DAYS, OPTION_SETS, addDaysISO, type EntityType 
 import { todayISO } from "@/lib/format";
 import { usePrefs } from "./prefs";
 import { Button, cn } from "./ui/primitives";
-import { FieldShell, Modal, Segmented, Select, TextArea, TextInput, type MenuItem } from "./ui/client";
+import { FieldShell, Modal, Segmented, Select, TextArea, TextInput, layerFor, type MenuItem } from "./ui/client";
 import type { TKey } from "@/lib/i18n";
 
 type Values = Record<string, string | boolean>;
@@ -40,50 +41,81 @@ function SupplierPicker({ id, value, options, onChange }: { id: string; value: s
   const { locale } = usePrefs();
   const current = value.startsWith("new:") ? value.slice(4) : (options.find((o) => o.id === value)?.label ?? "");
   const [text, setText] = useState(current);
-  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ style: React.CSSProperties; layer: Element } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const q = text.trim().toLowerCase();
   const matches = options.filter((o) => !q || o.label.toLowerCase().includes(q)).slice(0, 8);
   const exact = options.find((o) => o.label.toLowerCase() === q);
+
+  // The list lives in <body> with fixed coordinates so the scrolling form can't clip it.
+  const openList = () => {
+    const r = inputRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const up = window.innerHeight - r.bottom < 240 && r.top > window.innerHeight - r.bottom;
+    setPos({
+      style: up ? { position: "fixed", left: r.left, width: r.width, bottom: window.innerHeight - r.top + 4 } : { position: "fixed", left: r.left, width: r.width, top: r.bottom + 4 },
+      layer: layerFor(inputRef.current),
+    });
+  };
+  const close = () => setPos(null);
+  useEffect(() => {
+    if (!pos) return;
+    const onScroll = (e: Event) => {
+      if (!listRef.current?.contains(e.target as Node)) setPos(null);
+    };
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [pos]);
+
   const pick = (v: string, label: string) => {
     onChange(v);
     setText(label);
-    setOpen(false);
+    close();
   };
   return (
     <div className="relative">
       <TextInput
+        ref={inputRef}
         id={id}
         value={text}
         autoComplete="off"
         placeholder={locale === "sr" ? "Izaberi ili upiši novog…" : "Pick or type a new one…"}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        onFocus={openList}
+        onBlur={() => setTimeout(close, 120)}
         onChange={(e) => {
           const v = e.target.value;
           setText(v);
-          setOpen(true);
+          if (!pos) openList();
           const hit = options.find((o) => o.label.toLowerCase() === v.trim().toLowerCase());
           onChange(!v.trim() ? "" : hit ? hit.id : `new:${v.trim()}`);
         }}
       />
-      {open && (matches.length > 0 || (q && !exact)) && (
-        <ul className="animate-pop absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-pop">
-          {matches.map((o) => (
-            <li key={o.id}>
-              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o.id, o.label)} className="flex h-8 w-full items-center rounded-md px-2 text-left text-sm hover:bg-surface-2">
-                {o.label}
-              </button>
-            </li>
-          ))}
-          {q && !exact && (
-            <li>
-              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(`new:${text.trim()}`, text.trim())} className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm font-medium text-accent-ink hover:bg-accent-soft">
-                <Plus size={13} /> {locale === "sr" ? "Dodaj" : "Add"} „{text.trim()}“
-              </button>
-            </li>
-          )}
-        </ul>
-      )}
+      {pos &&
+        (matches.length > 0 || (q && !exact)) &&
+        createPortal(
+          <ul ref={listRef} style={pos.style} className="animate-pop z-[300] max-h-56 overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-pop">
+            {matches.map((o) => (
+              <li key={o.id}>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o.id, o.label)} className="flex h-8 w-full items-center rounded-md px-2 text-left text-sm hover:bg-surface-2">
+                  {o.label}
+                </button>
+              </li>
+            ))}
+            {q && !exact && (
+              <li>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(`new:${text.trim()}`, text.trim())} className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm font-medium text-accent-ink hover:bg-accent-soft">
+                  <Plus size={13} /> {locale === "sr" ? "Dodaj" : "Add"} „{text.trim()}“
+                </button>
+              </li>
+            )}
+          </ul>,
+          pos.layer,
+        )}
     </div>
   );
 }
