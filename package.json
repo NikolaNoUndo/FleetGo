@@ -17,6 +17,7 @@
     "admin:hash": "tsx scripts/admin-hash.ts"
   },
   "dependencies": {
+    "@outpacelabs/avatars": "^0.6.0",
     "@vercel/functions": "^3.9.9",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.3",

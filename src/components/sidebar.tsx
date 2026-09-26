@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ChevronDown, ChevronsUpDown, Languages, LogOut, Menu as MenuIcon, PanelLeftClose, PanelLeftOpen, UserRound, Wallet, X } from "lucide-react";
+import { ChevronDown, Languages, LogOut, Menu as MenuIcon, PanelLeftClose, PanelLeftOpen, UserRound, Wallet, X } from "lucide-react";
 import { setPreference, switchCompany } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
 import { usePrefs } from "./prefs";
 import { RoadlineLogo, RoadlineMark } from "./brand";
+import { UserAvatar } from "./user-avatar";
 import { cn } from "./ui/primitives";
 import { Popover, Segmented } from "./ui/client";
 import { BOTTOM, GROUPS, TOP, isActive, type NavItem } from "@/lib/nav";
@@ -126,17 +127,12 @@ export function Sidebar({
     <Popover
       placement={rail ? "right" : "top"}
       label={user.email}
-      triggerClassName={cn("focus-ring flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-side-2", rail && "justify-center")}
+      triggerClassName={cn("group focus-ring flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-side-2 aria-expanded:bg-side-2", rail && "justify-center")}
       trigger={
         <>
-          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-white text-xs font-semibold text-ink">{initials(user.name || user.email)}</span>
-          {!rail && (
-            <span className="min-w-0 flex-1 text-left">
-              <span className="block truncate text-sm text-side-ink">{user.name || user.email}</span>
-              <span className="block truncate text-xs text-side-ink-3">{company.name}</span>
-            </span>
-          )}
-          {!rail && <ChevronsUpDown className="text-side-ink-3" />}
+          <UserAvatar email={user.email} size={28} className="shrink-0" />
+          {!rail && <span className="min-w-0 flex-1 truncate text-left text-sm text-side-ink">{user.email}</span>}
+          {!rail && <ChevronDown className="shrink-0 text-side-ink-3 transition-transform duration-200 group-aria-expanded:rotate-180" />}
         </>
       }
     >
@@ -217,7 +213,6 @@ export function Sidebar({
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center gap-2.5 pr-2 pl-3">
         <RoadlineLogo height={15} className="opacity-95" />
-        <span className="rounded border border-side-line px-1 text-[10px] font-medium text-side-ink-3">v0.2</span>
         {!mobile && (
           <button
             type="button"
