@@ -1,12 +1,10 @@
-import type { Position, TrackedVehicle } from "./types";
+import type { Position, TrackedVehicle, WialonConfig } from "./types";
 
 /**
  * Wialon Remote API connector (Wialon Hosting or Wialon Local).
  * Docs: https://sdk.wialon.com/wiki/en/sidebar/remoteapi/apiref/apiref
  *
- * Env:
- *   WIALON_TOKEN  – access token created in Wialon (Account → Tokens / via OAuth page)
- *   WIALON_HOST   – optional, defaults to https://hst-api.wialon.com (use your own for Wialon Local)
+ * Every company stores its own token (and optional Wialon Local host) in Settings.
  */
 
 type WialonUnit = {
@@ -15,14 +13,15 @@ type WialonUnit = {
   pos?: { t: number; y: number; x: number; s: number; c: number } | null;
 };
 
-const host = () => (process.env.WIALON_HOST || "https://hst-api.wialon.com").replace(/\/$/, "");
+export const DEFAULT_WIALON_HOST = "https://hst-api.wialon.com";
 
-let session: { eid: string; at: number } | null = null;
+/** Wialon sessions per token, so companies never share one. */
+const sessions = new Map<string, string>();
 
-async function call<T>(svc: string, params: unknown, sid?: string): Promise<T> {
+async function call<T>(host: string, svc: string, params: unknown, sid?: string): Promise<T> {
   const body = new URLSearchParams({ svc, params: JSON.stringify(params) });
   if (sid) body.set("sid", sid);
-  const res = await fetch(`${host()}/wialon/ajax.html`, {
+  const res = await fetch(`${host}/wialon/ajax.html`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
@@ -39,18 +38,17 @@ async function call<T>(svc: string, params: unknown, sid?: string): Promise<T> {
   return json;
 }
 
-async function login(): Promise<string> {
-  const token = process.env.WIALON_TOKEN;
-  if (!token) throw new Error("WIALON_TOKEN is not set");
-  const res = await call<{ eid: string }>("token/login", { token, fl: 1 });
-  session = { eid: res.eid, at: Date.now() };
+async function login(host: string, token: string): Promise<string> {
+  const res = await call<{ eid: string }>(host, "token/login", { token, fl: 1 });
+  sessions.set(token, res.eid);
   return res.eid;
 }
 
-async function searchUnits(retry = true): Promise<WialonUnit[]> {
-  const sid = session?.eid ?? (await login());
+async function searchUnits(host: string, token: string, retry = true): Promise<WialonUnit[]> {
+  const sid = sessions.get(token) ?? (await login(host, token));
   try {
     const res = await call<{ items: WialonUnit[] }>(
+      host,
       "core/search_items",
       {
         spec: { itemsType: "avl_unit", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
@@ -65,8 +63,8 @@ async function searchUnits(retry = true): Promise<WialonUnit[]> {
   } catch (e) {
     const code = (e as { code?: number }).code;
     if (retry && (code === 1 || code === 4 || code === 7)) {
-      session = null; // session expired → log in again once
-      return searchUnits(false);
+      sessions.delete(token); // session expired → log in again once
+      return searchUnits(host, token, false);
     }
     throw e;
   }
@@ -74,8 +72,8 @@ async function searchUnits(retry = true): Promise<WialonUnit[]> {
 
 const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9ČĆŠŽĐ]/g, "");
 
-export async function wialonPositions(vehicles: TrackedVehicle[], now = Date.now()): Promise<Position[]> {
-  const units = await searchUnits();
+export async function wialonPositions(cfg: { token: string; host: string }, vehicles: TrackedVehicle[], now = Date.now()): Promise<Position[]> {
+  const units = await searchUnits(cfg.host.replace(/\/$/, ""), cfg.token);
   const byUnitId = new Map(vehicles.filter((v) => v.wialonUnitId).map((v) => [String(v.wialonUnitId).trim(), v]));
   const byPlate = vehicles.map((v) => ({ key: norm(v.plate), v })).filter((x) => x.key.length >= 4);
 
@@ -99,4 +97,34 @@ export async function wialonPositions(vehicles: TrackedVehicle[], now = Date.now
       state: stale ? "offline" : (p.s ?? 0) > 3 ? "moving" : "stopped",
     } satisfies Position;
   });
+}
+
+/**
+ * Accepts only public https hosts for Wialon Local, so a company setting cannot make
+ * the server call internal addresses. Returns the normalized origin or null.
+ */
+export function normalizeWialonHost(raw: string | null | undefined): string | null {
+  const v = raw?.trim();
+  if (!v) return null;
+  let u: URL;
+  try {
+    u = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:") return null;
+  const h = u.hostname.toLowerCase();
+  const privateHost =
+    h === "localhost" ||
+    h.endsWith(".local") ||
+    h.endsWith(".internal") ||
+    /^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(h) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(h) ||
+    h.startsWith("[") ||
+    !h.includes(".");
+  return privateHost ? null : u.origin;
+}
+
+export function wialonConfigured(cfg: WialonConfig): cfg is { token: string; host: string | null } {
+  return !!cfg.token?.trim();
 }

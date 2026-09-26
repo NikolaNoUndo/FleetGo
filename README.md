@@ -80,29 +80,22 @@ Row Level Security je uključen na svim tabelama bez politika, tako da javni Sup
 ## Deploy na Vercel
 
 1. Importuj repo na vercel.com.
-2. U **Settings → Environment Variables** dodaj `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` (i kasnije `WIALON_TOKEN`).
+2. U **Settings → Environment Variables** dodaj `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`.
 3. Region funkcija je podešen u `vercel.json` na Dablin (`dub1`), pored Supabase baze u Irskoj (`eu-west-1`). Ako je baza u drugom regionu, promeni ga tamo.
 4. Deploy. Vercel pri svakom deployu prvo pokrene migracije (`scripts/vercel-build.mjs`: `drizzle-kit migrate`, pa `next build`), pa se baza sama ažurira. Za to mora da postoji `DIRECT_URL` (ili bar `DATABASE_URL`).
 
-## Wialon
+## Wialon (GPS uživo)
 
-Bez tokena mapa prikazuje simulirane kamione koji se kreću po stvarnim koridorima (Beograd, Budimpešta, Beč, Sofija, Solun…), da bi se sve moglo isprobati.
+Mapa prikazuje samo prave pozicije, nema simulacije. Svaka firma ima svoj Wialon token: vlasnik (ili ko ima pravo da menja podešavanja) ga upisuje u **Podešavanja → Wialon**, uz opcionu adresu Wialon Local servera. Token se čuva samo na serveru; u pregledaču se vidi samo da postoji i njegova poslednja 4 znaka.
 
-Kad dodaš token:
-
-```bash
-WIALON_TOKEN=tvoj_token
-WIALON_HOST=https://hst-api.wialon.com   # opciono; za Wialon Local tvoj host
-```
-
-aplikacija se prijavljuje preko `token/login`, čita jedinice i poslednje pozicije preko `core/search_items` i osvežava mapu na 10 sekundi. Jedinica se vezuje za vozilo:
+Aplikacija se prijavljuje preko `token/login`, čita jedinice i poslednje pozicije preko `core/search_items` i osvežava mapu na 10 sekundi. Jedinica se vezuje za vozilo:
 
 1. preko polja **Wialon ID jedinice** na vozilu, ili
 2. automatski, ako se registarska oznaka vozila nalazi u nazivu jedinice u Wialonu (npr. jedinica „BG 1742-TK Scania“).
 
-U **Podešavanjima** dugme „Proveri vezu“ pokazuje koliko jedinica je pronađeno i koliko ih je povezano sa vozilima. Ako Wialon ne odgovori, mapa privremeno prelazi na simulaciju i prikazuje grešku.
+Dugme „Proveri vezu“ pokazuje koliko jedinica je pronađeno i koliko ih je povezano sa vozilima. Bez tokena mapa piše „Wialon nije povezan“, a ako Wialon ne odgovori, prikazuje grešku.
 
-Kod: `src/lib/telematics/` (jedan interfejs, provajderi `wialon.ts` i `simulator.ts`, pa se lako dodaje i drugi GPS sistem).
+Kod: `src/lib/telematics/` (jedan ulaz `getPositions`, provajder `wialon.ts`, pa se lako dodaje i drugi GPS sistem).
 
 ## Struktura
 

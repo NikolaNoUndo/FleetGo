@@ -36,6 +36,13 @@
       "when": 1790424077912,
       "tag": "0004_v02_drop_text",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790442309948,
+      "tag": "0005_v021_wialon_per_company",
+      "breakpoints": true
     }
   ]
 }

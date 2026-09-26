@@ -74,7 +74,7 @@ export default async function OverviewPage() {
   });
 
   // fleet status from live positions + asset status
-  const live = A.vehicles ? await getPositions(vehicles.map((v) => ({ id: v.id, plate: v.plate, wialonUnitId: v.wialonUnitId, status: v.status, driverName: null }))) : null;
+  const live = A.vehicles ? await getPositions({ token: ctx.company.wialonToken, host: ctx.company.wialonHost }, vehicles.map((v) => ({ id: v.id, plate: v.plate, wialonUnitId: v.wialonUnitId, status: v.status, driverName: null }))) : null;
   const stateOf = (id: string) => live?.positions.find((p) => p.vehicleId === id)?.state ?? "offline";
   const active = vehicles.filter((v) => v.status === "active");
   const moving = active.filter((v) => stateOf(v.id) === "moving").length;
@@ -129,8 +129,8 @@ export default async function OverviewPage() {
               <>
                 <span className="text-ink-4">·</span>
                 <span className="inline-flex items-center gap-1.5">
-                  <Dot tone={live.source === "wialon" ? "good" : "accent"} />
-                  {live.source === "wialon" ? "Wialon" : t("l.source.simulation")}
+                  <Dot tone={live.source === "wialon" ? "good" : live.source === "error" ? "bad" : "neutral"} />
+                  {live.source === "wialon" ? "Wialon" : t(live.source === "error" ? "l.source.error" : "l.source.none")}
                 </span>
               </>
             )}
@@ -146,9 +146,13 @@ export default async function OverviewPage() {
             <Shell title={sr ? "Stanje flote" : "Fleet status"} action={A.live ? seeAll("/live") : undefined} innerClassName="px-5 pt-3 pb-6">
               <StatusColumns
                 segments={[
-                  { key: "moving", label: t("l.moving"), count: moving, color: "#10b981" },
-                  { key: "stopped", label: t("l.stopped"), count: stopped, color: "#3b82f6" },
-                  { key: "offline", label: t("l.offline"), count: offline, color: "#9ca3af" },
+                  ...(live?.source === "wialon"
+                    ? [
+                        { key: "moving", label: t("l.moving"), count: moving, color: "#10b981" },
+                        { key: "stopped", label: t("l.stopped"), count: stopped, color: "#3b82f6" },
+                        { key: "offline", label: t("l.offline"), count: offline, color: "#9ca3af" },
+                      ]
+                    : [{ key: "active", label: sr ? "Aktivna (bez GPS podataka)" : "Active (no GPS data)", count: active.length, color: "#10b981" }]),
                   { key: "service", label: sr ? "Na servisu" : "In service", count: vehicles.filter((v) => v.status === "in_service").length, color: "#f59e0b" },
                   { key: "inactive", label: sr ? "Neaktivno" : "Inactive", count: vehicles.filter((v) => v.status === "inactive").length, color: "#ef4444" },
                 ]}

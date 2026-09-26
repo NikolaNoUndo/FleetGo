@@ -19,8 +19,11 @@ export type Position = {
   place?: string;
 };
 
+export type WialonConfig = { token: string | null; host: string | null };
+
 export type PositionsResult = {
-  source: "simulation" | "wialon";
+  /** wialon = live data · none = no token for this company · error = Wialon did not answer */
+  source: "wialon" | "none" | "error";
   positions: Position[];
   error?: string;
   fetchedAt: number;

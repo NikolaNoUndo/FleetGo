@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, PlugZap, RefreshCw } from "lucide-react";
-import { refreshRate, saveSettings, testTelematics } from "@/app/actions";
+import { refreshRate, saveSettings, saveTelematics, testTelematics } from "@/app/actions";
 import { usePrefs } from "./prefs";
 import { Badge, Button, cn } from "./ui/primitives";
 import { FieldShell, Segmented, TextInput } from "./ui/client";
@@ -114,24 +114,112 @@ export function CompanyForm({
   );
 }
 
-export function TelematicsTest() {
-  const { t } = usePrefs();
+/** Wialon connection for this company: token + optional Wialon Local host, plus a live test. */
+export function TelematicsSettings({ hasToken, hint, host, canEdit }: { hasToken: boolean; hint: string | null; host: string | null; canEdit: boolean }) {
+  const { t, locale } = usePrefs();
+  const sr = locale === "sr";
+  const router = useRouter();
+  const [token, setToken] = useState("");
+  const [h, setH] = useState(host ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const [res, setRes] = useState<Awaited<ReturnType<typeof testTelematics>> | null>(null);
   const [pending, start] = useTransition();
+  const [testing, startTest] = useTransition();
+
+  const test = () => startTest(async () => setRes(await testTelematics()));
+  const save = (remove = false) =>
+    start(async () => {
+      setError(null);
+      setSaved(false);
+      setRes(null);
+      const r = await saveTelematics(remove ? { remove: true } : { token, host: h });
+      if (!r.ok) {
+        setError(
+          r.error === "host"
+            ? sr ? "Adresa servera mora biti javna https adresa, npr. https://wialon.mojafirma.rs" : "Server must be a public https address, e.g. https://wialon.example.com"
+            : sr ? "Token nije ispravan. Kopiraj ceo token iz Wialona (samo slova i brojevi)." : "Invalid token. Copy the whole token from Wialon (letters and digits only).",
+        );
+        return;
+      }
+      setToken("");
+      if (remove) setH("");
+      setSaved(true);
+      router.refresh();
+      if (!remove) setRes(await testTelematics());
+    });
+
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button onClick={() => start(async () => setRes(await testTelematics()))} disabled={pending}>
-        <PlugZap />
-        {t("s.test")}
-      </Button>
+    <div className="space-y-5">
+      <p className="text-sm leading-relaxed text-ink-2">
+        {sr
+          ? "Svaka firma upisuje svoj Wialon token. Pravi se u Wialonu (Podešavanja korisnika → Tokeni, ili ga izda GPS provajder) i daje pristup čitanju pozicija. Vozila se povezuju automatski po registarskoj oznaci u nazivu jedinice, ili preko polja „Wialon ID jedinice“ na vozilu."
+          : "Each company enters its own Wialon token. Create it in Wialon (User settings → Tokens, or ask your GPS provider); it grants read access to positions. Vehicles link automatically by plate number in the unit name, or through the “Wialon unit ID” field."}
+      </p>
+      {canEdit ? (
+        <form
+          className="grid gap-4 sm:grid-cols-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save();
+          }}
+        >
+          <FieldShell label={sr ? "Wialon token" : "Wialon token"} htmlFor="w-token" span={2}>
+            <TextInput
+              id="w-token"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              className="font-mono"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder={hasToken ? (sr ? `Sačuvan (…${hint}). Upiši novi da ga zameniš.` : `Saved (…${hint}). Type a new one to replace it.`) : sr ? "Nalepi token iz Wialona" : "Paste the token from Wialon"}
+            />
+          </FieldShell>
+          <FieldShell label={sr ? "Wialon Local server (opciono)" : "Wialon Local server (optional)"} htmlFor="w-host" span={2}>
+            <TextInput id="w-host" value={h} onChange={(e) => setH(e.target.value)} placeholder={sr ? "Prazno = Wialon Hosting" : "Empty = Wialon Hosting"} />
+          </FieldShell>
+          <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+            <Button type="submit" variant="primary" disabled={pending || (!token.trim() && !hasToken)}>
+              {pending ? (sr ? "Čuvam…" : "Saving…") : sr ? "Sačuvaj i poveži" : "Save and connect"}
+            </Button>
+            {hasToken && (
+              <>
+                <Button type="button" onClick={test} disabled={testing || pending}>
+                  <PlugZap /> {t("s.test")}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => save(true)} disabled={pending}>
+                  {sr ? "Ukloni token" : "Remove token"}
+                </Button>
+              </>
+            )}
+            {saved && !error && (
+              <span className="inline-flex items-center gap-1 text-sm text-good-ink">
+                <CheckCircle2 /> {sr ? "Sačuvano" : "Saved"}
+              </span>
+            )}
+          </div>
+          {error && <p className="text-sm text-bad-ink sm:col-span-2">{error}</p>}
+        </form>
+      ) : (
+        hasToken && (
+          <Button onClick={test} disabled={testing}>
+            <PlugZap /> {t("s.test")}
+          </Button>
+        )
+      )}
       {res && (
-        <span className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
-          <Badge tone={res.source === "wialon" ? "good" : "neutral"}>{t(res.source === "wialon" ? "l.source.wialon" : "l.source.simulation")}</Badge>
-          <span className="tnum">
-            {res.units} {t("s.units").toLowerCase()} · {res.matched} {t("s.matched")}
-          </span>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
+          <Badge tone={res.source === "wialon" ? "good" : res.source === "error" ? "bad" : "neutral"}>
+            {res.source === "wialon" ? (sr ? "Povezano" : "Connected") : res.source === "error" ? (sr ? "Wialon ne odgovara" : "Wialon error") : sr ? "Nije povezano" : "Not connected"}
+          </Badge>
+          {res.source === "wialon" && (
+            <span className="tnum">
+              {res.units} {t("s.units").toLowerCase()} · {res.matched} {t("s.matched")}
+            </span>
+          )}
           {res.error && <span className="text-bad-ink">{res.error}</span>}
-        </span>
+        </div>
       )}
     </div>
   );

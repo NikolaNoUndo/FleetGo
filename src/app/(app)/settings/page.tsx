@@ -2,12 +2,11 @@ import type { Metadata } from "next";
 import { eq } from "drizzle-orm";
 import { Building2, SatelliteDish, Users } from "lucide-react";
 import { Badge, PageHeader, Shell } from "@/components/ui/primitives";
-import { CompanyForm, TelematicsTest } from "@/components/settings-forms";
+import { CompanyForm, TelematicsSettings } from "@/components/settings-forms";
 import { MembersManager } from "@/components/members";
 import { getPrefs, getT } from "@/lib/prefs";
 import { requireAccess } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
-import { telematicsMode } from "@/lib/telematics";
 import { getNbsRate } from "@/lib/fx";
 import { db, schema } from "@/db";
 
@@ -17,7 +16,7 @@ export default async function SettingsPage() {
   const ctx = await requireAccess("settings");
   const [t, nbs, { locale }] = await Promise.all([getT(), getNbsRate(), getPrefs()]);
   const company = ctx.company;
-  const mode = telematicsMode();
+  const hasToken = !!company.wialonToken;
   const sr = locale === "sr";
 
   const members = ctx.isOwner
@@ -67,14 +66,15 @@ export default async function SettingsPage() {
         {can(ctx.perms, "live") && <Shell
           icon={<SatelliteDish />}
           title={t("s.wialon")}
-          action={<Badge tone={mode === "wialon" ? "good" : "neutral"}>{mode === "wialon" ? t("s.wialonOn") : t("s.wialonOff")}</Badge>}
+          action={<Badge tone={hasToken ? "good" : "neutral"}>{hasToken ? t("s.wialonOn") : t("s.wialonOff")}</Badge>}
         >
-          <div className="space-y-4 px-5 py-5">
-            <p className="text-sm leading-relaxed text-ink-2">{t("s.wialonHow")}</p>
-            <pre className="overflow-x-auto rounded-lg border border-line bg-surface-2 px-4 py-3 font-mono text-xs text-ink-2">
-              {`WIALON_TOKEN=tvoj_token\n# opciono, za Wialon Local:\nWIALON_HOST=https://hst-api.wialon.com`}
-            </pre>
-            <TelematicsTest />
+          <div className="px-5 py-5">
+            <TelematicsSettings
+              hasToken={hasToken}
+              hint={company.wialonToken ? company.wialonToken.slice(-4) : null}
+              host={company.wialonHost}
+              canEdit={can(ctx.perms, "settings", "edit")}
+            />
           </div>
         </Shell>}
       </div>

@@ -11,7 +11,7 @@ import { setSessionCompany } from "@/lib/auth/session";
 import { audit } from "@/lib/auth/audit";
 import { getNbsRate } from "@/lib/fx";
 import { DOC_TYPES, OPTION_SETS, type EntityType } from "@/lib/catalog";
-import { getPositions } from "@/lib/telematics";
+import { getPositions, normalizeWialonHost } from "@/lib/telematics";
 
 const TABLES = {
   vehicles: schema.vehicles,
@@ -283,16 +283,44 @@ export async function switchCompany(companyId: string) {
 }
 
 export async function testTelematics() {
-  const companyId = (await assertAccess("live", "view")).company.id;
+  const ctx = await assertAccess("live", "view");
+  const companyId = ctx.company.id;
   const vs = await db
     .select({ id: schema.vehicles.id, plate: schema.vehicles.plate, wialonUnitId: schema.vehicles.wialonUnitId })
     .from(schema.vehicles)
     .where(eq(schema.vehicles.companyId, companyId));
-  const res = await getPositions(vs.map((v) => ({ ...v, driverName: null })));
+  const res = await getPositions({ token: ctx.company.wialonToken, host: ctx.company.wialonHost }, vs.map((v) => ({ ...v, driverName: null })));
   return {
     source: res.source,
     error: res.error ?? null,
     units: res.positions.length,
     matched: res.positions.filter((p) => p.vehicleId).length,
   };
+}
+
+/**
+ * Saves (or removes) this company's Wialon token. The token is stored server-side
+ * only; the browser only ever sees whether one is set and its last 4 characters.
+ */
+export async function saveTelematics(input: { token?: string; host?: string; remove?: boolean }): Promise<{ ok: boolean; error?: "token" | "host" }> {
+  const ctx = await assertAccess("settings", "edit");
+  if (input.remove) {
+    await db.update(schema.companies).set({ wialonToken: null, wialonHost: null }).where(eq(schema.companies.id, ctx.company.id));
+    await audit(ctx.user.email, "wialon.removed", {}, ctx.company.id);
+    revalidatePath("/", "layout");
+    return { ok: true };
+  }
+  const token = input.token?.trim() ?? "";
+  const keepToken = !token && !!ctx.company.wialonToken;
+  if (!keepToken && !/^[A-Za-z0-9]{32,128}$/.test(token)) return { ok: false, error: "token" };
+  const hostRaw = input.host?.trim() ?? "";
+  const host = hostRaw ? normalizeWialonHost(hostRaw) : null;
+  if (hostRaw && !host) return { ok: false, error: "host" };
+  await db
+    .update(schema.companies)
+    .set({ ...(keepToken ? {} : { wialonToken: token }), wialonHost: host })
+    .where(eq(schema.companies.id, ctx.company.id));
+  await audit(ctx.user.email, "wialon.saved", { host: host ?? "hosting" }, ctx.company.id);
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

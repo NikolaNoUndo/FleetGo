@@ -58,7 +58,7 @@ export function useLivePositions(intervalMs = 10000) {
 const DOT = { moving: "bg-good", stopped: "bg-info", offline: "bg-ink-4" } as const;
 
 export function LiveView() {
-  const { t, locale } = usePrefs();
+  const { t, locale, can } = usePrefs();
   const { data, points, error } = useLivePositions();
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "moving" | "stopped" | "offline">("all");
@@ -142,17 +142,31 @@ export function LiveView() {
             <RefreshCw size={12} />
             {data ? `${t("l.updated")} ${relTime(data.fetchedAt, locale)}` : "…"}
           </span>
-          {data && <Badge tone={data.source === "wialon" ? "good" : "neutral"}>{t(data.source === "wialon" ? "l.source.wialon" : "l.source.simulation")}</Badge>}
+          {data && <Badge tone={data.source === "wialon" ? "good" : data.source === "error" ? "bad" : "neutral"}>{t(data.source === "wialon" ? "l.source.wialon" : data.source === "error" ? "l.source.error" : "l.source.none")}</Badge>}
         </div>
       </div>
 
       <div className="order-1 flex flex-col gap-3 lg:order-2">
-        {data?.source === "simulation" && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-accent-line bg-accent-soft px-3.5 py-2.5 text-sm text-accent-ink">
+        {data && data.source !== "wialon" && (
+          <div
+            className={
+              data.source === "error"
+                ? "flex items-start gap-2.5 rounded-lg border border-bad-line bg-bad-soft px-3.5 py-2.5 text-sm text-bad-ink"
+                : "flex items-start gap-2.5 rounded-lg border border-accent-line bg-accent-soft px-3.5 py-2.5 text-sm text-accent-ink"
+            }
+          >
             <Info className="mt-px shrink-0" />
             <span>
-              {t("l.simulationHint")}
+              {t(data.source === "error" ? "l.errorHint" : "l.noneHint")}
               {data.error ? ` (${data.error})` : ""}
+              {can("settings") && (
+                <>
+                  {" "}
+                  <Link href="/settings" className="font-medium underline underline-offset-2">
+                    {t("nav.settings")}
+                  </Link>
+                </>
+              )}
             </span>
           </div>
         )}
@@ -166,18 +180,30 @@ export function LiveView() {
 
 export function LiveMini() {
   const { t } = usePrefs();
-  const { points } = useLivePositions(15000);
+  const { data, points } = useLivePositions(15000);
   const moving = points.filter((p) => p.state === "moving").length;
+  const connected = data?.source === "wialon";
   return (
     <div className="relative isolate h-full min-h-[280px] overflow-hidden rounded-lg">
       <FleetMap points={points} selected={null} interactive={false} />
-      <div className="pointer-events-none absolute top-3 left-3 z-[500] inline-flex items-center gap-2 rounded-md border border-line bg-surface/95 px-2.5 py-1.5 text-xs font-medium shadow-xs">
-        <span className="relative flex size-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-good opacity-60" />
-          <span className="relative inline-flex size-2 rounded-full bg-good" />
-        </span>
-        {t("d.liveNow")} · {moving} {t("d.onRoad")}
-      </div>
+      {data && (
+        <div className="pointer-events-none absolute top-3 left-3 z-[500] inline-flex items-center gap-2 rounded-md border border-line bg-surface/95 px-2.5 py-1.5 text-xs font-medium shadow-xs">
+          {connected ? (
+            <>
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-good opacity-60" />
+                <span className="relative inline-flex size-2 rounded-full bg-good" />
+              </span>
+              {t("d.liveNow")} · {moving} {t("d.onRoad")}
+            </>
+          ) : (
+            <>
+              <span className={data.source === "error" ? "size-2 rounded-full bg-bad" : "size-2 rounded-full bg-ink-4"} />
+              {t(data.source === "error" ? "l.source.error" : "l.source.none")}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

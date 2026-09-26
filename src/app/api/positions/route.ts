@@ -32,6 +32,6 @@ export async function GET() {
     status: r.status,
     driverName: r.firstName ? `${r.firstName} ${r.lastName}` : null,
   }));
-  const result = await getPositions(vehicles);
+  const result = await getPositions({ token: ctx.company.wialonToken, host: ctx.company.wialonHost }, vehicles);
   return NextResponse.json({ ...result, vehicles }, { headers: { "Cache-Control": "no-store" } });
 }

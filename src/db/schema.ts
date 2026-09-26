@@ -37,6 +37,10 @@ export const companies = pgTable("companies", {
   /** "nbs" = official NBS middle rate, refreshed daily; "manual" = eurRsdRate above */
   rateMode: text("rate_mode").notNull().default("nbs"),
   status: text("status").notNull().default("active"), // active | blocked
+  /** Each company's own Wialon access token (server-only, never sent to the browser). */
+  wialonToken: text("wialon_token"),
+  /** Wialon Local server; null = Wialon Hosting. */
+  wialonHost: text("wialon_host"),
   createdAt: createdAt(),
 });
 
