@@ -310,7 +310,10 @@ export async function saveTelematics(input: { token?: string; host?: string; rem
     revalidatePath("/", "layout");
     return { ok: true };
   }
-  const token = input.token?.trim() ?? "";
+  // Accept the whole address from Wialon's login page too: …&access_token=XXXX&…
+  const raw = input.token?.trim() ?? "";
+  const fromUrl = raw.match(/access_token=([A-Za-z0-9]+)/);
+  const token = fromUrl ? fromUrl[1] : raw;
   const keepToken = !token && !!ctx.company.wialonToken;
   if (!keepToken && !/^[A-Za-z0-9]{32,128}$/.test(token)) return { ok: false, error: "token" };
   const hostRaw = input.host?.trim() ?? "";

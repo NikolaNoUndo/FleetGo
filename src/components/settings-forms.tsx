@@ -173,7 +173,7 @@ export function TelematicsSettings({ hasToken, hint, host, canEdit }: { hasToken
               className="font-mono"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder={hasToken ? (sr ? `Sačuvan (…${hint}). Upiši novi da ga zameniš.` : `Saved (…${hint}). Type a new one to replace it.`) : sr ? "Nalepi token iz Wialona" : "Paste the token from Wialon"}
+              placeholder={hasToken ? (sr ? `Sačuvan (…${hint}). Upiši novi da ga zameniš.` : `Saved (…${hint}). Type a new one to replace it.`) : sr ? "Nalepi token ili celu adresu sa Wialon stranice (…access_token=…)" : "Paste the token or the whole Wialon page address (…access_token=…)"}
             />
           </FieldShell>
           <FieldShell label={sr ? "Wialon Local server (opciono)" : "Wialon Local server (optional)"} htmlFor="w-host" span={2}>
