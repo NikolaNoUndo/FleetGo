@@ -9,7 +9,7 @@ import { DetailTabs, RecordActions } from "@/components/detail";
 import { AssetStatus } from "@/components/tables/common";
 import { DocumentsTable, FuelTable, PartsTable, ServicesTable } from "@/components/tables/records";
 import { getPrefs, getT } from "@/lib/prefs";
-import { consumptionByVehicle, documentsWithOwner, getRefs, getVehicle, listEmployees, listFuel, listParts, listServices, listTrailers } from "@/lib/queries";
+import { consumptionByVehicle, documentsWithOwner, getRefs, getVehicle, listEmployees, listFuel, listParts, listServices, listTrailers, listVehicleTrailers } from "@/lib/queries";
 import { getMoney } from "@/lib/money-server";
 import { EURO_NORMS, VEHICLE_TYPES, optLabel } from "@/lib/catalog";
 import { fmtNum } from "@/lib/format";
@@ -28,7 +28,7 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
   const v = await getVehicle(id);
   if (!v) notFound();
 
-  const [t, { locale }, m, { refs, names }, docs, services, fuel, parts, trailers, employees] = await Promise.all([
+  const [t, { locale }, m, { refs, names }, docs, services, fuel, parts, trailers, employees, links] = await Promise.all([
     getT(),
     getPrefs(),
     getMoney(),
@@ -39,11 +39,12 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
     listParts(),
     listTrailers(),
     listEmployees(),
+    listVehicleTrailers(),
   ]);
   const vServices = services.filter((s) => s.vehicleId === id);
   const vFuel = fuel.filter((f) => f.vehicleId === id);
   const vParts = parts.filter((p) => p.vehicleId === id);
-  const trailer = trailers.find((tr) => tr.vehicleId === id);
+  const linked = links.filter((l) => l.vehicleId === id).map((l) => trailers.find((tr) => tr.id === l.trailerId)).filter((tr): tr is (typeof trailers)[number] => !!tr).sort((a, b) => a.plate.localeCompare(b.plate));
   const driver = employees.find((e) => e.id === v.driverId);
   const extraDrivers = v.extraDriverIds.map((x) => employees.find((e) => e.id === x)).filter((e): e is (typeof employees)[number] => !!e);
   const person = (e: (typeof employees)[number]) => (
@@ -58,7 +59,7 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
       <PageHeader
         title={v.plate}
         sub={[v.brand, v.model, v.year].filter(Boolean).join(" · ")}
-        actions={can(ctx.perms, "vehicles", "edit") ? <RecordActions resource="vehicles" record={v} refs={refs} listHref="/vehicles" /> : undefined}
+        actions={can(ctx.perms, "vehicles", "edit") ? <RecordActions resource="vehicles" record={{ ...v, trailerIds: linked.map((tr) => tr.id).join(",") }} refs={refs} listHref="/vehicles" /> : undefined}
       />
 
       <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
@@ -75,7 +76,19 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
                   <span className="flex flex-col items-end gap-0.5">{extraDrivers.map(person)}</span>
                 </Kv>
               )}
-              <Kv label={t("x.coupledTrailer")}>{trailer?.plate ?? "—"}</Kv>
+              <Kv label={t("f.trailersLinked")}>
+                {linked.length ? (
+                  <span className="flex flex-col items-end gap-0.5">
+                    {linked.map((tr) => (
+                      <Link key={tr.id} href={`/trailers/${tr.id}`} className="hover:text-accent-ink hover:underline">
+                        {tr.plate}
+                      </Link>
+                    ))}
+                  </span>
+                ) : (
+                  "—"
+                )}
+              </Kv>
               <Kv label={t("f.odometerKm")}>{v.odometerKm ? `${fmtNum(v.odometerKm, locale)} km` : "—"}</Kv>
               <Kv label={t("f.euroNorm")}>{optLabel(EURO_NORMS, v.euroNorm, locale) || "—"}</Kv>
               <Kv label={t("f.vin")}>

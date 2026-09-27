@@ -29,14 +29,19 @@ export type VehicleRow = {
   notes: string | null;
   driverName: string | null;
   extraDriverNames: string[];
-  trailerPlate: string | null;
+  trailerIds: string[];
+  trailerPlates: string[];
   nextDoc: NextDoc;
 };
 
 /** "Marko Petrović +1"; hovering shows every driver. */
 function DriversCell({ main, extra }: { main: string | null; extra: string[] }) {
-  if (!main && !extra.length) return <span className="text-ink-4">—</span>;
-  const all = [main, ...extra].filter(Boolean) as string[];
+  return <ListCell items={[main, ...extra].filter(Boolean) as string[]} />;
+}
+
+/** First item plus "+N"; hovering shows all of them. */
+function ListCell({ items: all }: { items: string[] }) {
+  if (!all.length) return <span className="text-ink-4">—</span>;
   return (
     <span className="inline-flex items-center gap-1.5 text-ink-2" title={all.join("\n")}>
       <span className="truncate">{all[0]}</span>
@@ -64,7 +69,7 @@ export function VehiclesTable({ rows, refs }: { rows: VehicleRow[]; refs: Refs }
     { key: "plate", header: t("f.vehicle"), sortValue: (r) => r.plate, render: (r) => <Stack main={r.plate} sub={[r.brand, r.model, r.year].filter(Boolean).join(" · ")} /> },
     { key: "type", header: t("f.type"), sortValue: (r) => r.type, hide: "md", render: (r) => <span className="text-ink-2">{opt(VEHICLE_TYPES, r.type)}</span> },
     { key: "driver", header: t("f.driver"), sortValue: (r) => r.driverName, hide: "sm", render: (r) => <DriversCell main={r.driverName} extra={r.extraDriverNames} /> },
-    { key: "trailer", header: t("f.trailer"), sortValue: (r) => r.trailerPlate, hide: "lg", render: (r) => <span className="text-ink-2">{r.trailerPlate ?? "—"}</span> },
+    { key: "trailer", header: t("f.trailer"), sortValue: (r) => r.trailerPlates[0] ?? null, hide: "lg", render: (r) => <ListCell items={r.trailerPlates} /> },
     { key: "km", header: t("f.odometerKm"), align: "right", hide: "sm", sortValue: (r) => r.odometerKm, render: (r) => <span className="text-ink-2">{r.odometerKm ? `${num(r.odometerKm)} km` : "—"}</span> },
     { key: "next", header: t("f.nextExpiry"), sortValue: (r) => r.nextDoc?.expiresAt ?? "9999", render: (r) => <NextDocCell doc={r.nextDoc} kind="vehicle" /> },
     { key: "status", header: t("f.status"), sortValue: (r) => r.status, hide: "sm", render: (r) => <AssetStatus status={r.status} /> },
@@ -75,7 +80,7 @@ export function VehiclesTable({ rows, refs }: { rows: VehicleRow[]; refs: Refs }
         rows={rows}
         columns={cols}
         rowHref={(r) => `/vehicles/${r.id}`}
-        searchText={(r) => [r.plate, r.brand, r.model, r.vin, r.driverName, ...r.extraDriverNames, r.trailerPlate].join(" ")}
+        searchText={(r) => [r.plate, r.brand, r.model, r.vin, r.driverName, ...r.extraDriverNames, ...r.trailerPlates].join(" ")}
         filters={[
           { value: "all", label: t("c.all"), predicate: () => true },
           { value: "active", label: t("flt.active"), predicate: (r) => r.status === "active" },
@@ -101,9 +106,9 @@ export type TrailerRow = {
   axles: number | null;
   capacityKg: number | null;
   status: string;
-  vehicleId: string | null;
   notes: string | null;
-  vehiclePlate: string | null;
+  vehicleIds: string[];
+  vehiclePlates: string[];
   nextDoc: NextDoc;
 };
 
@@ -128,7 +133,7 @@ export function TrailersTable({ rows, refs }: { rows: TrailerRow[]; refs: Refs }
         </span>
       ),
     },
-    { key: "veh", header: t("x.coupledTo"), sortValue: (r) => r.vehiclePlate, hide: "sm", render: (r) => <span className="text-ink-2">{r.vehiclePlate ?? "—"}</span> },
+    { key: "veh", header: t("x.coupledTo"), sortValue: (r) => r.vehiclePlates[0] ?? null, hide: "sm", render: (r) => <ListCell items={r.vehiclePlates} /> },
     { key: "next", header: t("f.nextExpiry"), sortValue: (r) => r.nextDoc?.expiresAt ?? "9999", render: (r) => <NextDocCell doc={r.nextDoc} kind="trailer" /> },
     { key: "status", header: t("f.status"), sortValue: (r) => r.status, hide: "sm", render: (r) => <AssetStatus status={r.status} /> },
   ];
@@ -138,7 +143,7 @@ export function TrailersTable({ rows, refs }: { rows: TrailerRow[]; refs: Refs }
         rows={rows}
         columns={cols}
         rowHref={(r) => `/trailers/${r.id}`}
-        searchText={(r) => [r.plate, r.brand, r.vin, r.vehiclePlate, opt(TRAILER_TYPES, r.type)].join(" ")}
+        searchText={(r) => [r.plate, r.brand, r.vin, ...r.vehiclePlates, opt(TRAILER_TYPES, r.type)].join(" ")}
         filters={[
           { value: "all", label: t("c.all"), predicate: () => true },
           ...types.map((ty) => ({ value: ty, label: opt(TRAILER_TYPES, ty), predicate: (r: TrailerRow) => r.type === ty })),

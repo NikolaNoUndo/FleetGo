@@ -41,6 +41,12 @@ export const listPayments = cache(async () => {
   return db.select().from(S.driverPayments).where(eq(S.driverPayments.companyId, id)).orderBy(desc(S.driverPayments.date), desc(S.driverPayments.createdAt));
 });
 
+/** vehicle ↔ trailer links of the company */
+export const listVehicleTrailers = cache(async () => {
+  const { id } = await getCompany();
+  return db.select({ vehicleId: S.vehicleTrailers.vehicleId, trailerId: S.vehicleTrailers.trailerId }).from(S.vehicleTrailers).where(eq(S.vehicleTrailers.companyId, id));
+});
+
 export const listSuppliers = cache(async () => {
   const { id } = await getCompany();
   return db.select().from(S.suppliers).where(eq(S.suppliers.companyId, id)).orderBy(asc(S.suppliers.name));

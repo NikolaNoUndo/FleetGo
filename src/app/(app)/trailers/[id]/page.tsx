@@ -9,7 +9,7 @@ import { DetailTabs, RecordActions } from "@/components/detail";
 import { AssetStatus } from "@/components/tables/common";
 import { DocumentsTable, PartsTable, ServicesTable } from "@/components/tables/records";
 import { getPrefs, getT } from "@/lib/prefs";
-import { documentsWithOwner, getRefs, getTrailer, listParts, listServices } from "@/lib/queries";
+import { documentsWithOwner, getRefs, getTrailer, listParts, listServices, listVehicleTrailers } from "@/lib/queries";
 import { getMoney } from "@/lib/money-server";
 import { TRAILER_TYPES, optLabel } from "@/lib/catalog";
 import { fmtNum } from "@/lib/format";
@@ -28,7 +28,7 @@ export default async function TrailerPage(props: PageProps<"/trailers/[id]">) {
   const tr = await getTrailer(id);
   if (!tr) notFound();
 
-  const [t, { locale }, m, { refs, names }, docs, services, parts] = await Promise.all([
+  const [t, { locale }, m, { refs, names }, docs, services, parts, links] = await Promise.all([
     getT(),
     getPrefs(),
     getMoney(),
@@ -36,7 +36,9 @@ export default async function TrailerPage(props: PageProps<"/trailers/[id]">) {
     documentsWithOwner({ entityType: "trailer", entityId: id }),
     listServices(),
     listParts(),
+    listVehicleTrailers(),
   ]);
+  const vehicleIds = links.filter((l) => l.trailerId === id).map((l) => l.vehicleId).sort((a, b) => (names[a] ?? "").localeCompare(names[b] ?? ""));
   const tServices = services.filter((s) => s.trailerId === id);
   const tParts = parts.filter((p) => p.trailerId === id);
 
@@ -45,7 +47,7 @@ export default async function TrailerPage(props: PageProps<"/trailers/[id]">) {
       <PageHeader
         title={tr.plate}
         sub={[optLabel(TRAILER_TYPES, tr.type, locale), tr.brand, tr.year].filter(Boolean).join(" · ")}
-        actions={can(ctx.perms, "trailers", "edit") ? <RecordActions resource="trailers" record={tr} refs={refs} listHref="/trailers" /> : undefined}
+        actions={can(ctx.perms, "trailers", "edit") ? <RecordActions resource="trailers" record={{ ...tr, vehicleIds: vehicleIds.join(",") }} refs={refs} listHref="/trailers" /> : undefined}
       />
       <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
@@ -55,11 +57,15 @@ export default async function TrailerPage(props: PageProps<"/trailers/[id]">) {
                 <AssetStatus status={tr.status} />
               </Kv>
               <Kv label={t("f.type")}>{optLabel(TRAILER_TYPES, tr.type, locale)}</Kv>
-              <Kv label={t("x.coupledTo")}>
-                {tr.vehicleId ? (
-                  <Link className="text-accent hover:underline" href={`/vehicles/${tr.vehicleId}`}>
-                    {names[tr.vehicleId]}
-                  </Link>
+              <Kv label={t("f.vehiclesLinked")}>
+                {vehicleIds.length ? (
+                  <span className="flex flex-col items-end gap-0.5">
+                    {vehicleIds.map((vid) => (
+                      <Link key={vid} className="text-accent hover:underline" href={`/vehicles/${vid}`}>
+                        {names[vid]}
+                      </Link>
+                    ))}
+                  </span>
                 ) : (
                   "—"
                 )}

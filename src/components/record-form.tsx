@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { saveRecord, deleteRecord } from "@/app/actions";
 import { RESOURCES, type FieldDef, type Refs, type ResourceKey } from "@/lib/resources";
 import { RESOURCE_MODULE } from "@/lib/auth/permissions";
@@ -25,6 +25,8 @@ function initialValues(fields: FieldDef[], record: Row | null, fixed?: Record<st
     else if (f.type === "money") {
       v[f.name] = raw === null || raw === undefined ? "" : String(raw);
       v.currency = String(record?.currency ?? f.defaultValue ?? "RSD");
+    } else if (f.type === "links") {
+      v[f.name] = Array.isArray(raw) ? (raw as string[]).join(",") : raw ? String(raw) : "";
     } else if (f.type === "drivers") {
       v[f.name] = raw ? String(raw) : "";
       v.extraDriverIds = Array.isArray(record?.extraDriverIds) ? (record.extraDriverIds as string[]).join(",") : "";
@@ -120,6 +122,61 @@ function SupplierPicker({ id, value, options, onChange }: { id: string; value: s
           pos.layer,
         )}
     </div>
+  );
+}
+
+/** Any number of linked records (e.g. the trailers a truck uses), shown as removable chips. */
+function LinksField({
+  id,
+  label,
+  error,
+  value,
+  options,
+  onChange,
+}: {
+  id: string;
+  label: ReactNode;
+  error?: string;
+  value: string;
+  options: { id: string; label: string; sub?: string }[];
+  onChange: (v: string) => void;
+}) {
+  const { locale } = usePrefs();
+  const sr = locale === "sr";
+  const ids = value ? value.split(",").filter(Boolean) : [];
+  const byId = new Map(options.map((o) => [o.id, o]));
+  const rest = options.filter((o) => !ids.includes(o.id));
+  return (
+    <FieldShell label={label} error={error} span={2} htmlFor={id}>
+      <div className="flex flex-wrap items-center gap-2">
+        {ids.map((x) => (
+          <span key={x} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface-2 pr-1 pl-2.5 text-sm">
+            {byId.get(x)?.label ?? "—"}
+            <button
+              type="button"
+              aria-label={sr ? "Ukloni" : "Remove"}
+              onClick={() => onChange(ids.filter((y) => y !== x).join(","))}
+              className="grid size-6 place-items-center rounded-md text-ink-3 hover:bg-surface-3 hover:text-ink"
+            >
+              <X />
+            </button>
+          </span>
+        ))}
+        {rest.length > 0 && (
+          <div className="min-w-[180px] flex-1">
+            <Select id={id} value="" onChange={(e) => e.target.value && onChange([...ids, e.target.value].join(","))}>
+              <option value="">{ids.length ? (sr ? "+ Dodaj još…" : "+ Add another…") : sr ? "Nema – izaberi da dodaš" : "None – pick to add"}</option>
+              {rest.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                  {o.sub ? ` · ${o.sub}` : ""}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
+      </div>
+    </FieldShell>
   );
 }
 
@@ -356,6 +413,18 @@ export function RecordForm({
         );
         break;
       }
+      case "links":
+        return (
+          <LinksField
+            key={f.name}
+            id={id}
+            label={label}
+            error={err}
+            value={String(val ?? "")}
+            options={refs[f.ref!] ?? []}
+            onChange={(v) => set(f.name, v)}
+          />
+        );
       case "drivers":
         return (
           <DriversField

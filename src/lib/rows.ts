@@ -1,5 +1,5 @@
 import "server-only";
-import { getRefs, listDocuments, listEmployees, listPayments, listTrailers, listVehicles, fullName, type Doc } from "./queries";
+import { getRefs, listDocuments, listEmployees, listPayments, listTrailers, listVehicleTrailers, listVehicles, fullName, type Doc } from "./queries";
 import type { EmployeeRow, TrailerRow, VehicleRow } from "@/components/tables/assets";
 
 /** Earliest expiry per owner, used for the "next expiry" column. */
@@ -14,7 +14,8 @@ export function nextDocs(docs: Doc[]) {
 }
 
 export async function vehicleRows(): Promise<VehicleRow[]> {
-  const [vehicles, trailers, employees, docs] = await Promise.all([listVehicles(), listTrailers(), listEmployees(), listDocuments()]);
+  const [vehicles, trailers, employees, docs, links] = await Promise.all([listVehicles(), listTrailers(), listEmployees(), listDocuments(), listVehicleTrailers()]);
+  const plateOf = new Map(trailers.map((t) => [t.id, t.plate]));
   const next = nextDocs(docs);
   const emp = new Map(employees.map((e) => [e.id, fullName(e)]));
   return vehicles.map((v) => ({
@@ -23,18 +24,20 @@ export async function vehicleRows(): Promise<VehicleRow[]> {
     extraDriverIds: v.extraDriverIds.filter((id) => emp.has(id)),
     driverName: v.driverId ? (emp.get(v.driverId) ?? null) : null,
     extraDriverNames: v.extraDriverIds.map((id) => emp.get(id)).filter((x): x is string => !!x),
-    trailerPlate: trailers.find((t) => t.vehicleId === v.id)?.plate ?? null,
+    trailerIds: links.filter((l) => l.vehicleId === v.id).map((l) => l.trailerId),
+    trailerPlates: links.filter((l) => l.vehicleId === v.id).map((l) => plateOf.get(l.trailerId) ?? "").filter(Boolean).sort(),
     nextDoc: next.get(v.id) ?? null,
   }));
 }
 
 export async function trailerRows(): Promise<TrailerRow[]> {
-  const [trailers, docs, { names }] = await Promise.all([listTrailers(), listDocuments(), getRefs()]);
+  const [trailers, docs, { names }, links] = await Promise.all([listTrailers(), listDocuments(), getRefs(), listVehicleTrailers()]);
   const next = nextDocs(docs);
   return trailers.map((t) => ({
     id: t.id, plate: t.plate, type: t.type, brand: t.brand, year: t.year, vin: t.vin, axles: t.axles, capacityKg: t.capacityKg,
-    status: t.status, vehicleId: t.vehicleId, notes: t.notes,
-    vehiclePlate: t.vehicleId ? (names[t.vehicleId] ?? null) : null,
+    status: t.status, notes: t.notes,
+    vehicleIds: links.filter((l) => l.trailerId === t.id).map((l) => l.vehicleId),
+    vehiclePlates: links.filter((l) => l.trailerId === t.id).map((l) => names[l.vehicleId] ?? "").filter(Boolean).sort(),
     nextDoc: next.get(t.id) ?? null,
   }));
 }

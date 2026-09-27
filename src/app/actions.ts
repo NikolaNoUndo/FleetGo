@@ -47,10 +47,23 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
   const refChecks: { table: "vehicles" | "trailers" | "employees"; id: string; field: string }[] = [];
   /** supplier fields: an existing id, or "new:<name>" to create one on save */
   const supplierFields: { field: string; value: string }[] = [];
+  /** many-to-many links (vehicle ↔ trailer), written to vehicle_trailers after save */
+  let links: string[] | null = null;
 
   for (const f of RESOURCES[resource].fields) {
     const v = raw[f.name];
     const empty = v === undefined || v === null || (typeof v === "string" && v.trim() === "");
+
+    if (f.type === "links") {
+      const ids = [...new Set(String(v ?? "").split(",").map((x) => x.trim()).filter(Boolean))].slice(0, 50);
+      if (ids.some((x) => !UUID.test(x))) {
+        errors[f.name] = "ref";
+        continue;
+      }
+      links = ids;
+      for (const id of ids) refChecks.push({ table: f.ref as "vehicles" | "trailers", id, field: f.name });
+      continue;
+    }
 
     // Main driver + extra drivers (second, third…), sent as a comma-separated list.
     if (f.type === "drivers") {
@@ -149,7 +162,7 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
       }
     }
   }
-  return { out, errors, refChecks, supplierFields };
+  return { out, errors, refChecks, supplierFields, links };
 }
 
 /** Access check for an editable resource; returns the company id. */
@@ -184,6 +197,19 @@ async function resolveSupplier(companyId: string, value: string): Promise<string
   return found?.id ?? null;
 }
 
+/** Replaces the vehicle ↔ trailer links of one vehicle (or one trailer). */
+async function syncLinks(resource: ResourceKey, companyId: string, id: string, ids: string[]) {
+  const T = schema.vehicleTrailers;
+  const own = resource === "vehicles" ? T.vehicleId : resource === "trailers" ? T.trailerId : null;
+  if (!own) return;
+  await db.delete(T).where(and(eq(T.companyId, companyId), eq(own, id)));
+  if (!ids.length) return;
+  await db
+    .insert(T)
+    .values(ids.map((other) => (resource === "vehicles" ? { companyId, vehicleId: id, trailerId: other } : { companyId, vehicleId: other, trailerId: id })))
+    .onConflictDoNothing();
+}
+
 export async function saveRecord(resourceName: string, id: string | null, raw: Record<string, unknown>): Promise<ActionResult> {
   if (!isResource(resourceName)) return { ok: false, errors: {}, message: "Unknown resource" };
   let companyId: string;
@@ -192,7 +218,7 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
   } catch {
     return { ok: false, errors: {}, message: "Nemaš pravo izmene za ovaj deo aplikacije." };
   }
-  const { out, errors, refChecks, supplierFields } = coerce(resourceName, raw);
+  const { out, errors, refChecks, supplierFields, links } = coerce(resourceName, raw);
   if (Object.keys(errors).length) return { ok: false, errors };
   for (const sf of supplierFields) out[sf.field] = await resolveSupplier(companyId, sf.value);
 
@@ -213,6 +239,7 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
         .where(and(eq(table.id, id), eq(table.companyId, companyId)))
         .returning({ id: table.id });
       if (!res.length) return { ok: false, errors: {}, message: "Not found" };
+      if (links) await syncLinks(resourceName, companyId, res[0].id, links);
       revalidatePath("/", "layout");
       return { ok: true, id: res[0].id };
     }
@@ -220,8 +247,10 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
       .insert(table)
       .values({ ...(out as object), companyId } as never)
       .returning({ id: table.id });
+    const newId = (res as { id: string }[])[0].id;
+    if (links) await syncLinks(resourceName, companyId, newId, links);
     revalidatePath("/", "layout");
-    return { ok: true, id: (res as { id: string }[])[0].id };
+    return { ok: true, id: newId };
   } catch (e) {
     const msg = String((e as { cause?: { message?: string } })?.cause?.message ?? (e as Error).message);
     if (resourceName === "suppliers" && msg.includes("suppliers_company_name_uq")) return { ok: false, errors: { name: "duplicate" } };

@@ -100,11 +100,29 @@ export const trailers = pgTable(
     axles: integer("axles"),
     capacityKg: integer("capacity_kg"),
     status: text("status").notNull().default("active"),
-    vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
     notes: text("notes"),
     createdAt: createdAt(),
   },
   (t) => [index("trailers_company_idx").on(t.companyId)],
+);
+
+/**
+ * Which trucks use which trailers. Many-to-many and optional on both sides:
+ * a truck can pull several trailers over time, a trailer can be shared.
+ */
+export const vehicleTrailers = pgTable(
+  "vehicle_trailers",
+  {
+    companyId: companyId(),
+    vehicleId: uuid("vehicle_id")
+      .notNull()
+      .references(() => vehicles.id, { onDelete: "cascade" }),
+    trailerId: uuid("trailer_id")
+      .notNull()
+      .references(() => trailers.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.vehicleId, t.trailerId] }), index("vehicle_trailers_trailer_idx").on(t.trailerId), index("vehicle_trailers_company_idx").on(t.companyId)],
 );
 
 /** Expiring documents for vehicles, trailers and employees (polymorphic). */

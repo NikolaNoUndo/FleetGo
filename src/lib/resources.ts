@@ -4,7 +4,7 @@ import type { TKey } from "./i18n";
 export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers";
 export type RefKey = "vehicles" | "trailers" | "employees" | "drivers" | "suppliers";
 
-export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers";
+export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers" | "links";
 
 export type FieldDef = {
   name: string;
@@ -35,6 +35,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
       { name: "odometerKm", label: "f.odometerKm", type: "int" },
       { name: "status", label: "f.status", type: "select", options: "assetStatus", required: true, defaultValue: "active" },
       { name: "driverId", label: "f.mainDriver", type: "drivers", ref: "drivers", span: 2 },
+      { name: "trailerIds", label: "f.trailersLinked", type: "links", ref: "trailers", span: 2 },
       { name: "wialonUnitId", label: "f.wialonUnitId", type: "text" },
       { name: "notes", label: "f.notes", type: "textarea", span: 2 },
     ],
@@ -50,7 +51,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
       { name: "axles", label: "f.axles", type: "int" },
       { name: "capacityKg", label: "f.capacityKg", type: "int" },
       { name: "status", label: "f.status", type: "select", options: "assetStatus", required: true, defaultValue: "active" },
-      { name: "vehicleId", label: "x.coupledTo", type: "ref", ref: "vehicles" },
+      { name: "vehicleIds", label: "f.vehiclesLinked", type: "links", ref: "vehicles", span: 2 },
       { name: "notes", label: "f.notes", type: "textarea", span: 2 },
     ],
   },

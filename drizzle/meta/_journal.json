@@ -57,6 +57,13 @@
       "when": 1790500484084,
       "tag": "0007_v023_extra_drivers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790523871354,
+      "tag": "0008_v024_vehicle_trailers",
+      "breakpoints": true
     }
   ]
 }

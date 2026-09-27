@@ -117,10 +117,13 @@ async function main() {
       tdefs.map(([plate, type, brand, year, axles, capacityKg, status], i) => ({
         companyId, plate, type, brand, year, axles, capacityKg, status,
         vin: `WSM${String(100000 + i * 5113)}${int(1000000, 9999999)}`.slice(0, 17),
-        vehicleId: i < 10 && vehicles[i].type === "tractor" && vehicles[i].status === "active" ? vehicles[i].id : null,
       })),
     )
     .returning();
+  // Trucks and the trailers they use (a trailer may be shared; some have none)
+  const links = trailers.flatMap((t, i) => (i < 10 && vehicles[i].type === "tractor" && vehicles[i].status === "active" ? [{ companyId, vehicleId: vehicles[i].id, trailerId: t.id }] : []));
+  if (links[0] && trailers[11]) links.push({ companyId, vehicleId: links[0].vehicleId, trailerId: trailers[11].id });
+  if (links.length) await db.insert(schema.vehicleTrailers).values(links);
 
   // Documents with a realistic spread of expiries (some expired, some soon, most fine)
   const docs: (typeof schema.documents.$inferInsert)[] = [];
