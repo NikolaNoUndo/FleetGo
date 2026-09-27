@@ -12,6 +12,7 @@ import {
   jsonb,
   primaryKey,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /**
  * Multi-tenant: every business table carries company_id.
@@ -77,6 +78,8 @@ export const vehicles = pgTable(
     odometerKm: integer("odometer_km"),
     status: text("status").notNull().default("active"),
     driverId: uuid("driver_id").references(() => employees.id, { onDelete: "set null" }),
+    /** second, third… driver of the same vehicle, in order (the main one is driverId) */
+    extraDriverIds: uuid("extra_driver_ids").array().notNull().default(sql`'{}'::uuid[]`),
     wialonUnitId: text("wialon_unit_id"),
     notes: text("notes"),
     createdAt: createdAt(),

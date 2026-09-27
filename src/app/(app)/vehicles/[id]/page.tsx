@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAccess } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
@@ -44,6 +45,12 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
   const vParts = parts.filter((p) => p.vehicleId === id);
   const trailer = trailers.find((tr) => tr.vehicleId === id);
   const driver = employees.find((e) => e.id === v.driverId);
+  const extraDrivers = v.extraDriverIds.map((x) => employees.find((e) => e.id === x)).filter((e): e is (typeof employees)[number] => !!e);
+  const person = (e: (typeof employees)[number]) => (
+    <Link key={e.id} href={`/employees/${e.id}`} className="hover:text-accent-ink hover:underline">
+      {e.firstName} {e.lastName}
+    </Link>
+  );
   const cons = consumptionByVehicle(vFuel)[id];
 
   return (
@@ -62,7 +69,12 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
                 <AssetStatus status={v.status} />
               </Kv>
               <Kv label={t("f.type")}>{optLabel(VEHICLE_TYPES, v.type, locale)}</Kv>
-              <Kv label={t("f.driver")}>{driver ? `${driver.firstName} ${driver.lastName}` : "—"}</Kv>
+              <Kv label={extraDrivers.length ? t("f.mainDriver") : t("f.driver")}>{driver ? person(driver) : "—"}</Kv>
+              {extraDrivers.length > 0 && (
+                <Kv label={locale === "sr" ? "Ostali vozači" : "Other drivers"}>
+                  <span className="flex flex-col items-end gap-0.5">{extraDrivers.map(person)}</span>
+                </Kv>
+              )}
               <Kv label={t("x.coupledTrailer")}>{trailer?.plate ?? "—"}</Kv>
               <Kv label={t("f.odometerKm")}>{v.odometerKm ? `${fmtNum(v.odometerKm, locale)} km` : "—"}</Kv>
               <Kv label={t("f.euroNorm")}>{optLabel(EURO_NORMS, v.euroNorm, locale) || "—"}</Kv>

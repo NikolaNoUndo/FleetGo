@@ -25,6 +25,9 @@ function initialValues(fields: FieldDef[], record: Row | null, fixed?: Record<st
     else if (f.type === "money") {
       v[f.name] = raw === null || raw === undefined ? "" : String(raw);
       v.currency = String(record?.currency ?? f.defaultValue ?? "RSD");
+    } else if (f.type === "drivers") {
+      v[f.name] = raw ? String(raw) : "";
+      v.extraDriverIds = Array.isArray(record?.extraDriverIds) ? (record.extraDriverIds as string[]).join(",") : "";
     } else if (raw !== null && raw !== undefined) v[f.name] = String(raw);
     else if (!record && f.type === "date" && f.required) v[f.name] = todayISO();
     else v[f.name] = f.defaultValue !== undefined ? String(f.defaultValue) : "";
@@ -116,6 +119,79 @@ function SupplierPicker({ id, value, options, onChange }: { id: string; value: s
           </ul>,
           pos.layer,
         )}
+    </div>
+  );
+}
+
+/** Main driver plus optional second, third… driver; each extra row appears once the previous one is filled. */
+function DriversField({
+  id,
+  label,
+  error,
+  main,
+  extras,
+  options,
+  onChange,
+}: {
+  id: string;
+  label: ReactNode;
+  error?: string;
+  main: string;
+  extras: string;
+  options: { id: string; label: string; sub?: string }[];
+  onChange: (main: string, extras: string) => void;
+}) {
+  const { t, locale } = usePrefs();
+  const sr = locale === "sr";
+  const filled = extras ? extras.split(",").filter(Boolean) : [];
+  // empty rows the user added but hasn't picked a driver for yet
+  const [blank, setBlank] = useState(0);
+  const list = [...filled, ...Array<string>(blank).fill("")];
+  const ORD = sr ? ["Drugi", "Treći", "Četvrti", "Peti", "Šesti"] : ["Second", "Third", "Fourth", "Fifth", "Sixth"];
+  const ADD = sr ? ["Dodaj drugog vozača", "Dodaj trećeg vozača", "Dodaj četvrtog vozača", "Dodaj petog vozača", "Dodaj šestog vozača"] : ORD.map((o) => `Add ${o.toLowerCase()} driver`);
+  const chosen = (except: string) => new Set([main, ...filled].filter((x) => x && x !== except));
+  const emit = (m: string, l: string[]) => {
+    const clean = l.filter(Boolean);
+    setBlank(l.length - clean.length);
+    // no extras without a main driver: promote the first extra
+    if (!m && clean.length) onChange(clean[0], clean.slice(1).join(","));
+    else onChange(m, clean.join(","));
+  };
+  const select = (sid: string, value: string, onPick: (v: string) => void, required?: boolean) => (
+    <Select id={sid} value={value} onChange={(e) => onPick(e.target.value)}>
+      <option value="">{required ? t("c.select") : t("c.none")}</option>
+      {options
+        .filter((o) => o.id === value || !chosen(value).has(o.id))
+        .map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.label}
+          </option>
+        ))}
+    </Select>
+  );
+  const canAdd = !!main && blank === 0 && list.length < ORD.length && options.length > list.length + 1;
+  return (
+    <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
+      <FieldShell label={label} error={error} htmlFor={id}>
+        {select(id, main, (v) => emit(v, list))}
+      </FieldShell>
+      {list.map((x, i) => (
+        <FieldShell key={i} label={`${ORD[i]} ${sr ? "vozač" : "driver"}`} htmlFor={`${id}-${i}`}>
+          <div className="flex gap-2">
+            <div className="min-w-0 flex-1">{select(`${id}-${i}`, x, (v) => emit(main, list.map((y, j) => (j === i ? v : y))))}</div>
+            <Button type="button" variant="ghost" aria-label={sr ? "Ukloni" : "Remove"} onClick={() => emit(main, list.filter((_, j) => j !== i).filter(Boolean))}>
+              <Trash2 />
+            </Button>
+          </div>
+        </FieldShell>
+      ))}
+      {canAdd && (
+        <div className="flex items-end sm:col-span-2">
+          <Button type="button" size="sm" onClick={() => setBlank(1)}>
+            <Plus /> {ADD[list.length]}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -280,6 +356,22 @@ export function RecordForm({
         );
         break;
       }
+      case "drivers":
+        return (
+          <DriversField
+            key={f.name}
+            id={id}
+            label={label}
+            error={err}
+            main={String(val ?? "")}
+            extras={String(values.extraDriverIds ?? "")}
+            options={refs[f.ref ?? "drivers"] ?? []}
+            onChange={(main, extras) => {
+              set(f.name, main);
+              set("extraDriverIds", extras);
+            }}
+          />
+        );
       case "supplier":
         control = <SupplierPicker id={id} value={String(val ?? "")} options={refs.suppliers ?? []} onChange={(v) => set(f.name, v)} />;
         break;

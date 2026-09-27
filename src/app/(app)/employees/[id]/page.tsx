@@ -40,7 +40,7 @@ export default async function EmployeePage(props: PageProps<"/employees/[id]">) 
   ]);
   const pays = payments.filter((p) => p.employeeId === id);
   const eFuel = fuel.filter((f) => f.employeeId === id);
-  const vehicle = vehicles.find((v) => v.driverId === id);
+  const vehicle = vehicles.find((v) => v.driverId === id) ?? vehicles.find((v) => v.extraDriverIds.includes(id));
   const name = `${e.firstName} ${e.lastName}`;
   const isDriver = e.role === "driver";
 

@@ -1,0 +1,1 @@
+ALTER TABLE "vehicles" ADD COLUMN "extra_driver_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL;

@@ -24,12 +24,26 @@ export type VehicleRow = {
   odometerKm: number | null;
   status: string;
   driverId: string | null;
+  extraDriverIds: string[];
   wialonUnitId: string | null;
   notes: string | null;
   driverName: string | null;
+  extraDriverNames: string[];
   trailerPlate: string | null;
   nextDoc: NextDoc;
 };
+
+/** "Marko Petrović +1"; hovering shows every driver. */
+function DriversCell({ main, extra }: { main: string | null; extra: string[] }) {
+  if (!main && !extra.length) return <span className="text-ink-4">—</span>;
+  const all = [main, ...extra].filter(Boolean) as string[];
+  return (
+    <span className="inline-flex items-center gap-1.5 text-ink-2" title={all.join("\n")}>
+      <span className="truncate">{all[0]}</span>
+      {all.length > 1 && <span className="rounded-md border border-line bg-surface-2 px-1.5 text-xs font-medium text-ink-2 tnum">+{all.length - 1}</span>}
+    </span>
+  );
+}
 
 function NextDocCell({ doc, kind }: { doc: NextDoc; kind: "vehicle" | "trailer" | "employee" }) {
   const { opt } = usePrefs();
@@ -49,7 +63,7 @@ export function VehiclesTable({ rows, refs }: { rows: VehicleRow[]; refs: Refs }
   const cols: Column<VehicleRow>[] = [
     { key: "plate", header: t("f.vehicle"), sortValue: (r) => r.plate, render: (r) => <Stack main={r.plate} sub={[r.brand, r.model, r.year].filter(Boolean).join(" · ")} /> },
     { key: "type", header: t("f.type"), sortValue: (r) => r.type, hide: "md", render: (r) => <span className="text-ink-2">{opt(VEHICLE_TYPES, r.type)}</span> },
-    { key: "driver", header: t("f.driver"), sortValue: (r) => r.driverName, hide: "sm", render: (r) => <span className="text-ink-2">{r.driverName ?? "—"}</span> },
+    { key: "driver", header: t("f.driver"), sortValue: (r) => r.driverName, hide: "sm", render: (r) => <DriversCell main={r.driverName} extra={r.extraDriverNames} /> },
     { key: "trailer", header: t("f.trailer"), sortValue: (r) => r.trailerPlate, hide: "lg", render: (r) => <span className="text-ink-2">{r.trailerPlate ?? "—"}</span> },
     { key: "km", header: t("f.odometerKm"), align: "right", hide: "sm", sortValue: (r) => r.odometerKm, render: (r) => <span className="text-ink-2">{r.odometerKm ? `${num(r.odometerKm)} km` : "—"}</span> },
     { key: "next", header: t("f.nextExpiry"), sortValue: (r) => r.nextDoc?.expiresAt ?? "9999", render: (r) => <NextDocCell doc={r.nextDoc} kind="vehicle" /> },
@@ -61,7 +75,7 @@ export function VehiclesTable({ rows, refs }: { rows: VehicleRow[]; refs: Refs }
         rows={rows}
         columns={cols}
         rowHref={(r) => `/vehicles/${r.id}`}
-        searchText={(r) => [r.plate, r.brand, r.model, r.vin, r.driverName, r.trailerPlate].join(" ")}
+        searchText={(r) => [r.plate, r.brand, r.model, r.vin, r.driverName, ...r.extraDriverNames, r.trailerPlate].join(" ")}
         filters={[
           { value: "all", label: t("c.all"), predicate: () => true },
           { value: "active", label: t("flt.active"), predicate: (r) => r.status === "active" },

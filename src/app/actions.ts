@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { RESOURCES, type ResourceKey } from "@/lib/resources";
 import { assertAccess, getContext } from "@/lib/auth/context";
@@ -51,6 +51,25 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
   for (const f of RESOURCES[resource].fields) {
     const v = raw[f.name];
     const empty = v === undefined || v === null || (typeof v === "string" && v.trim() === "");
+
+    // Main driver + extra drivers (second, third…), sent as a comma-separated list.
+    if (f.type === "drivers") {
+      const main = empty ? "" : String(v).trim();
+      const extras = String(raw.extraDriverIds ?? "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      const all = [main, ...extras].filter(Boolean);
+      if (all.some((x) => !UUID.test(x))) {
+        errors[f.name] = "ref";
+        continue;
+      }
+      const unique = [...new Set(all)].slice(0, 6);
+      out[f.name] = unique[0] ?? null;
+      out.extraDriverIds = unique.slice(1);
+      for (const id of unique) refChecks.push({ table: "employees", id, field: f.name });
+      continue;
+    }
 
     if (f.type === "bool") {
       out[f.name] = v === true || v === "true" || v === "on";
@@ -228,6 +247,13 @@ export async function deleteRecord(resourceName: string, id: string): Promise<{ 
     await db
       .delete(schema.documents)
       .where(and(eq(schema.documents.companyId, companyId), eq(schema.documents.entityType, entityType), inArray(schema.documents.entityId, [id])));
+  }
+  if (resourceName === "employees") {
+    // drop the person from any vehicle's extra drivers
+    await db
+      .update(schema.vehicles)
+      .set({ extraDriverIds: sql`array_remove(${schema.vehicles.extraDriverIds}, ${id}::uuid)` })
+      .where(and(eq(schema.vehicles.companyId, companyId), sql`${id}::uuid = any(${schema.vehicles.extraDriverIds})`));
   }
   if (["vehicles", "trailers", "employees"].includes(resourceName)) await audit(ctx.user.email, `delete.${resourceName}`, { id }, companyId);
   revalidatePath("/", "layout");

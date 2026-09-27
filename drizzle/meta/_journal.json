@@ -50,6 +50,13 @@
       "when": 1790449830563,
       "tag": "0006_v022_session_device",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790500484084,
+      "tag": "0007_v023_extra_drivers",
+      "breakpoints": true
     }
   ]
 }

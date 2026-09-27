@@ -20,7 +20,9 @@ export async function vehicleRows(): Promise<VehicleRow[]> {
   return vehicles.map((v) => ({
     id: v.id, plate: v.plate, type: v.type, brand: v.brand, model: v.model, year: v.year, vin: v.vin, euroNorm: v.euroNorm,
     odometerKm: v.odometerKm, status: v.status, driverId: v.driverId, wialonUnitId: v.wialonUnitId, notes: v.notes,
+    extraDriverIds: v.extraDriverIds.filter((id) => emp.has(id)),
     driverName: v.driverId ? (emp.get(v.driverId) ?? null) : null,
+    extraDriverNames: v.extraDriverIds.map((id) => emp.get(id)).filter((x): x is string => !!x),
     trailerPlate: trailers.find((t) => t.vehicleId === v.id)?.plate ?? null,
     nextDoc: next.get(v.id) ?? null,
   }));
@@ -45,7 +47,7 @@ export async function employeeRows(): Promise<EmployeeRow[]> {
   return employees.map((e) => ({
     id: e.id, firstName: e.firstName, lastName: e.lastName, role: e.role, phone: e.phone, email: e.email, hiredAt: e.hiredAt,
     status: e.status, notes: e.notes,
-    vehiclePlate: vehicles.find((v) => v.driverId === e.id)?.plate ?? null,
+    vehiclePlate: vehicles.find((v) => v.driverId === e.id)?.plate ?? vehicles.find((v) => v.extraDriverIds.includes(e.id))?.plate ?? null,
     paidThisMonth: payments.filter((p) => p.employeeId === e.id && p.date >= monthStart).map((p) => ({ amount: p.amount, currency: p.currency })),
     nextDoc: next.get(e.id) ?? null,
   }));

@@ -10,7 +10,7 @@ Upravljanje voznim parkom za prevozničke, transportne i logističke firme: vozi
 | --- | --- |
 | Pregled | Aktivna vozila, istekla i dokumenta koja uskoro ističu, troškovi po mesecima (gorivo, servisi, delovi, uplate), troškovi i potrošnja po vozilu, mini mapa |
 | Mapa uživo | Pozicije, brzina, status (u vožnji / stoji / van mreže), vozač. Wialon ili simulacija |
-| Vozila | Tip, marka/model, VIN, EURO norma, kilometraža, vozač, prikačena prikolica, Wialon ID; detalj sa dokumentima, servisima, gorivom, delovima i potrošnjom l/100 km |
+| Vozila | Tip, marka/model, VIN, EURO norma, kilometraža, glavni vozač i po potrebi drugi, treći… vozač, prikačena prikolica, Wialon ID; detalj sa dokumentima, servisima, gorivom, delovima i potrošnjom l/100 km |
 | Prikolice | Tip (cerada, hladnjača, cisterna…), osovine, nosivost, na koje vozilo je prikačena; dokumenta, servisi, delovi |
 | Zaposleni | Vozači i ostali; dokumenta vozača, uplate, sipanja |
 | Rokovi i dokumenta | Registracija, tehnički, šestomesečni, zeleni karton, bela potvrda, baždarenje tahografa, CEMT, licenca, ATP, ADR, PP aparat, prva pomoć; za vozače: vozačka, kartica za tahograf, CPC/kod 95, lekarsko, ADR kartica, pasoš, radna dozvola. „Obnovi“ predlaže novi rok po tipičnom trajanju dokumenta |
