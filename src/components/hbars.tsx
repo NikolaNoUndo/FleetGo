@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/link";
 
 type Row = { key: string; label: string; sub?: string; value: number; display: string; href?: string };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Info, Navigation, RefreshCw } from "lucide-react";
 import { usePrefs } from "../prefs";
@@ -18,31 +18,74 @@ const FleetMap = dynamic(() => import("./fleet-map"), {
 
 type Api = PositionsResult & { vehicles: { id: string; plate: string; driverName: string | null }[] };
 
-export function useLivePositions(intervalMs = 10000) {
+/** Stop refreshing after this long without mouse, keyboard or touch activity. */
+const IDLE_MS = 10 * 60_000;
+
+/**
+ * Polls live positions. Every request costs server time, so it only polls while
+ * the tab is visible and someone is actually at the screen, and not at all when
+ * the company has no Wialon token. Wialon positions rarely change faster than
+ * every 30–60 s, so shorter intervals would only add cost.
+ */
+export function useLivePositions(intervalMs = 30_000) {
   const [data, setData] = useState<Api | null>(null);
   const [error, setError] = useState(false);
+  const [paused, setPaused] = useState(false);
   useEffect(() => {
     let alive = true;
+    let lastActive = Date.now();
+    let idle = false;
+    let noSource = false;
+    let busy = false;
     const load = async () => {
+      if (busy) return;
+      busy = true;
       try {
         const r = await fetch("/api/positions", { cache: "no-store" });
         if (!r.ok) throw new Error(String(r.status));
         const j = (await r.json()) as Api;
+        noSource = j.source === "none";
         if (alive) {
           setData(j);
           setError(false);
         }
       } catch {
         if (alive) setError(true);
+      } finally {
+        busy = false;
       }
     };
+    const tick = () => {
+      if (document.hidden || noSource) return;
+      if (Date.now() - lastActive > IDLE_MS) {
+        if (!idle) {
+          idle = true;
+          setPaused(true);
+        }
+        return;
+      }
+      load();
+    };
+    const onActivity = () => {
+      lastActive = Date.now();
+      if (idle) {
+        idle = false;
+        setPaused(false);
+        load();
+      }
+    };
+    const onVis = () => {
+      if (document.visibilityState === "visible") onActivity();
+    };
     load();
-    const id = setInterval(load, intervalMs);
-    const onVis = () => document.visibilityState === "visible" && load();
+    const id = setInterval(tick, intervalMs);
+    const events = ["pointermove", "pointerdown", "keydown", "wheel", "touchstart"] as const;
+    for (const e of events) window.addEventListener(e, onActivity, { passive: true });
     document.addEventListener("visibilitychange", onVis);
     return () => {
       alive = false;
       clearInterval(id);
+      for (const e of events) window.removeEventListener(e, onActivity);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [intervalMs]);
@@ -52,14 +95,14 @@ export function useLivePositions(intervalMs = 10000) {
     const byId = new Map(data.vehicles.map((v) => [v.id, v]));
     return data.positions.map((p) => ({ ...p, label: p.vehicleId ? (byId.get(p.vehicleId)?.plate ?? p.unitName) : p.unitName }));
   }, [data]);
-  return { data, points, error };
+  return { data, points, error, paused };
 }
 
 const DOT = { moving: "bg-good", stopped: "bg-info", offline: "bg-ink-4" } as const;
 
 export function LiveView() {
   const { t, locale, can } = usePrefs();
-  const { data, points, error } = useLivePositions();
+  const { data, points, error, paused } = useLivePositions();
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "moving" | "stopped" | "offline">("all");
   const [q, setQ] = useState("");
@@ -140,7 +183,7 @@ export function LiveView() {
         <div className="flex items-center justify-between gap-2 border-t border-line px-4 py-2.5 text-xs text-ink-3">
           <span className="inline-flex items-center gap-1.5">
             <RefreshCw size={12} />
-            {data ? `${t("l.updated")} ${relTime(data.fetchedAt, locale)}` : "…"}
+            {paused ? (locale === "sr" ? "Pauzirano dok ne pomeriš miš" : "Paused until you move the mouse") : data ? `${t("l.updated")} ${relTime(data.fetchedAt, locale)}` : "…"}
           </span>
           {data && <Badge tone={data.source === "wialon" ? "good" : data.source === "error" ? "bad" : "neutral"}>{t(data.source === "wialon" ? "l.source.wialon" : data.source === "error" ? "l.source.error" : "l.source.none")}</Badge>}
         </div>
@@ -180,7 +223,7 @@ export function LiveView() {
 
 export function LiveMini() {
   const { t } = usePrefs();
-  const { data, points } = useLivePositions(15000);
+  const { data, points } = useLivePositions(60_000);
   const moving = points.filter((p) => p.state === "moving").length;
   const connected = data?.source === "wialon";
   return (

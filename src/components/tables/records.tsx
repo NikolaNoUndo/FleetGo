@@ -1,7 +1,7 @@
 "use client";
 
 import { RefreshCw, Truck, Container, User } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { useState } from "react";
 import { DataTable, type Column } from "../data-table";
 import { useCrud } from "../record-form";

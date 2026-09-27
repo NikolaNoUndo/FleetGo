@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useState } from "react";
 import { CalendarClock, ChevronRight, Container, Fuel, Package, Plus, Truck, UserPlus, Wallet, Wrench } from "lucide-react";

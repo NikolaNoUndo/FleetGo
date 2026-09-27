@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { notFound } from "next/navigation";
 import { requireAccess } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";

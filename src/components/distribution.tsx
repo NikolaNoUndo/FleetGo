@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { cn } from "./ui/primitives";
 
 type Seg = { key: string; label: string; count: number; color: string; href?: string };

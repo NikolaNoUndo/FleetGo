@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, Map as MapIcon } from "lucide-react";
 import { Dot, PageHeader, Shell } from "@/components/ui/primitives";

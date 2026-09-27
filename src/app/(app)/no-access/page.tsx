@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { Lock } from "lucide-react";
 import { getPrefs } from "@/lib/prefs";
 

@@ -74,8 +74,26 @@ async function searchUnits(host: string, token: string, retry = true): Promise<W
 
 const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9ČĆŠŽĐ]/g, "");
 
+/**
+ * Units are cached per token for a short while and concurrent requests share one
+ * Wialon call, so several people watching the same company's map cost one fetch.
+ */
+const UNIT_TTL_MS = 20_000;
+const unitCache = new Map<string, { at: number; units: Promise<WialonUnit[]> }>();
+
+function cachedUnits(host: string, token: string): Promise<WialonUnit[]> {
+  const key = `${host}|${token}`;
+  const hit = unitCache.get(key);
+  if (hit && Date.now() - hit.at < UNIT_TTL_MS) return hit.units;
+  const units = searchUnits(host, token);
+  unitCache.set(key, { at: Date.now(), units });
+  units.catch(() => unitCache.delete(key)); // never keep a failure
+  if (unitCache.size > 500) unitCache.delete(unitCache.keys().next().value!);
+  return units;
+}
+
 export async function wialonPositions(cfg: { token: string; host: string }, vehicles: TrackedVehicle[], now = Date.now()): Promise<Position[]> {
-  const units = await searchUnits(cfg.host.replace(/\/$/, ""), cfg.token);
+  const units = await cachedUnits(cfg.host.replace(/\/$/, ""), cfg.token);
   const byUnitId = new Map(vehicles.filter((v) => v.wialonUnitId).map((v) => [String(v.wialonUnitId).trim(), v]));
   const byPlate = vehicles.map((v) => ({ key: norm(v.plate), v })).filter((x) => x.key.length >= 4);
 
