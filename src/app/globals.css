@@ -36,8 +36,8 @@
 
 /*
  * FleetGo design tokens
- * Dark rail sidebar + cool lavender workspace with an indigo accent.
- * Type scale: 12 / 13 / 20 px (Inter). Icons: lucide, 14 px.
+ * Dark #151414 sidebar + cool light workspace with an emerald accent (brand green #09CD71).
+ * Type scale: 12 / 13 / 20 px (Inter). Icons: lucide, 14 px (16 px in the sidebar).
  */
 :root {
   --bg: #eef1f8;
@@ -52,16 +52,16 @@
   --ink-3: #7b8095;
   --ink-4: #adb2c3;
 
-  --accent: #4540d6;
-  --accent-hover: #3833bd;
-  --accent-soft: #ededfd;
-  --accent-line: #d4d3fa;
-  --accent-ink: #3a35c2;
+  --accent: #059669;
+  --accent-hover: #047857;
+  --accent-soft: #e6f7ef;
+  --accent-line: #b5e8cf;
+  --accent-ink: #047857;
 
-  --side: #0e1013;
-  --side-2: #181b1f;
-  --side-3: #262a2f;
-  --side-line: #23272c;
+  --side: #151414;
+  --side-2: #201f1f;
+  --side-3: #2c2a2a;
+  --side-line: #2a2828;
   --side-ink: #eceef1;
   --side-ink-2: #a3a8b0;
   --side-ink-3: #6b7078;
@@ -80,10 +80,10 @@
   --bad-line: #f6c7c7;
   --info: #3b82f6;
 
-  /* chart series – validated categorical order (indigo, orange, aqua, yellow) */
-  --s1: #4f46e5;
+  /* chart series – categorical order (emerald, orange, indigo, yellow) */
+  --s1: #059669;
   --s2: #eb6834;
-  --s3: #1baf7a;
+  --s3: #4f46e5;
   --s4: #eda100;
 
   --shadow-xs: 0 1px 2px rgba(17, 20, 39, 0.04);

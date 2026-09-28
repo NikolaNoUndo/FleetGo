@@ -122,7 +122,7 @@ export function Progress({ value, tone = "accent", className }: { value: number;
   const v = Math.max(0, Math.min(1, value));
   const color = {
     good: "bg-good",
-    accent: "bg-gradient-to-r from-[#4f46e5] to-[#6d68ea]",
+    accent: "bg-gradient-to-r from-[#059669] to-[#34c794]",
     warn: "bg-warn",
     bad: "bg-bad",
   }[tone];

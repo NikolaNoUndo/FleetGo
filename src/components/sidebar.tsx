@@ -3,7 +3,7 @@
 import Link from "@/components/ui/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ChevronDown, Languages, LogOut, Menu as MenuIcon, PanelLeftClose, PanelLeftOpen, UserRound, Wallet, X } from "lucide-react";
+import { ChevronDown, Languages, LucideProvider, LogOut, Menu as MenuIcon, PanelLeftClose, PanelLeftOpen, UserRound, Wallet, X } from "lucide-react";
 import { setPreference, switchCompany } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
 import { usePrefs } from "./prefs";
@@ -123,9 +123,12 @@ export function Sidebar({
   };
 
   /* user block: language, currency, sign out */
-  const userBlock = (rail?: boolean) => (
+  // Desktop: the menu opens to the right of the sidebar, shifted so the "Sign out" row
+  // lines up with this button. Mobile drawer: it opens upward.
+  const userBlock = (rail?: boolean, mobile?: boolean) => (
     <Popover
-      placement={rail ? "right" : "top"}
+      placement={mobile ? "top" : "right"}
+      panelStyle={mobile ? undefined : { bottom: -1 }}
       label={user.email}
       triggerClassName={cn("group focus-ring flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-side-2 aria-expanded:bg-side-2", rail && "justify-center")}
       trigger={
@@ -141,8 +144,8 @@ export function Sidebar({
           {/* company on top; a switcher when the member belongs to more than one */}
           <div className="border-b border-line px-1 pt-1 pb-2">
             <div className="flex items-center gap-2.5 px-1.5 py-1">
-              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-side text-xs font-semibold text-white">{initials(company.name)}</span>
-              <span className="min-w-0 flex-1">
+              <span className="grid size-[38px] shrink-0 place-items-center rounded-[9px] bg-side text-sm font-semibold text-white">{initials(company.name)}</span>
+              <span className="min-w-0 flex-1 py-0.5">
                 <span className="block truncate text-sm font-medium">{company.name}</span>
                 <span className="block truncate text-xs text-ink-3">{roleLabel}</span>
               </span>
@@ -212,7 +215,7 @@ export function Sidebar({
   const full = (mobile?: boolean) => (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center gap-2.5 pr-2 pl-3">
-        <RoadlineLogo height={17} className="ml-1 opacity-95" />
+        <RoadlineLogo height={20} className="ml-1" />
         {!mobile && (
           <button
             type="button"
@@ -251,7 +254,7 @@ export function Sidebar({
                 <ChevronDown className={cn("text-side-ink-3 transition-transform", !open && "-rotate-90")} />
               </button>
               {open && (
-                <div className="relative mt-1 ml-[17px] space-y-1 border-l border-side-line pl-2.5">
+                <div className="relative mt-1 ml-[18px] space-y-1 border-l border-side-line pl-2.5">
                   {g.items.map((it) => (
                     <Row key={it.href} it={it} child />
                   ))}
@@ -266,7 +269,7 @@ export function Sidebar({
         {bottom.map((it) => (
           <Row key={it.href} it={it} />
         ))}
-        <div className="mt-2 border-t border-side-line pt-3">{userBlock()}</div>
+        <div className="mt-2 border-t border-side-line pt-3">{userBlock(false, mobile)}</div>
       </div>
     </div>
   );
@@ -274,7 +277,7 @@ export function Sidebar({
   const rail = (
     <div className="flex h-full flex-col items-center">
       <div className="flex h-14 items-center">
-        <RoadlineMark size={28} />
+        <RoadlineMark size={20} />
       </div>
       <button
         type="button"
@@ -307,9 +310,9 @@ export function Sidebar({
   );
 
   return (
-    <>
+    <LucideProvider size={16} strokeWidth={1.5}>
       <div className="sticky top-[var(--bar-h,0px)] z-40 flex h-12 items-center gap-2.5 bg-side px-4 lg:hidden">
-        <RoadlineLogo height={15} className="opacity-95" />
+        <RoadlineLogo height={17} />
         <button type="button" onClick={() => setMobileOpen(true)} className="focus-ring ml-auto grid size-8 place-items-center rounded-lg text-side-ink-2 hover:bg-side-2" aria-label={t("nav.menu")}>
           <MenuIcon size={18} />
         </button>
@@ -328,6 +331,6 @@ export function Sidebar({
       <aside className={cn("sticky top-[var(--bar-h,0px)] z-30 hidden h-[calc(100dvh-var(--bar-h,0px))] shrink-0 bg-side transition-[width] duration-200 lg:block", collapsed ? "w-16" : "w-[256px]")}>
         {collapsed ? rail : full()}
       </aside>
-    </>
+    </LucideProvider>
   );
 }

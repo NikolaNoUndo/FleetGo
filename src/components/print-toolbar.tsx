@@ -14,7 +14,7 @@ export function PrintToolbar({ locale }: { locale: "sr" | "en" }) {
     <div className="mx-auto mb-4 flex max-w-[1120px] items-center justify-between gap-3 px-4 text-[13px] print:hidden">
       <span className="text-[#555]">{sr ? "U prozoru za štampu izaberi štampač ili „Sačuvaj kao PDF“." : "In the print dialog pick a printer or “Save as PDF”."}</span>
       <div className="flex gap-2">
-        <button type="button" onClick={() => window.print()} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#4540d6] px-3 font-medium text-white">
+        <button type="button" onClick={() => window.print()} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#059669] px-3 font-medium text-white">
           <Printer size={14} strokeWidth={1.5} /> {sr ? "Štampaj" : "Print"}
         </button>
         <button type="button" onClick={() => window.close()} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#ccc] bg-white px-3 font-medium text-[#333]">

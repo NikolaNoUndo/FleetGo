@@ -251,6 +251,7 @@ export function Popover({
   triggerClassName,
   label,
   panelClassName,
+  panelStyle,
 }: {
   trigger: ReactNode;
   children: (close: () => void) => ReactNode;
@@ -259,6 +260,7 @@ export function Popover({
   triggerClassName?: string;
   label?: string;
   panelClassName?: string;
+  panelStyle?: React.CSSProperties;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -283,6 +285,7 @@ export function Popover({
       {open && (
         <div
           role="dialog"
+          style={panelStyle}
           className={cn(
             "animate-pop absolute z-50 min-w-[232px] rounded-xl border border-line bg-surface p-1.5 text-ink shadow-pop",
             placement === "top" && "bottom-full mb-2",

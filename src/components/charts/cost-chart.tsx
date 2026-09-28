@@ -119,13 +119,13 @@ export function CostChart({ data, keys }: { data: MonthCosts[]; keys?: (keyof Om
           </table>
         </div>
       ) : (
-        <div className="rounded-b-xl bg-gradient-to-b from-[#f6f7fe] to-surface px-2 pt-3 pb-1">
+        <div className="rounded-b-xl bg-gradient-to-b from-[#f3faf6] to-surface px-2 pt-3 pb-1">
           <div className="relative touch-none" onPointerMove={onMove} onPointerLeave={() => setHover(null)} onPointerDown={onMove}>
             <svg viewBox={`0 0 ${W} ${H}`} className="block h-[280px] w-full" preserveAspectRatio="none" role="img" aria-label={t("d.costsByMonth")}>
               <defs>
                 <linearGradient id="cost-area" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0" stopColor="#6366f1" stopOpacity="0.34" />
-                  <stop offset="1" stopColor="#6366f1" stopOpacity="0.04" />
+                  <stop offset="0" stopColor="#10b981" stopOpacity="0.30" />
+                  <stop offset="1" stopColor="#10b981" stopOpacity="0.04" />
                 </linearGradient>
               </defs>
               {ticks.map((v) => (
@@ -135,14 +135,14 @@ export function CostChart({ data, keys }: { data: MonthCosts[]; keys?: (keyof Om
                 <line key={m.key} x1={x(i)} x2={x(i)} y1={PAD.top} y2={PAD.top + plotH} stroke="#e3e5f4" strokeDasharray="6 6" vectorEffect="non-scaling-stroke" />
               ))}
               <path d={area} fill="url(#cost-area)" />
-              <path d={line} fill="none" stroke="#4f46e5" strokeWidth={1.75} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-              {cur !== null && <line x1={x(cur)} x2={x(cur)} y1={PAD.top} y2={PAD.top + plotH} stroke="#3a35c2" strokeDasharray="7 6" strokeWidth={1.25} vectorEffect="non-scaling-stroke" />}
+              <path d={line} fill="none" stroke="#059669" strokeWidth={1.75} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              {cur !== null && <line x1={x(cur)} x2={x(cur)} y1={PAD.top} y2={PAD.top + plotH} stroke="#047857" strokeDasharray="7 6" strokeWidth={1.25} vectorEffect="non-scaling-stroke" />}
             </svg>
             {totals.map((v, i) => (
               <span
                 key={rows[i].key}
-                className="pointer-events-none absolute size-2.5 rounded-full border-2 border-[#cfd0fb] transition-transform"
-                style={{ left: `${pctX(i)}%`, top: `${pctY(v)}%`, transform: `translate(-50%,-50%) scale(${cur === i ? 1.4 : 1})`, background: cur === i ? "#3a35c2" : "#7471f0" }}
+                className="pointer-events-none absolute size-2.5 rounded-full border-2 border-[#b5e8cf] transition-transform"
+                style={{ left: `${pctX(i)}%`, top: `${pctY(v)}%`, transform: `translate(-50%,-50%) scale(${cur === i ? 1.4 : 1})`, background: cur === i ? "#047857" : "#34c794" }}
               />
             ))}
             {ticks.map((v) => (

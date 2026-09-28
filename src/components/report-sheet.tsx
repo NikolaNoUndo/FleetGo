@@ -85,7 +85,7 @@ export function ReportSheet({ report, locale }: { report: Report; locale: "sr" |
         <p>{report.note}</p>
         <p className="mt-1 flex flex-wrap justify-between gap-2">
           <span>{report.generated}</span>
-          <RoadlineLogo tone="onLight" height={10} className="opacity-60" />
+          <RoadlineLogo tone="onLight" height={11} className="opacity-70" />
         </p>
       </footer>
     </article>

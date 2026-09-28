@@ -1,4 +1,4 @@
-const COLORS = { good: "#10b981", accent: "#4f46e5", bad: "#ef4444", warn: "#f59e0b", neutral: "#8a94a6" } as const;
+const COLORS = { good: "#10b981", accent: "#059669", bad: "#ef4444", warn: "#f59e0b", neutral: "#8a94a6" } as const;
 
 /** Tiny trend area with an end-point dot. Pure SVG, safe in server components. */
 export function Sparkline({ data, tone = "good", width = 96, height = 40 }: { data: number[]; tone?: keyof typeof COLORS; width?: number; height?: number }) {

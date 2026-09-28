@@ -5,7 +5,7 @@ type Row = { key: string; label: string; sub?: string; value: number; display: s
 /** Horizontal bars with the value printed after the bar (Spend by Vendor style). */
 export function HBars({ rows, hue = "indigo" }: { rows: Row[]; hue?: "indigo" | "green" }) {
   const max = Math.max(...rows.map((r) => r.value), 1);
-  const [from, to] = hue === "indigo" ? ["#4f46e5", "#7c78ee"] : ["#0e9f6e", "#34c794"];
+  const [from, to] = hue === "indigo" ? ["#059669", "#34c794"] : ["#4f46e5", "#7c78ee"];
   return (
     <ul className="space-y-3.5 px-4 pt-1 pb-4">
       {rows.map((r, i) => {
