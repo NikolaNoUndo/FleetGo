@@ -16,6 +16,7 @@ import type { MapPlace } from "@/lib/places";
 import { PLACE_COLORS } from "./place-colors";
 import { usePrefs } from "../prefs";
 import { relTime } from "@/lib/format";
+import { Check, Copy, MapPin, Phone, StickyNote } from "lucide-react";
 
 export type MapPoint = Position & { label: string };
 
@@ -147,7 +148,7 @@ function PlacesLayer({
           }}
         >
           <Popup>
-            {p.kind === "pump" ? <PumpPopup p={p} /> : <ShopPopup p={p} />}
+            <PlacePopup p={p} />
           </Popup>
         </Marker>
       ))}
@@ -155,90 +156,123 @@ function PlacesLayer({
   );
 }
 
-function PumpPopup({ p }: { p: MapPlace }) {
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // older browsers / non-secure pages
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  }
+}
+
+function CopyCoords({ lat, lng }: { lat: number; lng: number }) {
+  const { locale } = usePrefs();
+  const [copied, setCopied] = useState(false);
+  const text = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        if (await copyText(text)) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }
+      }}
+      title={locale === "sr" ? "Kopiraj koordinate" : "Copy coordinates"}
+      className="group -mx-1 inline-flex items-center gap-1.5 rounded px-1 py-0.5 text-xs whitespace-nowrap text-ink-3 tnum hover:bg-surface-2 hover:text-ink"
+    >
+      {copied ? (
+        <span className="text-good-ink">{locale === "sr" ? "Koordinate kopirane" : "Coordinates copied"}</span>
+      ) : (
+        <>
+          {lat.toFixed(5)}, {lng.toFixed(5)}
+        </>
+      )}
+      {copied ? <Check size={13} className="text-good" /> : <Copy size={13} className="text-ink-4 group-hover:text-ink-2" />}
+    </button>
+  );
+}
+
+/** Everything known about a place: name, network, diesel price (pumps), address, phone, note, coordinates. */
+function PlacePopup({ p }: { p: MapPlace }) {
   const { locale } = usePrefs();
   const sr = locale === "sr";
   const tag = sr ? "sr-Latn-RS" : "en-GB";
   const price =
-    p.dieselPrice !== null
-      ? new Intl.NumberFormat(tag, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 3,
-        }).format(p.dieselPrice)
-      : null;
+    p.dieselPrice !== null ? new Intl.NumberFormat(tag, { minimumFractionDigits: 2, maximumFractionDigits: 3 }).format(p.dieselPrice) : null;
   const updated = p.priceUpdatedAt ? new Date(p.priceUpdatedAt) : null;
+  const kind = { pump: sr ? "Pumpa" : "Fuel station", shop: sr ? "Prodavnica delova" : "Parts shop", service: sr ? "Servis" : "Workshop" }[p.kind];
   return (
-    <div className="min-w-[170px] font-sans text-[13px] leading-snug text-ink">
-      <div className="font-semibold">{p.name}</div>
-      <div className="mt-2 text-xs text-ink-3">{sr ? "Dizel" : "Diesel"}</div>
-      {price ? (
-        <div className="text-lg font-semibold tnum">
-          {price}{" "}
-          <span className="text-sm font-medium text-ink-2">
-            {p.priceCurrency ?? "EUR"}/l
-          </span>
-        </div>
-      ) : (
-        <div className="text-ink-3">
-          {sr ? "Cena nije uneta" : "No price yet"}
-        </div>
-      )}
-      {updated && (
-        <div className="text-xs text-ink-3">
-          {sr ? "Ažurirano" : "Updated"}{" "}
-          {new Intl.DateTimeFormat(tag, {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          }).format(updated)}{" "}
-          · {relTime(updated.getTime(), locale)}
-        </div>
-      )}
-      {p.phone && (
-        <a
-          className="mt-2 block text-[13px] font-medium tnum"
-          style={{ color: "var(--accent)" }}
-          href={`tel:${p.phone.replace(/\s/g, "")}`}
-        >
-          {p.phone}
-        </a>
-      )}
-      <div className="mt-2 border-t border-line pt-2 text-xs text-ink-3 tnum">
-        {p.lat.toFixed(5)}, {p.lng.toFixed(5)}
-      </div>
-    </div>
-  );
-}
+    <div className="min-w-[240px] font-sans text-[13px] leading-snug text-ink">
+      <div className="pr-4 font-semibold">{p.name}</div>
+      <div className="text-xs text-ink-3">{[kind, p.supplierName && p.supplierName !== p.name ? p.supplierName : null].filter(Boolean).join(" · ")}</div>
 
-function ShopPopup({ p }: { p: MapPlace }) {
-  return (
-    <div className="min-w-[180px] font-sans text-[13px] leading-snug text-ink">
-      <div className="font-semibold">{p.name}</div>
-      {p.supplierName && p.supplierName !== p.name && (
-        <div className="text-ink-3">{p.supplierName}</div>
+      {p.kind === "pump" && (
+        <div className="mt-2 rounded-lg bg-surface-2 px-2.5 py-1.5">
+          <div className="text-xs text-ink-3">{sr ? "Dizel" : "Diesel"}</div>
+          {price ? (
+            <div className="text-lg leading-tight font-semibold tnum">
+              {price} <span className="text-sm font-medium text-ink-2">{p.priceCurrency ?? "EUR"}/l</span>
+            </div>
+          ) : (
+            <div className="text-ink-3">{sr ? "Cena nije uneta" : "No price yet"}</div>
+          )}
+          {updated && (
+            <div className="text-xs text-ink-3">
+              {sr ? "Ažurirano" : "Updated"}{" "}
+              {new Intl.DateTimeFormat(tag, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(updated)} ·{" "}
+              {relTime(updated.getTime(), locale)}
+            </div>
+          )}
+        </div>
       )}
-      {p.address && <div className="mt-1">{p.address}</div>}
-      {p.phone && (
+
+      {(p.address || p.phone || p.note) && (
+        <div className="mt-2 space-y-1">
+          {p.address && (
+            <div className="flex gap-1.5">
+              <MapPin size={13} className="mt-px shrink-0 text-ink-4" />
+              <span>{p.address}</span>
+            </div>
+          )}
+          {p.phone && (
+            <div className="flex gap-1.5">
+              <Phone size={13} className="mt-px shrink-0 text-ink-4" />
+              <a className="font-medium tnum" style={{ color: "var(--accent)" }} href={`tel:${p.phone.replace(/\s/g, "")}`}>
+                {p.phone}
+              </a>
+            </div>
+          )}
+          {p.note && (
+            <div className="flex gap-1.5 text-ink-2">
+              <StickyNote size={13} className="mt-px shrink-0 text-ink-4" />
+              <span>{p.note}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="mt-2 flex items-center justify-between gap-3 border-t border-line pt-1.5">
+        <CopyCoords lat={p.lat} lng={p.lng} />
         <a
-          className="mt-1 block"
+          className="text-xs font-medium whitespace-nowrap"
           style={{ color: "var(--accent)" }}
-          href={`tel:${p.phone.replace(/\s/g, "")}`}
+          href={`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`}
+          target="_blank"
+          rel="noreferrer"
         >
-          {p.phone}
+          Google Maps ↗
         </a>
-      )}
-      {p.note && <div className="mt-1 text-ink-3">{p.note}</div>}
-      <a
-        className="mt-2 inline-block font-medium"
-        style={{ color: "var(--accent)" }}
-        href={`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`}
-        target="_blank"
-        rel="noreferrer"
-      >
-        Google Maps ↗
-      </a>
+      </div>
     </div>
   );
 }
@@ -260,7 +294,7 @@ function Fit({ points, focus }: { points: MapPoint[]; focus: MapFocus }) {
     if (focus?.type !== "unit") return;
     const p = points.find((x) => x.unitId === focus.id);
     if (p)
-      map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 11), { duration: 0.6 });
+      map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 13), { duration: 0.8 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus, map]);
   return null;

@@ -229,13 +229,6 @@ dialog::backdrop {
   background: transparent;
   border: 0;
 }
-.leaflet-marker-icon.fg-marker {
-  transition: transform 1.2s linear;
-}
-.leaflet-zoom-anim .leaflet-marker-icon.fg-marker,
-.leaflet-dragging .leaflet-marker-icon.fg-marker {
-  transition: none;
-}
 .leaflet-tooltip {
   border-radius: 8px;
   border: 1px solid var(--line);
