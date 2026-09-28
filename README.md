@@ -9,7 +9,8 @@ Upravljanje voznim parkom za prevozničke, transportne i logističke firme: vozi
 | Modul | Šta prati |
 | --- | --- |
 | Pregled | Aktivna vozila, istekla i dokumenta koja uskoro ističu, troškovi po mesecima (gorivo, servisi, delovi, uplate), troškovi i potrošnja po vozilu, mini mapa |
-| Mapa uživo | Pozicije, brzina, status (u vožnji / stoji / van mreže), vozač. Wialon ili simulacija |
+| Mapa uživo | Pozicije, brzina, status (u vožnji / stoji / van mreže), vozač, preko Wialona. Gore desno se uključuju pumpe i prodavnice (filter po dobavljaču, npr. samo Rapidex) |
+| Lokacije | Prodavnice, servisi i pumpe za mapu: ručno (link sa Google mapa, koordinate ili adresa) ili uvoz fajla (CSV, Garmin POI, KML, GPX), npr. spisak Eurowag pumpi |
 | Vozila | Tip, marka/model, VIN, EURO norma, kilometraža, glavni vozač i po potrebi drugi, treći… vozač, prikačena prikolica, Wialon ID; detalj sa dokumentima, servisima, gorivom, delovima i potrošnjom l/100 km |
 | Prikolice | Tip (cerada, hladnjača, cisterna…), osovine, nosivost, koja vozila je koriste (može više, a može i nijedno); dokumenta, servisi, delovi |
 | Zaposleni | Vozači i ostali; dokumenta vozača, uplate, sipanja |
@@ -99,6 +100,15 @@ Dugme „Proveri vezu“ pokazuje koliko jedinica je pronađeno i koliko ih je p
 
 Kod: `src/lib/telematics/` (jedan ulaz `getPositions`, provajder `wialon.ts`, pa se lako dodaje i drugi GPS sistem).
 
+## Lokacije na mapi (prodavnice i pumpe)
+
+**Mapa uživo → Lokacije** vodi spisak mesta koja se mogu prikazati na mapi. Svaka lokacija je *prodavnica/servis* ili *pumpa* i može da pripada dobavljaču (npr. Rapidex sa više radnji, Eurowag za pumpe).
+
+- **Dodaj**: nalepi link sa Google mapa (i kratki `maps.app.goo.gl`), upiši „širina, dužina“ ili ostavi prazno pa se lokacija traži po adresi (OpenStreetMap Nominatim).
+- **Uvezi fajl**: CSV/TXT sa zaglavljem (naziv, adresa, grad, država, lat/lng), Garmin POI bez zaglavlja (dužina, širina, naziv, opis), KML ili GPX. Opcija „Zameni postojeće“ briše stare lokacije iste vrste i istog dobavljača, pa se lista lako osvežava novim fajlom.
+- Na mapi su gore desno „Pumpe“ (jedan prekidač) i „Prodavnice“ sa izborom po dobavljaču (Sve / Nijedna / pojedinačno). Ništa nije uključeno dok se ne čekira; izbor se pamti u pregledaču. Crtaju se samo lokacije u vidljivom delu mape, pa i nekoliko hiljada pumpi radi brzo.
+- Pravo izmene imaju oni koji mogu da menjaju dobavljače (delovi ili servisi); gledanje ima svako ko vidi Mapu uživo.
+
 ## Struktura
 
 ```
@@ -114,7 +124,9 @@ src/
   lib/catalog.ts       tipovi dokumenata, statusi, države… (SR/EN nazivi)
   lib/resources.ts     definicija polja za svaki unos (forme i validacija iz istog izvora)
   lib/i18n.ts          prevodi
-  lib/telematics/      Wialon i simulacija
+  lib/telematics/      Wialon
+  lib/geo.ts           koordinate iz linka, adrese (lokacije na mapi)
+  lib/place-import.ts  čitanje CSV/KML/GPX spiska lokacija
   lib/auth/            sesije, lozinke, uloge i prava, dnevnik
   lib/fx.ts            kurs NBS
 drizzle/               SQL migracije

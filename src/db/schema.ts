@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   jsonb,
   primaryKey,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -243,6 +244,28 @@ export const suppliers = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("suppliers_company_idx").on(t.companyId), uniqueIndex("suppliers_company_name_uq").on(t.companyId, t.name)],
+);
+
+/**
+ * Places shown on the live map: shops/workshops (usually a supplier's branches, e.g.
+ * every Rapidex store) and fuel stations (e.g. the Eurowag network).
+ */
+export const places = pgTable(
+  "places",
+  {
+    id: id(),
+    companyId: companyId(),
+    /** "shop" | "pump" */
+    kind: text("kind").notNull().default("shop"),
+    supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    address: text("address"),
+    lat: doublePrecision("lat").notNull(),
+    lng: doublePrecision("lng").notNull(),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("places_company_idx").on(t.companyId, t.kind), index("places_supplier_idx").on(t.supplierId)],
 );
 
 /* ------------------------------------------------------------------ */

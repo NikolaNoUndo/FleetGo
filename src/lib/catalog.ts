@@ -149,6 +149,8 @@ export const ALL_DOC_TYPES: Option[] = (() => {
   return [...seen.values()];
 })();
 
+export const PLACE_KINDS: Option[] = [o("shop", "Prodavnica / servis", "Shop / workshop"), o("pump", "Pumpa", "Fuel station")];
+
 export const OPTION_SETS = {
   currencies: CURRENCIES,
   vehicleTypes: VEHICLE_TYPES,
@@ -164,6 +166,7 @@ export const OPTION_SETS = {
   countries: COUNTRIES,
   entityTypes: ENTITY_TYPES,
   docTypes: ALL_DOC_TYPES,
+  placeKinds: PLACE_KINDS,
 } as const;
 export type OptionSetKey = keyof typeof OPTION_SETS;
 

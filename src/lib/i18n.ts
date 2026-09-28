@@ -65,6 +65,7 @@ const sr = {
   "err.option": "Izaberi jednu od ponuđenih opcija",
   "err.ref": "Izaberi postojeći unos",
   "err.duplicate": "Već postoji sa tim nazivom",
+  "err.coords": "Lokacija nije pronađena. Upiši koordinate (npr. 45.2671, 19.8335) ili nalepi link sa Google mapa.",
   "err.generic": "Nešto nije u redu, pokušaj ponovo.",
   "flt.active": "Aktivna",
   "flt.inService": "Na servisu",
@@ -131,6 +132,11 @@ const sr = {
   "f.daysLeft": "Preostalo",
   "f.nextExpiry": "Sledeći rok",
   "f.consumption": "Potrošnja",
+  "f.placeKind": "Vrsta lokacije",
+  "f.chain": "Dobavljač / lanac",
+  "f.placeName": "Naziv lokacije",
+  "f.address": "Adresa",
+  "f.coords": "Koordinate ili link sa mape",
 
   // expiry
   "e.expired": "Isteklo",
@@ -175,6 +181,7 @@ const sr = {
   "r.fuel": "sipanje goriva",
   "r.payments": "uplatu",
   "r.suppliers": "dobavljača",
+  "r.places": "lokaciju",
 
   // dashboard
   "d.activeVehicles": "Aktivna vozila",
@@ -327,6 +334,7 @@ const en: Dict = {
   "err.option": "Pick one of the options",
   "err.ref": "Pick an existing entry",
   "err.duplicate": "Already exists with this name",
+  "err.coords": "Location not found. Enter coordinates (e.g. 45.2671, 19.8335) or paste a Google Maps link.",
   "err.generic": "Something went wrong, please try again.",
   "f.plate": "Plate number",
   "f.type": "Type",
@@ -385,6 +393,11 @@ const en: Dict = {
   "f.daysLeft": "Left",
   "f.nextExpiry": "Next expiry",
   "f.consumption": "Consumption",
+  "f.placeKind": "Place type",
+  "f.chain": "Supplier / chain",
+  "f.placeName": "Place name",
+  "f.address": "Address",
+  "f.coords": "Coordinates or map link",
 
   "e.expired": "Expired",
   "e.soon": "Expiring soon",
@@ -426,6 +439,7 @@ const en: Dict = {
   "r.fuel": "refuel",
   "r.payments": "payment",
   "r.suppliers": "supplier",
+  "r.places": "place",
 
   "d.activeVehicles": "Active vehicles",
   "d.onRoad": "on the road",

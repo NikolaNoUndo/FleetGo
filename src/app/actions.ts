@@ -12,6 +12,7 @@ import { audit } from "@/lib/auth/audit";
 import { getNbsRate } from "@/lib/fx";
 import { DOC_TYPES, OPTION_SETS, type EntityType } from "@/lib/catalog";
 import { getPositions, normalizeWialonHost } from "@/lib/telematics";
+import { resolveLocation, validLatLng } from "@/lib/geo";
 
 const TABLES = {
   vehicles: schema.vehicles,
@@ -23,6 +24,7 @@ const TABLES = {
   fuel: schema.fuelEntries,
   payments: schema.driverPayments,
   suppliers: schema.suppliers,
+  places: schema.places,
 } as const;
 
 export type ActionResult = { ok: true; id: string } | { ok: false; errors: Record<string, string>; message?: string };
@@ -49,10 +51,17 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
   const supplierFields: { field: string; value: string }[] = [];
   /** many-to-many links (vehicle ↔ trailer), written to vehicle_trailers after save */
   let links: string[] | null = null;
+  /** places: raw "Coordinates or map link" text, resolved to lat/lng on save */
+  let coords: string | null = null;
 
   for (const f of RESOURCES[resource].fields) {
     const v = raw[f.name];
     const empty = v === undefined || v === null || (typeof v === "string" && v.trim() === "");
+
+    if (f.type === "coords") {
+      coords = String(v ?? "").slice(0, 2000);
+      continue;
+    }
 
     if (f.type === "links") {
       const ids = [...new Set(String(v ?? "").split(",").map((x) => x.trim()).filter(Boolean))].slice(0, 50);
@@ -162,14 +171,14 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
       }
     }
   }
-  return { out, errors, refChecks, supplierFields, links };
+  return { out, errors, refChecks, supplierFields, links, coords };
 }
 
 /** Access check for an editable resource; returns the company id. */
 async function editContext(resource: ResourceKey) {
   const ctx = await getContext();
   if (!ctx) throw new Error("Not signed in");
-  const ok = resource === "suppliers" ? canSuppliers(ctx.perms, "edit") : can(ctx.perms, RESOURCE_MODULE[resource], "edit");
+  const ok = resource === "suppliers" || resource === "places" ? canSuppliers(ctx.perms, "edit") : can(ctx.perms, RESOURCE_MODULE[resource], "edit");
   if (!ok) throw new Error("Forbidden");
   return ctx;
 }
@@ -218,9 +227,27 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
   } catch {
     return { ok: false, errors: {}, message: "Nemaš pravo izmene za ovaj deo aplikacije." };
   }
-  const { out, errors, refChecks, supplierFields, links } = coerce(resourceName, raw);
+  const { out, errors, refChecks, supplierFields, links, coords } = coerce(resourceName, raw);
   if (Object.keys(errors).length) return { ok: false, errors };
+  if (resourceName === "places") {
+    // coordinates come from the typed pair, a map link or the address; checked before
+    // anything (like a new supplier) is written
+    const loc = await resolveLocation(coords ?? "", String(out.address ?? ""));
+    if (!loc) return { ok: false, errors: { coords: "coords" } };
+    out.lat = loc.lat;
+    out.lng = loc.lng;
+    if (!out.name && !supplierFields.some((f) => f.value)) return { ok: false, errors: { name: "required" } };
+  }
   for (const sf of supplierFields) out[sf.field] = await resolveSupplier(companyId, sf.value);
+
+  if (resourceName === "places") {
+    // the name defaults to the supplier's name ("Rapidex")
+    if (!out.name && out.supplierId) {
+      const [sup] = await db.select({ name: schema.suppliers.name }).from(schema.suppliers).where(eq(schema.suppliers.id, String(out.supplierId))).limit(1);
+      out.name = sup?.name ?? null;
+    }
+    if (!out.name) return { ok: false, errors: { name: "required" } };
+  }
 
   // Tenant safety: every referenced row must belong to the same company.
   for (const r of refChecks) {
@@ -386,4 +413,55 @@ export async function saveTelematics(input: { token?: string; host?: string; rem
   await audit(ctx.user.email, "wialon.saved", { host: host ?? "hosting" }, ctx.company.id);
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/* ---------- Map places: bulk import (e.g. a Eurowag station list) ---------- */
+
+export type PlaceImportRow = { name: string; address?: string | null; lat: number; lng: number };
+
+export async function importPlaces(input: {
+  kind: string;
+  supplier: string;
+  replace: boolean;
+  rows: PlaceImportRow[];
+}): Promise<{ ok: true; count: number; skipped: number; supplierId: string | null } | { ok: false; message: string }> {
+  let ctx;
+  try {
+    ctx = await editContext("places");
+  } catch {
+    return { ok: false, message: "Nemaš pravo izmene lokacija." };
+  }
+  const companyId = ctx.company.id;
+  const kind = input.kind === "pump" ? "pump" : "shop";
+  if (!Array.isArray(input.rows) || !input.rows.length) return { ok: false, message: "Fajl nema nijednu lokaciju." };
+  if (input.rows.length > 5000) return { ok: false, message: "Najviše 5.000 lokacija po zahtevu." };
+  const supplierId = input.supplier ? await resolveSupplier(companyId, String(input.supplier).slice(0, 200)) : null;
+
+  const clean: (typeof schema.places.$inferInsert)[] = [];
+  let skipped = 0;
+  for (const r of input.rows) {
+    const lat = Number(r?.lat);
+    const lng = Number(r?.lng);
+    const name = String(r?.name ?? "").trim().slice(0, 200);
+    if (!validLatLng(lat, lng) || !name) {
+      skipped++;
+      continue;
+    }
+    const address = String(r?.address ?? "").trim().slice(0, 300) || null;
+    clean.push({ companyId, kind, supplierId, name, address, lat, lng });
+  }
+  if (!clean.length) return { ok: false, message: "Nijedan red nema naziv i ispravne koordinate." };
+
+  await db.transaction(async (tx) => {
+    if (input.replace) {
+      const P = schema.places;
+      await tx
+        .delete(P)
+        .where(and(eq(P.companyId, companyId), eq(P.kind, kind), supplierId ? eq(P.supplierId, supplierId) : sql`${P.supplierId} is null`));
+    }
+    for (let i = 0; i < clean.length; i += 1000) await tx.insert(schema.places).values(clean.slice(i, i + 1000));
+  });
+  await audit(ctx.user.email, "import.places", { kind, count: clean.length, replace: input.replace }, companyId);
+  revalidatePath("/", "layout");
+  return { ok: true, count: clean.length, skipped, supplierId };
 }

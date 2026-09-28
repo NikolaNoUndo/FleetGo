@@ -4,6 +4,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getCompany } from "./tenant";
 import type { Refs } from "./resources";
+import type { MapPlace } from "./places";
 import { daysUntil } from "./format";
 
 const S = schema;
@@ -50,6 +51,30 @@ export const listVehicleTrailers = cache(async () => {
 export const listSuppliers = cache(async () => {
   const { id } = await getCompany();
   return db.select().from(S.suppliers).where(eq(S.suppliers.companyId, id)).orderBy(asc(S.suppliers.name));
+});
+
+/** Shops and fuel stations for the live map, with their supplier's name and phone. */
+export const listPlaces = cache(async (): Promise<MapPlace[]> => {
+  const { id } = await getCompany();
+  const P = S.places;
+  const rows = await db
+    .select({
+      id: P.id,
+      kind: P.kind,
+      name: P.name,
+      address: P.address,
+      lat: P.lat,
+      lng: P.lng,
+      note: P.note,
+      supplierId: P.supplierId,
+      supplierName: S.suppliers.name,
+      phone: S.suppliers.phone,
+    })
+    .from(P)
+    .leftJoin(S.suppliers, eq(S.suppliers.id, P.supplierId))
+    .where(eq(P.companyId, id))
+    .orderBy(asc(P.name));
+  return rows.map((r) => ({ ...r, kind: r.kind === "pump" ? "pump" : "shop" }));
 });
 
 export type Vehicle = Awaited<ReturnType<typeof listVehicles>>[number];

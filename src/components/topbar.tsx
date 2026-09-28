@@ -28,7 +28,7 @@ export function Topbar({ refs }: { refs: Refs }) {
     { r: "vehicles", icon: <Truck /> },
     { r: "trailers", icon: <Container /> },
     { r: "employees", icon: <UserPlus /> },
-  ] as { r: Exclude<ResourceKey, "suppliers">; icon: React.ReactNode }[]).filter((x) => can(RESOURCE_MODULE[x.r], "edit"));
+  ] as { r: Exclude<ResourceKey, "suppliers" | "places">; icon: React.ReactNode }[]).filter((x) => can(RESOURCE_MODULE[x.r], "edit"));
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   return (

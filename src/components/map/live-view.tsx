@@ -2,14 +2,16 @@
 
 import dynamic from "next/dynamic";
 import Link from "@/components/ui/link";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Info, Navigation, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { ArrowUpRight, Check, ChevronDown, Fuel, Info, Navigation, RefreshCw, Store } from "lucide-react";
 import { usePrefs } from "../prefs";
 import { Badge, cn } from "../ui/primitives";
 import { SearchInput, Segmented } from "../ui/client";
 import type { PositionsResult } from "@/lib/telematics/types";
 import type { MapPoint } from "./fleet-map";
 import { relTime } from "@/lib/format";
+import type { MapPlace } from "@/lib/places";
+import { PLACE_COLORS } from "./place-colors";
 
 const FleetMap = dynamic(() => import("./fleet-map"), {
   ssr: false,
@@ -100,8 +102,182 @@ export function useLivePositions(intervalMs = 30_000) {
 
 const DOT = { moving: "bg-good", stopped: "bg-info", offline: "bg-ink-4" } as const;
 
-export function LiveView() {
+/* ---------- Shops / fuel stations toggles (top right of the map) ---------- */
+
+type Layers = { pumps: boolean; shops: string[] };
+const LAYERS_KEY = "rl_map_layers";
+const NO_SUPPLIER = "_none";
+
+function parseLayers(raw: string | null): Layers {
+  try {
+    const j = JSON.parse(raw ?? "null");
+    if (j && typeof j.pumps === "boolean" && Array.isArray(j.shops)) return { pumps: j.pumps, shops: j.shops.map(String) };
+  } catch {
+    /* bad value */
+  }
+  return { pumps: false, shops: [] };
+}
+
+// The choice lives in this browser only (per viewer), read through an external store
+// so the server render and first paint show nothing switched on.
+const layerListeners = new Set<() => void>();
+let memoryLayers: string | null = null;
+const layerStore = {
+  subscribe(fn: () => void) {
+    layerListeners.add(fn);
+    return () => layerListeners.delete(fn);
+  },
+  get(): string | null {
+    try {
+      return localStorage.getItem(LAYERS_KEY);
+    } catch {
+      return memoryLayers;
+    }
+  },
+  set(l: Layers) {
+    const raw = JSON.stringify(l);
+    memoryLayers = raw;
+    try {
+      localStorage.setItem(LAYERS_KEY, raw);
+    } catch {
+      /* private mode: keep it in memory */
+    }
+    layerListeners.forEach((fn) => fn());
+  },
+};
+
+function Check2({ on, color }: { on: boolean; color: string }) {
+  return (
+    <span
+      className={cn("flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors", on ? "border-transparent text-white" : "border-line-strong bg-surface")}
+      style={on ? { background: color } : undefined}
+    >
+      {on && <Check size={11} strokeWidth={3} />}
+    </span>
+  );
+}
+
+function PlacesControl({ places, layers, setLayers }: { places: MapPlace[]; layers: Layers; setLayers: (l: Layers) => void }) {
+  const { locale, can } = usePrefs();
+  const L = (sr: string, en: string) => (locale === "sr" ? sr : en);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const pumps = places.filter((p) => p.kind === "pump").length;
+  const groups = useMemo(() => {
+    const m = new Map<string, { key: string; label: string; count: number }>();
+    for (const p of places) {
+      if (p.kind !== "shop") continue;
+      const key = p.supplierId ?? NO_SUPPLIER;
+      const g = m.get(key) ?? { key, label: p.supplierName ?? L("Bez dobavljača", "No supplier"), count: 0 };
+      g.count++;
+      m.set(key, g);
+    }
+    return [...m.values()].sort((a, b) => (a.key === NO_SUPPLIER ? 1 : b.key === NO_SUPPLIER ? -1 : a.label.localeCompare(b.label)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [places, locale]);
+  const on = new Set(layers.shops.filter((k) => groups.some((g) => g.key === k)));
+  const toggleShop = (k: string) => setLayers({ ...layers, shops: on.has(k) ? [...on].filter((x) => x !== k) : [...on, k] });
+  const chip =
+    "inline-flex h-8 items-center gap-2 rounded-lg border border-line bg-surface/95 px-2.5 text-[13px] font-medium text-ink shadow-xs backdrop-blur transition-colors hover:bg-surface-2";
+
+  return (
+    <div className="absolute top-3 right-3 z-[500] flex items-start gap-1.5">
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={layers.pumps}
+        disabled={!pumps}
+        onClick={() => setLayers({ ...layers, pumps: !layers.pumps })}
+        className={cn(chip, !pumps && "cursor-not-allowed opacity-60 hover:bg-surface/95")}
+        title={pumps ? undefined : L("Još nema unetih pumpi", "No fuel stations added yet")}
+      >
+        <Check2 on={layers.pumps && pumps > 0} color={PLACE_COLORS.pump} />
+        <Fuel size={14} style={{ color: PLACE_COLORS.pump }} />
+        {L("Pumpe", "Fuel")}
+        <span className="text-xs text-ink-3 tnum">{pumps}</span>
+      </button>
+
+      <div ref={ref} className="relative">
+        <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={chip}>
+          <Check2 on={on.size > 0} color={PLACE_COLORS.shop} />
+          <Store size={14} style={{ color: PLACE_COLORS.shop }} />
+          {L("Prodavnice", "Shops")}
+          <span className="text-xs text-ink-3 tnum">{on.size ? `${on.size}/${groups.length}` : groups.length}</span>
+          <ChevronDown size={14} className={cn("text-ink-3 transition-transform", open && "rotate-180")} />
+        </button>
+        {open && (
+          <div role="dialog" className="animate-pop absolute top-full right-0 mt-1.5 w-64 rounded-xl border border-line bg-surface p-1.5 text-ink shadow-pop">
+            {groups.length > 0 ? (
+              <>
+                <div className="flex items-center justify-between px-2 pt-1 pb-1.5 text-xs text-ink-3">
+                  <span>{L("Prikaži na mapi", "Show on map")}</span>
+                  <span className="flex gap-2">
+                    <button type="button" className="font-medium text-accent hover:underline" onClick={() => setLayers({ ...layers, shops: groups.map((g) => g.key) })}>
+                      {L("Sve", "All")}
+                    </button>
+                    <button type="button" className="font-medium text-accent hover:underline" onClick={() => setLayers({ ...layers, shops: [] })}>
+                      {L("Nijedna", "None")}
+                    </button>
+                  </span>
+                </div>
+                <ul className="max-h-64 overflow-y-auto">
+                  {groups.map((g) => (
+                    <li key={g.key}>
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={on.has(g.key)}
+                        onClick={() => toggleShop(g.key)}
+                        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-2"
+                      >
+                        <Check2 on={on.has(g.key)} color={PLACE_COLORS.shop} />
+                        <span className="min-w-0 flex-1 truncate">{g.label}</span>
+                        <span className="text-xs text-ink-3 tnum">{g.count}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="px-2 py-2 text-sm text-ink-3">{L("Još nema unetih prodavnica.", "No shops added yet.")}</p>
+            )}
+            <div className="mt-1 border-t border-line px-2 pt-2 pb-1">
+              <Link href="/live/places" className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline">
+                {can("suppliers", "edit") ? L("Dodaj ili izmeni lokacije", "Add or edit places") : L("Sve lokacije", "All places")} <ArrowUpRight size={12} />
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function usePlaceLayers(places: MapPlace[]) {
+  const raw = useSyncExternalStore(layerStore.subscribe, layerStore.get, () => null);
+  const layers = useMemo(() => parseLayers(raw), [raw]);
+  const shown = useMemo(() => {
+    const shops = new Set(layers.shops);
+    return places.filter((p) => (p.kind === "pump" ? layers.pumps : shops.has(p.supplierId ?? NO_SUPPLIER)));
+  }, [places, layers]);
+  return { layers, setLayers: layerStore.set, shown };
+}
+
+export function LiveView({ places = [] }: { places?: MapPlace[] }) {
   const { t, locale, can } = usePrefs();
+  const { layers, setLayers, shown } = usePlaceLayers(places);
   const { data, points, error, paused } = useLivePositions();
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "moving" | "stopped" | "offline">("all");
@@ -213,8 +389,9 @@ export function LiveView() {
             </span>
           </div>
         )}
-        <div className="isolate h-[52vh] overflow-hidden rounded-xl border border-line bg-surface shadow-xs lg:h-[calc(100dvh-236px)] lg:flex-1">
-          <FleetMap points={points} selected={selected} onSelect={setSelected} />
+        <div className="relative isolate h-[52vh] overflow-hidden rounded-xl border border-line bg-surface shadow-xs lg:h-[calc(100dvh-236px)] lg:flex-1">
+          <FleetMap points={points} selected={selected} onSelect={setSelected} places={shown} />
+          <PlacesControl places={places} layers={layers} setLayers={setLayers} />
         </div>
       </div>
     </div>

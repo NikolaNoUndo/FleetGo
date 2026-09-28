@@ -42,7 +42,7 @@ function initialValues(fields: FieldDef[], record: Row | null, fixed?: Record<st
  * Pick an existing supplier or type a new name. The value is either the supplier id
  * or "new:<name>"; new names are saved to the supplier list on submit.
  */
-function SupplierPicker({ id, value, options, onChange }: { id: string; value: string; options: { id: string; label: string }[]; onChange: (v: string) => void }) {
+export function SupplierPicker({ id, value, options, onChange }: { id: string; value: string; options: { id: string; label: string }[]; onChange: (v: string) => void }) {
   const { locale } = usePrefs();
   const current = value.startsWith("new:") ? value.slice(4) : (options.find((o) => o.id === value)?.label ?? "");
   const [text, setText] = useState(current);
@@ -260,6 +260,7 @@ const ERR: Record<string, TKey> = {
   option: "err.option",
   ref: "err.ref",
   duplicate: "err.duplicate",
+  coords: "err.coords",
 };
 
 export function RecordForm({
@@ -441,6 +442,19 @@ export function RecordForm({
             }}
           />
         );
+      case "coords":
+        return (
+          <FieldShell key={f.name} label={label} error={err} span={f.span} htmlFor={id}>
+            <TextInput id={id} value={String(val ?? "")} onChange={(e) => set(f.name, e.target.value)} placeholder={f.placeholder} inputMode="text" />
+            {!err && (
+              <span className="text-xs text-ink-3">
+                {locale === "sr"
+                  ? "Nalepi link sa Google mapa ili upiši „širina, dužina“. Ako ostaviš prazno, lokaciju tražimo po adresi."
+                  : "Paste a Google Maps link or type “lat, lng”. Leave empty to look it up by the address."}
+              </span>
+            )}
+          </FieldShell>
+        );
       case "supplier":
         control = <SupplierPicker id={id} value={String(val ?? "")} options={refs.suppliers ?? []} onChange={(v) => set(f.name, v)} />;
         break;
@@ -473,7 +487,7 @@ export function RecordForm({
 /** One hook per table: open create/edit modals and delete confirmation for a resource. */
 export function useCrud(resource: ResourceKey, refs: Refs, fixed?: Record<string, string>) {
   const { t, can } = usePrefs();
-  const canEdit = resource === "suppliers" ? can("suppliers", "edit") : can(RESOURCE_MODULE[resource], "edit");
+  const canEdit = resource === "suppliers" || resource === "places" ? can("suppliers", "edit") : can(RESOURCE_MODULE[resource], "edit");
   const router = useRouter();
   const [editing, setEditing] = useState<{ record: Row | null } | null>(null);
   const [deleting, setDeleting] = useState<Row | null>(null);

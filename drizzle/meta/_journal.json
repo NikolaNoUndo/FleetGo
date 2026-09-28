@@ -64,6 +64,13 @@
       "when": 1790523871354,
       "tag": "0008_v024_vehicle_trailers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790611378274,
+      "tag": "0009_v025_places",
+      "breakpoints": true
     }
   ]
 }

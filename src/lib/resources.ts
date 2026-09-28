@@ -1,10 +1,10 @@
 import type { OptionSetKey } from "./catalog";
 import type { TKey } from "./i18n";
 
-export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers";
+export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers" | "places";
 export type RefKey = "vehicles" | "trailers" | "employees" | "drivers" | "suppliers";
 
-export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers" | "links";
+export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers" | "links" | "coords";
 
 export type FieldDef = {
   name: string;
@@ -143,6 +143,17 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
       { name: "name", label: "f.name", type: "text", required: true, span: 2 },
       { name: "phone", label: "f.phone", type: "text" },
       { name: "note", label: "f.note", type: "text" },
+    ],
+  },
+  places: {
+    title: "r.places",
+    fields: [
+      { name: "kind", label: "f.placeKind", type: "select", options: "placeKinds", required: true, defaultValue: "shop" },
+      { name: "supplierId", label: "f.chain", type: "supplier" },
+      { name: "name", label: "f.placeName", type: "text", span: 2, placeholder: "Rapidex Novi Sad" },
+      { name: "address", label: "f.address", type: "text", span: 2, placeholder: "Sentandrejski put 11, Novi Sad" },
+      { name: "coords", label: "f.coords", type: "coords", span: 2, placeholder: "45.2671, 19.8335" },
+      { name: "note", label: "f.note", type: "text", span: 2 },
     ],
   },
 };
