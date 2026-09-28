@@ -154,6 +154,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
       { name: "supplierId", label: "f.chain", type: "supplier" },
       { name: "name", label: "f.placeName", type: "text", span: 2, placeholder: "Rapidex Novi Sad" },
       { name: "address", label: "f.address", type: "text", span: 2, placeholder: "Sentandrejski put 11, Novi Sad" },
+      { name: "phone", label: "f.phone", type: "text", placeholder: "+381 21 …" },
       { name: "coords", label: "f.coords", type: "coords", span: 2, placeholder: "45.2671, 19.8335" },
       { name: "dieselPrice", label: "f.dieselPrice", type: "decimal", placeholder: "1,459", showIf: { field: "kind", value: "pump" } },
       { name: "priceCurrency", label: "f.currency", type: "select", options: "priceCurrencies", defaultValue: "EUR", showIf: { field: "kind", value: "pump" } },

@@ -78,6 +78,13 @@
       "when": 1790612239528,
       "tag": "0010_v026_place_prices",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790612940947,
+      "tag": "0011_v027_place_phone",
+      "breakpoints": true
     }
   ]
 }

@@ -12,7 +12,7 @@ export default async function PlacesPage() {
   await requireAccess("live");
   const [{ locale }, places, suppliers] = await Promise.all([getPrefs(), listPlaces(), listSuppliers()]);
   const sr = locale === "sr";
-  const rows = places.map((p) => ({ ...p, coords: `${p.lat}, ${p.lng}` }));
+  const rows = places.map((p) => ({ ...p, coords: `${p.lat}, ${p.lng}`, phone: p.ownPhone, displayPhone: p.phone }));
   const refs = { suppliers: suppliers.map((s) => ({ id: s.id, label: s.name })) };
   return (
     <>
@@ -20,7 +20,7 @@ export default async function PlacesPage() {
         title={sr ? "Lokacije na mapi" : "Places on the map"}
         sub={
           sr
-            ? "Prodavnice, servisi i pumpe koje se mogu uključiti na Mapi uživo (gore desno)."
+            ? "Prodavnice delova, servisi i pumpe koje se mogu uključiti na Mapi uživo (gore desno)."
             : "Shops, workshops and fuel stations you can switch on in the Live map (top right)."
         }
         actions={

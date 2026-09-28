@@ -255,11 +255,12 @@ export const places = pgTable(
   {
     id: id(),
     companyId: companyId(),
-    /** "shop" | "pump" */
+    /** "shop" (parts) | "service" (workshop) | "pump" */
     kind: text("kind").notNull().default("shop"),
     supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     address: text("address"),
+    phone: text("phone"),
     lat: doublePrecision("lat").notNull(),
     lng: doublePrecision("lng").notNull(),
     note: text("note"),

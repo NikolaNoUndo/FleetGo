@@ -7,6 +7,7 @@
 export type PlaceImportRow = {
   name: string;
   address?: string | null;
+  phone?: string | null;
   lat: number;
   lng: number;
   dieselPrice?: number | null;
@@ -140,6 +141,7 @@ const H = {
   id: /^(id|station id|station code|site id|kod|šifra|sifra|code|broj)$/i,
   price: /(diesel|dizel|nafta|^cena$|^cijena$|^price$|^unit price$|cena po litru|price per l)/i,
   currency: /^(currency|valuta|curr\.?)$/i,
+  phone: /(phone|telefon|^tel\.?$|mobile|mob\.?$|kontakt)/i,
   date: /(updated|ažurirano|azurirano|^datum|^date|valid from|važi od|vazi od|last change|izmena|promena)/i,
   address: /(address|adresa|street|ulica)/i,
   city: /(^city$|grad|mesto|town|place|locality)/i,
@@ -174,6 +176,7 @@ export function parsePlacesFile(input: string): ParsedPlaces {
     const nameCol = exact >= 0 ? exact : head.findIndex((c) => H.name.test(c) && !H.id.test(c) && !H.price.test(c));
     const ci = {
       price: find(H.price),
+      phone: find(H.phone),
       currency: find(H.currency),
       date: find(H.date),
       lat: find(H.lat),
@@ -200,7 +203,7 @@ export function parsePlacesFile(input: string): ParsedPlaces {
       const price = ci.price >= 0 ? parsePrice(r[ci.price]) : null;
       const priceCurrency = price ? (clean(r[ci.currency]).toUpperCase().slice(0, 3) || price.currency) : null;
       const priceUpdatedAt = price && ci.date >= 0 ? parseDateTime(r[ci.date]) : null;
-      if (name && ok(lat, lng)) rows.push({ name, address: address || null, lat, lng, dieselPrice: price?.value ?? null, priceCurrency, priceUpdatedAt });
+      if (name && ok(lat, lng)) rows.push({ name, address: address || null, phone: clean(r[ci.phone]) || null, lat, lng, dieselPrice: price?.value ?? null, priceCurrency, priceUpdatedAt });
       else if (name && price) updates.push({ name, dieselPrice: price.value, priceCurrency, priceUpdatedAt });
       else skipped++;
     }

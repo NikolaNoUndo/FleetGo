@@ -123,12 +123,12 @@ export function Sidebar({
   };
 
   /* user block: language, currency, sign out */
-  // Desktop: the menu opens to the right of the sidebar, shifted so the "Sign out" row
-  // lines up with this button. Mobile drawer: it opens upward.
+  // The menu opens upward. On the full sidebar it is shifted right so its icons sit in one
+  // vertical line with the chevron of this button; on the icon rail it opens beside it.
   const userBlock = (rail?: boolean, mobile?: boolean) => (
     <Popover
-      placement={mobile ? "top" : "right"}
-      panelStyle={mobile ? undefined : { bottom: -1 }}
+      placement={rail ? "right" : "top"}
+      panelStyle={rail ? { bottom: -1 } : mobile ? undefined : { left: "calc(100% - 36.5px)" }}
       label={user.email}
       triggerClassName={cn("group focus-ring flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-side-2 aria-expanded:bg-side-2", rail && "justify-center")}
       trigger={

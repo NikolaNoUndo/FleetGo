@@ -1,10 +1,10 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getCompany } from "./tenant";
 import type { Refs } from "./resources";
-import type { MapPlace } from "./places";
+import { asPlaceKind, type MapPlace } from "./places";
 import { daysUntil } from "./format";
 
 const S = schema;
@@ -68,7 +68,8 @@ export const listPlaces = cache(async (): Promise<MapPlace[]> => {
       note: P.note,
       supplierId: P.supplierId,
       supplierName: S.suppliers.name,
-      phone: S.suppliers.phone,
+      phone: sql<string | null>`coalesce(${P.phone}, ${S.suppliers.phone})`,
+      ownPhone: P.phone,
       dieselPrice: P.dieselPrice,
       priceCurrency: P.priceCurrency,
       priceUpdatedAt: P.priceUpdatedAt,
@@ -77,7 +78,7 @@ export const listPlaces = cache(async (): Promise<MapPlace[]> => {
     .leftJoin(S.suppliers, eq(S.suppliers.id, P.supplierId))
     .where(eq(P.companyId, id))
     .orderBy(asc(P.name));
-  return rows.map((r) => ({ ...r, kind: r.kind === "pump" ? "pump" : "shop", priceUpdatedAt: r.priceUpdatedAt ? r.priceUpdatedAt.toISOString() : null }));
+  return rows.map((r) => ({ ...r, kind: asPlaceKind(r.kind), priceUpdatedAt: r.priceUpdatedAt ? r.priceUpdatedAt.toISOString() : null }));
 });
 
 export type Vehicle = Awaited<ReturnType<typeof listVehicles>>[number];

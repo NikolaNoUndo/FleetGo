@@ -149,7 +149,7 @@ export const ALL_DOC_TYPES: Option[] = (() => {
   return [...seen.values()];
 })();
 
-export const PLACE_KINDS: Option[] = [o("shop", "Prodavnica / servis", "Shop / workshop"), o("pump", "Pumpa", "Fuel station")];
+export const PLACE_KINDS: Option[] = [o("shop", "Prodavnica delova", "Parts shop"), o("service", "Servis", "Workshop"), o("pump", "Pumpa", "Fuel station")];
 
 /** Currencies fuel is priced in along the usual routes. */
 export const PRICE_CURRENCIES: Option[] = ["EUR", "RSD", "HUF", "CZK", "PLN", "RON", "BAM", "MKD", "CHF", "GBP", "SEK", "DKK", "NOK", "TRY"].map((c) => o(c, c, c));

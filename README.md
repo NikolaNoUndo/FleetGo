@@ -9,8 +9,8 @@ Upravljanje voznim parkom za prevozničke, transportne i logističke firme: vozi
 | Modul | Šta prati |
 | --- | --- |
 | Pregled | Aktivna vozila, istekla i dokumenta koja uskoro ističu, troškovi po mesecima (gorivo, servisi, delovi, uplate), troškovi i potrošnja po vozilu, mini mapa |
-| Mapa uživo | Pozicije, brzina, status (u vožnji / stoji / van mreže), vozač, preko Wialona. Gore desno se uključuju pumpe i prodavnice (filter po dobavljaču, npr. samo Rapidex) |
-| Lokacije | Prodavnice, servisi i pumpe za mapu: ručno (link sa Google mapa, koordinate ili adresa) ili uvoz fajla (CSV, Garmin POI, KML, GPX), npr. spisak Eurowag pumpi |
+| Mapa uživo | Pozicije, brzina, status (u vožnji / stoji / van mreže), vozač, preko Wialona. Gore desno pretraga lokacija i vozila (centrira mapu), pumpe i „Delovi i servisi“ (filter po dobavljaču, npr. samo Rapidex). Klik na vozilo centrira mapu na njega |
+| Lokacije | Prodavnice delova, servisi i pumpe (sa telefonom) za mapu: ručno (link sa Google mapa, koordinate ili adresa) ili uvoz fajla (CSV, Garmin POI, KML, GPX), npr. spisak Eurowag pumpi |
 | Vozila | Tip, marka/model, VIN, EURO norma, kilometraža, glavni vozač i po potrebi drugi, treći… vozač, prikačena prikolica, Wialon ID; detalj sa dokumentima, servisima, gorivom, delovima i potrošnjom l/100 km |
 | Prikolice | Tip (cerada, hladnjača, cisterna…), osovine, nosivost, koja vozila je koriste (može više, a može i nijedno); dokumenta, servisi, delovi |
 | Zaposleni | Vozači i ostali; dokumenta vozača, uplate, sipanja |
@@ -102,12 +102,12 @@ Kod: `src/lib/telematics/` (jedan ulaz `getPositions`, provajder `wialon.ts`, pa
 
 ## Lokacije na mapi (prodavnice i pumpe)
 
-**Mapa uživo → Lokacije** vodi spisak mesta koja se mogu prikazati na mapi. Svaka lokacija je *prodavnica/servis* ili *pumpa* i može da pripada dobavljaču (npr. Rapidex sa više radnji, Eurowag za pumpe).
+**Mapa uživo → Lokacije** vodi spisak mesta koja se mogu prikazati na mapi. Svaka lokacija je *prodavnica delova*, *servis* ili *pumpa* (na mapi se razlikuju samo po ikonici; naziv se vidi tek na klik), ima opcioni telefon (ako ga nema, koristi se telefon dobavljača) i može da pripada dobavljaču (npr. Rapidex sa više radnji, Eurowag za pumpe).
 
 - **Dodaj**: nalepi link sa Google mapa (i kratki `maps.app.goo.gl`), upiši „širina, dužina“ ili ostavi prazno pa se lokacija traži po adresi (OpenStreetMap Nominatim).
 - **Uvezi fajl**: CSV/TXT sa zaglavljem (naziv, adresa, grad, država, lat/lng), Garmin POI bez zaglavlja (dužina, širina, naziv, opis), KML ili GPX. Opcija „Zameni postojeće“ briše stare lokacije iste vrste i istog dobavljača, pa se lista lako osvežava novim fajlom.
 - **Cena dizela** (samo pumpe): upisuje se ručno ili dolazi iz fajla (kolone cena/dizel, valuta, datum). Spisak cena bez koordinata ažurira postojeće pumpe istog naziva i dobavljača. Klik na pumpu na mapi pokazuje samo naziv, cenu dizela, kada je ažurirana i koordinate. Ako fajl nema datum, „ažurirano“ je vreme uvoza.
-- Na mapi su gore desno „Pumpe“ (jedan prekidač) i „Prodavnice“ sa izborom po dobavljaču (Sve / Nijedna / pojedinačno). Ništa nije uključeno dok se ne čekira; izbor se pamti u pregledaču. Crtaju se samo lokacije u vidljivom delu mape, pa i nekoliko hiljada pumpi radi brzo.
+- Na mapi su gore desno pretraga (lokacije i vozila; izbor centrira mapu i otvara lokaciju čak i kad njen sloj nije uključen), „Pumpe“ (jedan prekidač) i „Delovi i servisi“ sa izborom po dobavljaču (Sve / Nijedna / pojedinačno). Ništa nije uključeno dok se ne čekira; izbor se pamti u pregledaču. Crtaju se samo lokacije u vidljivom delu mape, pa i nekoliko hiljada pumpi radi brzo.
 - Pravo izmene imaju oni koji mogu da menjaju dobavljače (delovi ili servisi); gledanje ima svako ko vidi Mapu uživo.
 
 ## Struktura

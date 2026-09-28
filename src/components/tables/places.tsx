@@ -2,41 +2,33 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, FileUp, Fuel, Store } from "lucide-react";
+import { ExternalLink, FileUp } from "lucide-react";
 import { DataTable, type Column, type Filter } from "../data-table";
 import { SupplierPicker, useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { Button, cn } from "../ui/primitives";
 import { FieldShell, Modal, Segmented, Select, TextArea } from "../ui/client";
 import { AddButton, Stack } from "./common";
-import { PLACE_COLORS } from "../map/place-colors";
+import { KindDot } from "../map/map-overlay";
 import { importPlaces } from "@/app/actions";
 import { parsePlacesFile, type ParsedPlaces } from "@/lib/place-import";
 import { relTime } from "@/lib/format";
-import { PRICE_CURRENCIES } from "@/lib/catalog";
+import { PLACE_KINDS, PRICE_CURRENCIES, optLabel } from "@/lib/catalog";
 import type { Refs } from "@/lib/resources";
-import type { MapPlace } from "@/lib/places";
+import type { MapPlace, PlaceKind } from "@/lib/places";
 
-export type PlaceRow = MapPlace & { coords: string };
+/** `phone` is the place's own number (edited in the form); `displayPhone` falls back to the supplier's. */
+export type PlaceRow = MapPlace & {
+  coords: string;
+  displayPhone: string | null;
+};
 
-function KindBadge({ kind }: { kind: MapPlace["kind"] }) {
+function KindBadge({ kind }: { kind: PlaceKind }) {
   const { locale } = usePrefs();
-  const Icon = kind === "pump" ? Fuel : Store;
   return (
-    <span className="inline-flex items-center gap-1.5 text-ink-2">
-      <span
-        className="flex size-5 items-center justify-center rounded-full text-white"
-        style={{ background: PLACE_COLORS[kind] }}
-      >
-        <Icon size={11} strokeWidth={2} />
-      </span>
-      {kind === "pump"
-        ? locale === "sr"
-          ? "Pumpa"
-          : "Fuel station"
-        : locale === "sr"
-          ? "Prodavnica / servis"
-          : "Shop / workshop"}
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-ink-2">
+      <KindDot kind={kind} size={20} />
+      {optLabel(PLACE_KINDS, kind, locale)}
     </span>
   );
 }
@@ -62,6 +54,24 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
           }
         />
       ),
+    },
+    {
+      key: "phone",
+      header: t("f.phone"),
+      hide: "lg",
+      sortValue: (r) => r.displayPhone,
+      render: (r) =>
+        r.displayPhone ? (
+          <a
+            href={`tel:${r.displayPhone.replace(/\s/g, "")}`}
+            onClick={(e) => e.stopPropagation()}
+            className="whitespace-nowrap text-ink-2 hover:text-accent"
+          >
+            {r.displayPhone}
+          </a>
+        ) : (
+          <span className="text-ink-4">—</span>
+        ),
     },
     {
       key: "kind",
@@ -122,8 +132,13 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
     { value: "all", label: t("c.all"), predicate: () => true },
     {
       value: "shop",
-      label: sr ? "Prodavnice" : "Shops",
+      label: sr ? "Delovi" : "Parts",
       predicate: (r) => r.kind === "shop",
+    },
+    {
+      value: "service",
+      label: sr ? "Servisi" : "Workshops",
+      predicate: (r) => r.kind === "service",
     },
     {
       value: "pump",
@@ -175,7 +190,7 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
   const router = useRouter();
   const suppliers = refs.suppliers ?? [];
   const eurowag = suppliers.find((s) => s.label.toLowerCase() === "eurowag");
-  const [kind, setKind] = useState<"pump" | "shop">("pump");
+  const [kind, setKind] = useState<PlaceKind>("pump");
   const [supplier, setSupplier] = useState(
     eurowag ? eurowag.id : "new:Eurowag",
   );
@@ -265,10 +280,8 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
             onChange={setKind}
             items={[
               { value: "pump", label: sr ? "Pumpe" : "Fuel stations" },
-              {
-                value: "shop",
-                label: sr ? "Prodavnice / servisi" : "Shops / workshops",
-              },
+              { value: "shop", label: sr ? "Delovi" : "Parts" },
+              { value: "service", label: sr ? "Servisi" : "Workshops" },
             ]}
           />
         </FieldShell>
@@ -441,8 +454,8 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
             />
             <span>
               {sr
-                ? `Zameni postojeće ${kind === "pump" ? "pumpe" : "prodavnice"}${supplierLabel ? ` dobavljača „${supplierLabel}“` : " bez dobavljača"} ovim spiskom (za ažuriranje liste).`
-                : `Replace the existing ${kind === "pump" ? "fuel stations" : "shops"}${supplierLabel ? ` of “${supplierLabel}”` : " without a supplier"} with this list (to update it).`}
+                ? `Zameni postojeće ${kind === "pump" ? "pumpe" : kind === "service" ? "servise" : "prodavnice delova"}${supplierLabel ? ` dobavljača „${supplierLabel}“` : " bez dobavljača"} ovim spiskom (za ažuriranje liste).`
+                : `Replace the existing ${kind === "pump" ? "fuel stations" : kind === "service" ? "workshops" : "parts shops"}${supplierLabel ? ` of “${supplierLabel}”` : " without a supplier"} with this list (to update it).`}
             </span>
           </label>
         )}
