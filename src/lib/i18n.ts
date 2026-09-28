@@ -137,6 +137,7 @@ const sr = {
   "f.placeName": "Naziv lokacije",
   "f.address": "Adresa",
   "f.coords": "Koordinate ili link sa mape",
+  "f.dieselPrice": "Cena dizela (po litru)",
 
   // expiry
   "e.expired": "Isteklo",
@@ -398,6 +399,7 @@ const en: Dict = {
   "f.placeName": "Place name",
   "f.address": "Address",
   "f.coords": "Coordinates or map link",
+  "f.dieselPrice": "Diesel price (per litre)",
 
   "e.expired": "Expired",
   "e.soon": "Expiring soon",

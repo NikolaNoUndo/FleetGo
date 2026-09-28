@@ -329,6 +329,7 @@ export function RecordForm({
     );
     const locked = fixed && f.name in fixed;
     if (locked) return null;
+    if (f.showIf && String(values[f.showIf.field] ?? "") !== f.showIf.value) return null;
     const val = values[f.name];
 
     let control: ReactNode;

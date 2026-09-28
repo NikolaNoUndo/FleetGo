@@ -151,6 +151,9 @@ export const ALL_DOC_TYPES: Option[] = (() => {
 
 export const PLACE_KINDS: Option[] = [o("shop", "Prodavnica / servis", "Shop / workshop"), o("pump", "Pumpa", "Fuel station")];
 
+/** Currencies fuel is priced in along the usual routes. */
+export const PRICE_CURRENCIES: Option[] = ["EUR", "RSD", "HUF", "CZK", "PLN", "RON", "BAM", "MKD", "CHF", "GBP", "SEK", "DKK", "NOK", "TRY"].map((c) => o(c, c, c));
+
 export const OPTION_SETS = {
   currencies: CURRENCIES,
   vehicleTypes: VEHICLE_TYPES,
@@ -167,6 +170,7 @@ export const OPTION_SETS = {
   entityTypes: ENTITY_TYPES,
   docTypes: ALL_DOC_TYPES,
   placeKinds: PLACE_KINDS,
+  priceCurrencies: PRICE_CURRENCIES,
 } as const;
 export type OptionSetKey = keyof typeof OPTION_SETS;
 

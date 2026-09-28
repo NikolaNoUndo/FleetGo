@@ -69,12 +69,15 @@ export const listPlaces = cache(async (): Promise<MapPlace[]> => {
       supplierId: P.supplierId,
       supplierName: S.suppliers.name,
       phone: S.suppliers.phone,
+      dieselPrice: P.dieselPrice,
+      priceCurrency: P.priceCurrency,
+      priceUpdatedAt: P.priceUpdatedAt,
     })
     .from(P)
     .leftJoin(S.suppliers, eq(S.suppliers.id, P.supplierId))
     .where(eq(P.companyId, id))
     .orderBy(asc(P.name));
-  return rows.map((r) => ({ ...r, kind: r.kind === "pump" ? "pump" : "shop" }));
+  return rows.map((r) => ({ ...r, kind: r.kind === "pump" ? "pump" : "shop", priceUpdatedAt: r.priceUpdatedAt ? r.priceUpdatedAt.toISOString() : null }));
 });
 
 export type Vehicle = Awaited<ReturnType<typeof listVehicles>>[number];

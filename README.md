@@ -106,6 +106,7 @@ Kod: `src/lib/telematics/` (jedan ulaz `getPositions`, provajder `wialon.ts`, pa
 
 - **Dodaj**: nalepi link sa Google mapa (i kratki `maps.app.goo.gl`), upiši „širina, dužina“ ili ostavi prazno pa se lokacija traži po adresi (OpenStreetMap Nominatim).
 - **Uvezi fajl**: CSV/TXT sa zaglavljem (naziv, adresa, grad, država, lat/lng), Garmin POI bez zaglavlja (dužina, širina, naziv, opis), KML ili GPX. Opcija „Zameni postojeće“ briše stare lokacije iste vrste i istog dobavljača, pa se lista lako osvežava novim fajlom.
+- **Cena dizela** (samo pumpe): upisuje se ručno ili dolazi iz fajla (kolone cena/dizel, valuta, datum). Spisak cena bez koordinata ažurira postojeće pumpe istog naziva i dobavljača. Klik na pumpu na mapi pokazuje samo naziv, cenu dizela, kada je ažurirana i koordinate. Ako fajl nema datum, „ažurirano“ je vreme uvoza.
 - Na mapi su gore desno „Pumpe“ (jedan prekidač) i „Prodavnice“ sa izborom po dobavljaču (Sve / Nijedna / pojedinačno). Ništa nije uključeno dok se ne čekira; izbor se pamti u pregledaču. Crtaju se samo lokacije u vidljivom delu mape, pa i nekoliko hiljada pumpi radi brzo.
 - Pravo izmene imaju oni koji mogu da menjaju dobavljače (delovi ili servisi); gledanje ima svako ko vidi Mapu uživo.
 

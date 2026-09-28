@@ -4,8 +4,48 @@
  * KML (Google Earth) or GPX (navigation). Runs in the browser; the server re-validates.
  */
 
-export type PlaceImportRow = { name: string; address?: string | null; lat: number; lng: number };
-export type ParsedPlaces = { rows: PlaceImportRow[]; skipped: number; format: "csv" | "kml" | "gpx" | "unknown" };
+export type PlaceImportRow = {
+  name: string;
+  address?: string | null;
+  lat: number;
+  lng: number;
+  dieselPrice?: number | null;
+  priceCurrency?: string | null;
+  /** ISO timestamp from the file, if it has a date column */
+  priceUpdatedAt?: string | null;
+};
+/** A price for a station that is already in the list, matched by name (price lists often have no coordinates). */
+export type PriceUpdate = { name: string; dieselPrice: number; priceCurrency?: string | null; priceUpdatedAt?: string | null };
+export type ParsedPlaces = { rows: PlaceImportRow[]; updates: PriceUpdate[]; skipped: number; format: "csv" | "kml" | "gpx" | "unknown" };
+
+/** "1,459", "1.459 €", "195,50 RSD", "1 234,5" → number (+ currency if written next to it) */
+export function parsePrice(raw: string | undefined): { value: number; currency: string | null } | null {
+  if (!raw) return null;
+  let s = raw.trim();
+  const cur = s.match(/\b(EUR|RSD|HUF|CZK|PLN|RON|BAM|KM|MKD|CHF|GBP|SEK|DKK|NOK|TRY)\b/i)?.[1]?.toUpperCase() ?? (s.includes("€") ? "EUR" : null);
+  s = s.replace(/[^\d.,-]/g, "");
+  if (!s) return null;
+  if (s.includes(",") && s.includes(".")) s = s.lastIndexOf(",") > s.lastIndexOf(".") ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
+  else s = s.replace(",", ".");
+  const value = Number(s);
+  return Number.isFinite(value) && value > 0 ? { value: Math.round(value * 1000) / 1000, currency: cur === "KM" ? "BAM" : cur } : null;
+}
+
+/** "2026-09-28", "2026-09-28 14:30", "28.09.2026", "28.09.2026. 14:30", "28/09/2026" → ISO */
+export function parseDateTime(raw: string | undefined): string | null {
+  const s = (raw ?? "").trim();
+  if (!s) return null;
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/);
+  let parts: number[] | null = m ? [+m[1], +m[2], +m[3], +(m[4] ?? 0), +(m[5] ?? 0)] : null;
+  if (!parts) {
+    m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})\.?(?:\s+(\d{1,2}):(\d{2}))?/);
+    if (m) parts = [+m[3], +m[2], +m[1], +(m[4] ?? 0), +(m[5] ?? 0)];
+  }
+  if (!parts) return null;
+  const [y, mo, d, h, mi] = parts;
+  const date = new Date(y, mo - 1, d, h, mi);
+  return Number.isNaN(date.getTime()) || mo > 12 || d > 31 ? null : date.toISOString();
+}
 
 const ok = (lat: number, lng: number) => Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0);
 const clean = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").trim();
@@ -14,7 +54,7 @@ const clean = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").t
 
 function parseXml(text: string): ParsedPlaces {
   const doc = new DOMParser().parseFromString(text, "application/xml");
-  if (doc.getElementsByTagName("parsererror").length) return { rows: [], skipped: 0, format: "unknown" };
+  if (doc.getElementsByTagName("parsererror").length) return { rows: [], updates: [], skipped: 0, format: "unknown" };
   const rows: PlaceImportRow[] = [];
   let skipped = 0;
   const child = (el: Element, tag: string) => clean(el.getElementsByTagName(tag)[0]?.textContent);
@@ -28,7 +68,7 @@ function parseXml(text: string): ParsedPlaces {
       if (!ok(lat, lng) || !name) skipped++;
       else rows.push({ name, address: child(w, "desc") || child(w, "cmt") || null, lat, lng });
     }
-    return { rows, skipped, format: "gpx" };
+    return { rows, updates: [], skipped, format: "gpx" };
   }
 
   for (const pm of [...doc.getElementsByTagName("Placemark")]) {
@@ -41,7 +81,7 @@ function parseXml(text: string): ParsedPlaces {
     if (!ok(lat, lng) || !name) skipped++;
     else rows.push({ name, address: desc || null, lat, lng });
   }
-  return { rows, skipped, format: rows.length || skipped ? "kml" : "unknown" };
+  return { rows, updates: [], skipped, format: rows.length || skipped ? "kml" : "unknown" };
 }
 
 /* ---------- CSV ---------- */
@@ -95,7 +135,12 @@ const H = {
   lat: /^(lat|latitude|geo_?lat|gps_?lat|y|sirina|širina|geografska sirina)$/i,
   lng: /^(lng|lon|long|longitude|geo_?lng|geo_?lon|gps_?lon|gps_?lng|x|duzina|dužina|geografska duzina)$/i,
   both: /^(coord|coords|coordinates|koordinate|gps|location|lokacija|lat ?, ?lng|lat ?, ?lon)$/i,
-  name: /(^name$|naziv|^ime$|station|stanica|pumpa|^title$|^poi$|site|objekat|^prodavnica|^shop)/i,
+  name: /(^name$|naziv|^ime$|station|stanica|pumpa|^title$|^poi$|^site$|objekat|^prodavnica|^shop)/i,
+  exactName: /^(name|naziv|ime|station name|naziv stanice|naziv pumpe|stanica|pumpa|title)$/i,
+  id: /^(id|station id|station code|site id|kod|šifra|sifra|code|broj)$/i,
+  price: /(diesel|dizel|nafta|^cena$|^cijena$|^price$|^unit price$|cena po litru|price per l)/i,
+  currency: /^(currency|valuta|curr\.?)$/i,
+  date: /(updated|ažurirano|azurirano|^datum|^date|valid from|važi od|vazi od|last change|izmena|promena)/i,
   address: /(address|adresa|street|ulica)/i,
   city: /(^city$|grad|mesto|town|place|locality)/i,
   zip: /(zip|postal|post code|poštanski|postanski|^ptt$)/i,
@@ -109,7 +154,7 @@ export function parsePlacesFile(input: string): ParsedPlaces {
   const firstLine = text.split(/\r?\n/).find((l) => l.trim()) ?? "";
   const d = detectDelimiter(firstLine);
   const table = splitCsv(text, d).map((r) => r.map((c) => c.trim()));
-  if (!table.length) return { rows: [], skipped: 0, format: "unknown" };
+  if (!table.length) return { rows: [], updates: [], skipped: 0, format: "unknown" };
   const num = (s: string | undefined) => {
     if (!s) return NaN;
     const v = d === "," ? s : s.replace(",", ".");
@@ -119,15 +164,22 @@ export function parsePlacesFile(input: string): ParsedPlaces {
   const head = table[0];
   const isHeader = head.some((c) => Object.values(H).some((re) => re.test(c))) && !head.some((c) => Number.isFinite(num(c)));
   const rows: PlaceImportRow[] = [];
+  const updates: PriceUpdate[] = [];
   let skipped = 0;
 
   if (isHeader) {
     const find = (re: RegExp) => head.findIndex((c) => re.test(c));
+    // an exact "Name" column wins over e.g. "Station ID"; id/code columns are never the name
+    const exact = find(H.exactName);
+    const nameCol = exact >= 0 ? exact : head.findIndex((c) => H.name.test(c) && !H.id.test(c) && !H.price.test(c));
     const ci = {
+      price: find(H.price),
+      currency: find(H.currency),
+      date: find(H.date),
       lat: find(H.lat),
       lng: find(H.lng),
       both: find(H.both),
-      name: find(H.name),
+      name: nameCol,
       address: find(H.address),
       city: find(H.city),
       zip: find(H.zip),
@@ -145,10 +197,14 @@ export function parsePlacesFile(input: string): ParsedPlaces {
         .filter(Boolean)
         .join(", ");
       const name = clean(r[ci.name]) || clean(r[ci.city]) || clean(r[ci.address]);
-      if (!ok(lat, lng) || !name) skipped++;
-      else rows.push({ name, address: address || null, lat, lng });
+      const price = ci.price >= 0 ? parsePrice(r[ci.price]) : null;
+      const priceCurrency = price ? (clean(r[ci.currency]).toUpperCase().slice(0, 3) || price.currency) : null;
+      const priceUpdatedAt = price && ci.date >= 0 ? parseDateTime(r[ci.date]) : null;
+      if (name && ok(lat, lng)) rows.push({ name, address: address || null, lat, lng, dieselPrice: price?.value ?? null, priceCurrency, priceUpdatedAt });
+      else if (name && price) updates.push({ name, dieselPrice: price.value, priceCurrency, priceUpdatedAt });
+      else skipped++;
     }
-    return { rows, skipped, format: "csv" };
+    return { rows, updates, skipped, format: "csv" };
   }
 
   // No header (Garmin POI and similar): two number columns + text columns.
@@ -167,5 +223,5 @@ export function parsePlacesFile(input: string): ParsedPlaces {
     if (!ok(lat, lng)) skipped++;
     else rows.push({ name: clean(texts[0]), address: clean(texts.slice(1).join(", ")) || null, lat, lng });
   }
-  return { rows, skipped, format: rows.length ? "csv" : "unknown" };
+  return { rows, updates: [], skipped, format: rows.length ? "csv" : "unknown" };
 }

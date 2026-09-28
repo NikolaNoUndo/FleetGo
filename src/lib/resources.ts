@@ -16,6 +16,8 @@ export type FieldDef = {
   span?: 1 | 2;
   placeholder?: string;
   defaultValue?: string | number | boolean;
+  /** only shown (and saved) when another field has this value */
+  showIf?: { field: string; value: string };
 };
 
 export type RefOption = { id: string; label: string; sub?: string };
@@ -153,6 +155,8 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
       { name: "name", label: "f.placeName", type: "text", span: 2, placeholder: "Rapidex Novi Sad" },
       { name: "address", label: "f.address", type: "text", span: 2, placeholder: "Sentandrejski put 11, Novi Sad" },
       { name: "coords", label: "f.coords", type: "coords", span: 2, placeholder: "45.2671, 19.8335" },
+      { name: "dieselPrice", label: "f.dieselPrice", type: "decimal", placeholder: "1,459", showIf: { field: "kind", value: "pump" } },
+      { name: "priceCurrency", label: "f.currency", type: "select", options: "priceCurrencies", defaultValue: "EUR", showIf: { field: "kind", value: "pump" } },
       { name: "note", label: "f.note", type: "text", span: 2 },
     ],
   },

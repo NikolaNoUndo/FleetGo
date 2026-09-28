@@ -71,6 +71,13 @@
       "when": 1790611378274,
       "tag": "0009_v025_places",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790612239528,
+      "tag": "0010_v026_place_prices",
+      "breakpoints": true
     }
   ]
 }

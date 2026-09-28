@@ -263,6 +263,10 @@ export const places = pgTable(
     lat: doublePrecision("lat").notNull(),
     lng: doublePrecision("lng").notNull(),
     note: text("note"),
+    /** fuel stations: diesel price per litre, its currency and when it was last set */
+    dieselPrice: doublePrecision("diesel_price"),
+    priceCurrency: text("price_currency"),
+    priceUpdatedAt: timestamp("price_updated_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [index("places_company_idx").on(t.companyId, t.kind), index("places_supplier_idx").on(t.supplierId)],

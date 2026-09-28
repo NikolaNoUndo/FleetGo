@@ -10,4 +10,9 @@ export type MapPlace = {
   supplierId: string | null;
   supplierName: string | null;
   phone: string | null;
+  /** fuel stations only */
+  dieselPrice: number | null;
+  priceCurrency: string | null;
+  /** ISO timestamp of the last price change */
+  priceUpdatedAt: string | null;
 };

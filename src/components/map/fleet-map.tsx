@@ -6,6 +6,8 @@ import { MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents }
 import type { Position } from "@/lib/telematics/types";
 import type { MapPlace } from "@/lib/places";
 import { PLACE_COLORS } from "./place-colors";
+import { usePrefs } from "../prefs";
+import { relTime } from "@/lib/format";
 
 export type MapPoint = Position & { label: string };
 
@@ -80,35 +82,78 @@ function PlacesLayer({ places, fit }: { places: MapPlace[]; fit: boolean }) {
   return (
     <>
       {visible.map((p) => (
-        <Marker key={p.id} position={[p.lat, p.lng]} icon={placeIcon(p.kind)} zIndexOffset={-500}>
+        <Marker
+          key={p.id}
+          position={[p.lat, p.lng]}
+          icon={placeIcon(p.kind)}
+          zIndexOffset={-500}
+          // hide the name tooltip while the popup is open so they don't overlap
+          eventHandlers={{ popupopen: (e) => e.target.getTooltip()?.setOpacity(0), popupclose: (e) => e.target.getTooltip()?.setOpacity(1) }}
+        >
           <Tooltip direction="top" offset={[0, -12]} opacity={1}>
             {p.name}
           </Tooltip>
-          <Popup>
-            <div className="min-w-[180px] font-sans text-[13px] leading-snug text-ink">
-              <div className="font-semibold">{p.name}</div>
-              {p.supplierName && p.supplierName !== p.name && <div className="text-ink-3">{p.supplierName}</div>}
-              {p.address && <div className="mt-1">{p.address}</div>}
-              {p.phone && (
-                <a className="mt-1 block" style={{ color: "var(--accent)" }} href={`tel:${p.phone.replace(/\s/g, "")}`}>
-                  {p.phone}
-                </a>
-              )}
-              {p.note && <div className="mt-1 text-ink-3">{p.note}</div>}
-              <a
-                className="mt-2 inline-block font-medium"
-                style={{ color: "var(--accent)" }}
-                href={`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Google Maps ↗
-              </a>
-            </div>
-          </Popup>
+          <Popup>{p.kind === "pump" ? <PumpPopup p={p} /> : <ShopPopup p={p} />}</Popup>
         </Marker>
       ))}
     </>
+  );
+}
+
+function PumpPopup({ p }: { p: MapPlace }) {
+  const { locale } = usePrefs();
+  const sr = locale === "sr";
+  const tag = sr ? "sr-Latn-RS" : "en-GB";
+  const price =
+    p.dieselPrice !== null ? new Intl.NumberFormat(tag, { minimumFractionDigits: 2, maximumFractionDigits: 3 }).format(p.dieselPrice) : null;
+  const updated = p.priceUpdatedAt ? new Date(p.priceUpdatedAt) : null;
+  return (
+    <div className="min-w-[170px] font-sans text-[13px] leading-snug text-ink">
+      <div className="font-semibold">{p.name}</div>
+      <div className="mt-2 text-xs text-ink-3">{sr ? "Dizel" : "Diesel"}</div>
+      {price ? (
+        <div className="text-lg font-semibold tnum">
+          {price} <span className="text-sm font-medium text-ink-2">{p.priceCurrency ?? "EUR"}/l</span>
+        </div>
+      ) : (
+        <div className="text-ink-3">{sr ? "Cena nije uneta" : "No price yet"}</div>
+      )}
+      {updated && (
+        <div className="text-xs text-ink-3">
+          {sr ? "Ažurirano" : "Updated"}{" "}
+          {new Intl.DateTimeFormat(tag, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(updated)} ·{" "}
+          {relTime(updated.getTime(), locale)}
+        </div>
+      )}
+      <div className="mt-2 border-t border-line pt-2 text-xs text-ink-3 tnum">
+        {p.lat.toFixed(5)}, {p.lng.toFixed(5)}
+      </div>
+    </div>
+  );
+}
+
+function ShopPopup({ p }: { p: MapPlace }) {
+  return (
+    <div className="min-w-[180px] font-sans text-[13px] leading-snug text-ink">
+      <div className="font-semibold">{p.name}</div>
+      {p.supplierName && p.supplierName !== p.name && <div className="text-ink-3">{p.supplierName}</div>}
+      {p.address && <div className="mt-1">{p.address}</div>}
+      {p.phone && (
+        <a className="mt-1 block" style={{ color: "var(--accent)" }} href={`tel:${p.phone.replace(/\s/g, "")}`}>
+          {p.phone}
+        </a>
+      )}
+      {p.note && <div className="mt-1 text-ink-3">{p.note}</div>}
+      <a
+        className="mt-2 inline-block font-medium"
+        style={{ color: "var(--accent)" }}
+        href={`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`}
+        target="_blank"
+        rel="noreferrer"
+      >
+        Google Maps ↗
+      </a>
+    </div>
   );
 }
 

@@ -247,6 +247,24 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
       out.name = sup?.name ?? null;
     }
     if (!out.name) return { ok: false, errors: { name: "required" } };
+
+    // diesel price (fuel stations only), three decimals; the "updated" time moves only
+    // when the price or currency actually changes
+    if (out.kind !== "pump") Object.assign(out, { dieselPrice: null, priceCurrency: null, priceUpdatedAt: null });
+    else {
+      const price = parseNumber(raw.dieselPrice);
+      if (price !== null && (Number.isNaN(price) || price < 0 || price > 100_000)) return { ok: false, errors: { dieselPrice: "number" } };
+      out.dieselPrice = price === null ? null : Math.round(price * 1000) / 1000;
+      out.priceCurrency = price === null ? null : (out.priceCurrency ?? "EUR");
+      let changed = true;
+      if (id && UUID.test(id)) {
+        const P = schema.places;
+        const [prev] = await db.select({ p: P.dieselPrice, c: P.priceCurrency }).from(P).where(and(eq(P.id, id), eq(P.companyId, companyId))).limit(1);
+        changed = !prev || prev.p !== out.dieselPrice || (prev.c ?? null) !== out.priceCurrency;
+      }
+      if (out.dieselPrice === null) out.priceUpdatedAt = null;
+      else if (changed) out.priceUpdatedAt = new Date();
+    }
   }
 
   // Tenant safety: every referenced row must belong to the same company.
@@ -417,14 +435,39 @@ export async function saveTelematics(input: { token?: string; host?: string; rem
 
 /* ---------- Map places: bulk import (e.g. a Eurowag station list) ---------- */
 
-export type PlaceImportRow = { name: string; address?: string | null; lat: number; lng: number };
+type ImportRow = {
+  name: string;
+  address?: string | null;
+  lat: number;
+  lng: number;
+  dieselPrice?: number | null;
+  priceCurrency?: string | null;
+  priceUpdatedAt?: string | null;
+};
+type ImportPrice = { name: string; dieselPrice: number; priceCurrency?: string | null; priceUpdatedAt?: string | null };
+
+const CURRENCY = /^[A-Z]{3}$/;
+function importPrice(price: unknown, currency: unknown, fallbackCurrency: string, when: unknown) {
+  const p = Number(price);
+  if (price === null || price === undefined || price === "" || !Number.isFinite(p) || p <= 0 || p > 100_000) return null;
+  const cur = String(currency ?? "").toUpperCase();
+  const at = when ? new Date(String(when)) : null;
+  return {
+    dieselPrice: Math.round(p * 1000) / 1000,
+    priceCurrency: CURRENCY.test(cur) ? cur : fallbackCurrency,
+    // a date from the file, or now; never in the future
+    priceUpdatedAt: at && !Number.isNaN(at.getTime()) && at.getTime() <= Date.now() + 86_400_000 ? at : new Date(),
+  };
+}
 
 export async function importPlaces(input: {
   kind: string;
   supplier: string;
   replace: boolean;
-  rows: PlaceImportRow[];
-}): Promise<{ ok: true; count: number; skipped: number; supplierId: string | null } | { ok: false; message: string }> {
+  currency?: string;
+  rows: ImportRow[];
+  updates?: ImportPrice[];
+}): Promise<{ ok: true; count: number; updated: number; skipped: number; supplierId: string | null } | { ok: false; message: string }> {
   let ctx;
   try {
     ctx = await editContext("places");
@@ -433,13 +476,16 @@ export async function importPlaces(input: {
   }
   const companyId = ctx.company.id;
   const kind = input.kind === "pump" ? "pump" : "shop";
-  if (!Array.isArray(input.rows) || !input.rows.length) return { ok: false, message: "Fajl nema nijednu lokaciju." };
-  if (input.rows.length > 5000) return { ok: false, message: "Najviše 5.000 lokacija po zahtevu." };
+  const rowsIn = Array.isArray(input.rows) ? input.rows : [];
+  const updatesIn = kind === "pump" && Array.isArray(input.updates) ? input.updates : [];
+  if (!rowsIn.length && !updatesIn.length) return { ok: false, message: "Fajl nema nijednu lokaciju." };
+  if (rowsIn.length + updatesIn.length > 5000) return { ok: false, message: "Najviše 5.000 redova po zahtevu." };
+  const fallbackCurrency = CURRENCY.test(String(input.currency ?? "")) ? String(input.currency) : "EUR";
   const supplierId = input.supplier ? await resolveSupplier(companyId, String(input.supplier).slice(0, 200)) : null;
 
   const clean: (typeof schema.places.$inferInsert)[] = [];
   let skipped = 0;
-  for (const r of input.rows) {
+  for (const r of rowsIn) {
     const lat = Number(r?.lat);
     const lng = Number(r?.lng);
     const name = String(r?.name ?? "").trim().slice(0, 200);
@@ -448,20 +494,40 @@ export async function importPlaces(input: {
       continue;
     }
     const address = String(r?.address ?? "").trim().slice(0, 300) || null;
-    clean.push({ companyId, kind, supplierId, name, address, lat, lng });
+    const price = kind === "pump" ? importPrice(r?.dieselPrice, r?.priceCurrency, fallbackCurrency, r?.priceUpdatedAt) : null;
+    clean.push({ companyId, kind, supplierId, name, address, lat, lng, ...(price ?? {}) });
   }
-  if (!clean.length) return { ok: false, message: "Nijedan red nema naziv i ispravne koordinate." };
 
+  const prices = updatesIn
+    .map((u) => ({ name: String(u?.name ?? "").trim().slice(0, 200), price: importPrice(u?.dieselPrice, u?.priceCurrency, fallbackCurrency, u?.priceUpdatedAt) }))
+    .filter((u): u is { name: string; price: NonNullable<ReturnType<typeof importPrice>> } => !!u.name && !!u.price);
+  skipped += updatesIn.length - prices.length;
+  if (!clean.length && !prices.length) return { ok: false, message: "Nijedan red nema naziv i koordinate (ili naziv i cenu)." };
+
+  let updated = 0;
   await db.transaction(async (tx) => {
-    if (input.replace) {
-      const P = schema.places;
-      await tx
-        .delete(P)
-        .where(and(eq(P.companyId, companyId), eq(P.kind, kind), supplierId ? eq(P.supplierId, supplierId) : sql`${P.supplierId} is null`));
+    const P = schema.places;
+    // replacing only makes sense when the file brings the stations themselves
+    if (input.replace && clean.length) {
+      await tx.delete(P).where(and(eq(P.companyId, companyId), eq(P.kind, kind), supplierId ? eq(P.supplierId, supplierId) : sql`${P.supplierId} is null`));
     }
-    for (let i = 0; i < clean.length; i += 1000) await tx.insert(schema.places).values(clean.slice(i, i + 1000));
+    for (let i = 0; i < clean.length; i += 1000) await tx.insert(P).values(clean.slice(i, i + 1000));
+    // price-only rows: update stations of this supplier with the same name
+    for (let i = 0; i < prices.length; i += 500) {
+      const values = sql.join(
+        prices.slice(i, i + 500).map((u) => sql`(${u.name.toLowerCase()}, ${u.price.dieselPrice}::float8, ${u.price.priceCurrency}, ${u.price.priceUpdatedAt.toISOString()}::timestamptz)`),
+        sql`, `,
+      );
+      const res = await tx.execute(sql`
+        update ${P} set diesel_price = v.price, price_currency = v.cur, price_updated_at = v.at
+        from (values ${values}) as v(name, price, cur, at)
+        where ${P.companyId} = ${companyId} and ${P.kind} = 'pump'
+          and ${supplierId ? sql`${P.supplierId} = ${supplierId}` : sql`${P.supplierId} is null`}
+          and lower(${P.name}) = v.name`);
+      updated += res.rowCount ?? 0;
+    }
   });
-  await audit(ctx.user.email, "import.places", { kind, count: clean.length, replace: input.replace }, companyId);
+  await audit(ctx.user.email, "import.places", { kind, count: clean.length, updated, replace: input.replace }, companyId);
   revalidatePath("/", "layout");
-  return { ok: true, count: clean.length, skipped, supplierId };
+  return { ok: true, count: clean.length, updated, skipped, supplierId };
 }

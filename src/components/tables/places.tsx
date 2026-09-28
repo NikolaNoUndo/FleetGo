@@ -7,11 +7,13 @@ import { DataTable, type Column, type Filter } from "../data-table";
 import { SupplierPicker, useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { Button, cn } from "../ui/primitives";
-import { FieldShell, Modal, Segmented, TextArea } from "../ui/client";
+import { FieldShell, Modal, Segmented, Select, TextArea } from "../ui/client";
 import { AddButton, Stack } from "./common";
 import { PLACE_COLORS } from "../map/place-colors";
 import { importPlaces } from "@/app/actions";
 import { parsePlacesFile, type ParsedPlaces } from "@/lib/place-import";
+import { relTime } from "@/lib/format";
+import { PRICE_CURRENCIES } from "@/lib/catalog";
 import type { Refs } from "@/lib/resources";
 import type { MapPlace } from "@/lib/places";
 
@@ -22,10 +24,19 @@ function KindBadge({ kind }: { kind: MapPlace["kind"] }) {
   const Icon = kind === "pump" ? Fuel : Store;
   return (
     <span className="inline-flex items-center gap-1.5 text-ink-2">
-      <span className="flex size-5 items-center justify-center rounded-full text-white" style={{ background: PLACE_COLORS[kind] }}>
+      <span
+        className="flex size-5 items-center justify-center rounded-full text-white"
+        style={{ background: PLACE_COLORS[kind] }}
+      >
         <Icon size={11} strokeWidth={2} />
       </span>
-      {kind === "pump" ? (locale === "sr" ? "Pumpa" : "Fuel station") : locale === "sr" ? "Prodavnica / servis" : "Shop / workshop"}
+      {kind === "pump"
+        ? locale === "sr"
+          ? "Pumpa"
+          : "Fuel station"
+        : locale === "sr"
+          ? "Prodavnica / servis"
+          : "Shop / workshop"}
     </span>
   );
 }
@@ -41,10 +52,55 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
       key: "name",
       header: sr ? "Naziv" : "Name",
       sortValue: (r) => r.name,
-      render: (r) => <Stack main={r.name} sub={r.supplierName && r.supplierName !== r.name ? r.supplierName : (r.note ?? undefined)} />,
+      render: (r) => (
+        <Stack
+          main={r.name}
+          sub={
+            r.supplierName && r.supplierName !== r.name
+              ? r.supplierName
+              : (r.note ?? undefined)
+          }
+        />
+      ),
     },
-    { key: "kind", header: t("f.kind"), sortValue: (r) => r.kind, render: (r) => <KindBadge kind={r.kind} /> },
-    { key: "address", header: t("f.address"), hide: "md", sortValue: (r) => r.address, render: (r) => <span className="text-ink-2">{r.address ?? "—"}</span> },
+    {
+      key: "kind",
+      header: t("f.kind"),
+      sortValue: (r) => r.kind,
+      render: (r) => <KindBadge kind={r.kind} />,
+    },
+    {
+      key: "price",
+      header: sr ? "Dizel" : "Diesel",
+      align: "right",
+      sortValue: (r) => r.dieselPrice,
+      render: (r) =>
+        r.dieselPrice !== null ? (
+          <span className="whitespace-nowrap">
+            <span className="font-medium tnum">
+              {r.dieselPrice.toLocaleString(sr ? "sr-Latn-RS" : "en-GB", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 3,
+              })}{" "}
+              {r.priceCurrency}
+            </span>
+            {r.priceUpdatedAt && (
+              <span className="block text-xs text-ink-3">
+                {relTime(new Date(r.priceUpdatedAt).getTime(), locale)}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-ink-4">—</span>
+        ),
+    },
+    {
+      key: "address",
+      header: t("f.address"),
+      hide: "md",
+      sortValue: (r) => r.address,
+      render: (r) => <span className="text-ink-2">{r.address ?? "—"}</span>,
+    },
     {
       key: "coords",
       header: sr ? "Na mapi" : "On map",
@@ -64,8 +120,16 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
   ];
   const filters: Filter<PlaceRow>[] = [
     { value: "all", label: t("c.all"), predicate: () => true },
-    { value: "shop", label: sr ? "Prodavnice" : "Shops", predicate: (r) => r.kind === "shop" },
-    { value: "pump", label: sr ? "Pumpe" : "Fuel", predicate: (r) => r.kind === "pump" },
+    {
+      value: "shop",
+      label: sr ? "Prodavnice" : "Shops",
+      predicate: (r) => r.kind === "shop",
+    },
+    {
+      value: "pump",
+      label: sr ? "Pumpe" : "Fuel",
+      predicate: (r) => r.kind === "pump",
+    },
   ];
 
   return (
@@ -74,7 +138,9 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
         rows={rows}
         columns={cols}
         filters={filters}
-        searchText={(r) => [r.name, r.supplierName, r.address, r.note].join(" ")}
+        searchText={(r) =>
+          [r.name, r.supplierName, r.address, r.note].join(" ")
+        }
         toolbar={
           crud.canEdit ? (
             <div className="flex gap-2">
@@ -89,8 +155,15 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
         initialSort={{ key: "name", dir: "asc" }}
       />
       {crud.node}
-      <Modal open={importing} onClose={() => setImporting(false)} title={sr ? "Uvoz lokacija iz fajla" : "Import places from a file"} wide>
-        {importing && <ImportForm refs={refs} onDone={() => setImporting(false)} />}
+      <Modal
+        open={importing}
+        onClose={() => setImporting(false)}
+        title={sr ? "Uvoz lokacija iz fajla" : "Import places from a file"}
+        wide
+      >
+        {importing && (
+          <ImportForm refs={refs} onDone={() => setImporting(false)} />
+        )}
       </Modal>
     </>
   );
@@ -103,18 +176,33 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
   const suppliers = refs.suppliers ?? [];
   const eurowag = suppliers.find((s) => s.label.toLowerCase() === "eurowag");
   const [kind, setKind] = useState<"pump" | "shop">("pump");
-  const [supplier, setSupplier] = useState(eurowag ? eurowag.id : "new:Eurowag");
+  const [supplier, setSupplier] = useState(
+    eurowag ? eurowag.id : "new:Eurowag",
+  );
   const [replace, setReplace] = useState(true);
+  const [currency, setCurrency] = useState("EUR");
+  const [done, setDone] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const parsed: ParsedPlaces | null = useMemo(() => (text.trim() ? parsePlacesFile(text) : null), [text]);
+  const parsed: ParsedPlaces | null = useMemo(
+    () => (text.trim() ? parsePlacesFile(text) : null),
+    [text],
+  );
+  const updates = kind === "pump" ? (parsed?.updates.length ?? 0) : 0;
+  const pricedRows =
+    kind === "pump"
+      ? (parsed?.rows.filter((r) => r.dieselPrice).length ?? 0)
+      : 0;
+  const total = (parsed?.rows.length ?? 0) + updates;
 
   const onFile = async (f: File | undefined) => {
     if (!f) return;
     if (f.size > 15 * 1024 * 1024) {
-      setMessage(sr ? "Fajl je veći od 15 MB." : "The file is larger than 15 MB.");
+      setMessage(
+        sr ? "Fajl je veći od 15 MB." : "The file is larger than 15 MB.",
+      );
       return;
     }
     setMessage(null);
@@ -124,31 +212,51 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
 
   const submit = () =>
     start(async () => {
-      if (!parsed?.rows.length) return;
+      if (!parsed || (!parsed.rows.length && !parsed.updates.length)) return;
       // send in parts to stay well under the request size limit; only the first part replaces
       let sup = supplier;
-      for (let i = 0; i < parsed.rows.length; i += 2000) {
-        const res = await importPlaces({ kind, supplier: sup, replace: replace && i === 0, rows: parsed.rows.slice(i, i + 2000) });
+      let added = 0;
+      let updated = 0;
+      const n = Math.max(parsed.rows.length, parsed.updates.length);
+      for (let i = 0; i < n; i += 2000) {
+        const res = await importPlaces({
+          kind,
+          supplier: sup,
+          currency,
+          replace: replace && i === 0,
+          rows: parsed.rows.slice(i, i + 2000),
+          updates: kind === "pump" ? parsed.updates.slice(i, i + 2000) : [],
+        });
         if (!res.ok) {
           setMessage(res.message);
           router.refresh();
           return;
         }
+        added += res.count;
+        updated += res.updated;
         if (res.supplierId) sup = res.supplierId; // a new supplier is created once, then reused
       }
       router.refresh();
-      onDone();
+      if (!parsed.updates.length) return onDone();
+      const missed = parsed.updates.length - updated;
+      setDone(
+        sr
+          ? `${added ? `Uvezeno lokacija: ${added}. ` : ""}Ažurirane cene: ${updated}.${missed > 0 ? ` Bez pumpe istog naziva: ${missed}.` : ""}`
+          : `${added ? `Imported ${added} places. ` : ""}Price updated for ${updated} stations.${missed > 0 ? ` ${missed} names did not match an existing station.` : ""}`,
+      );
     });
 
-  const supplierLabel = supplier.startsWith("new:") ? supplier.slice(4) : (suppliers.find((s) => s.id === supplier)?.label ?? "");
+  const supplierLabel = supplier.startsWith("new:")
+    ? supplier.slice(4)
+    : (suppliers.find((s) => s.id === supplier)?.label ?? "");
 
   return (
     <div>
       <div className="grid max-h-[65vh] grid-cols-1 gap-4 overflow-y-auto px-4 py-4 sm:grid-cols-2">
         <p className="text-sm leading-relaxed text-ink-2 sm:col-span-2">
           {sr
-            ? "Podržani su CSV/TXT (sa zaglavljem ili Garmin POI: dužina, širina, naziv, opis), KML (Google Earth) i GPX. Kolone se prepoznaju same: naziv, adresa, grad, država, lat/lng."
-            : "CSV/TXT (with a header, or Garmin POI: lon, lat, name, description), KML (Google Earth) and GPX are supported. Columns are detected automatically: name, address, city, country, lat/lng."}
+            ? "Podržani su CSV/TXT (sa zaglavljem ili Garmin POI: dužina, širina, naziv, opis), KML (Google Earth) i GPX. Kolone se prepoznaju same: naziv, adresa, grad, država, lat/lng, a za pumpe i cena dizela, valuta i datum. Spisak cena bez koordinata ažurira postojeće pumpe istog naziva."
+            : "CSV/TXT (with a header, or Garmin POI: lon, lat, name, description), KML (Google Earth) and GPX are supported. Columns are detected automatically: name, address, city, country, lat/lng, and for fuel stations the diesel price, currency and date. A price list without coordinates updates existing stations with the same name."}
         </p>
         <FieldShell label={sr ? "Vrsta" : "Type"}>
           <Segmented
@@ -157,59 +265,165 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
             onChange={setKind}
             items={[
               { value: "pump", label: sr ? "Pumpe" : "Fuel stations" },
-              { value: "shop", label: sr ? "Prodavnice / servisi" : "Shops / workshops" },
+              {
+                value: "shop",
+                label: sr ? "Prodavnice / servisi" : "Shops / workshops",
+              },
             ]}
           />
         </FieldShell>
-        <FieldShell label={sr ? "Dobavljač / mreža" : "Supplier / network"} htmlFor="imp-supplier">
-          <SupplierPicker id="imp-supplier" value={supplier} options={suppliers} onChange={setSupplier} />
+        <FieldShell
+          label={sr ? "Dobavljač / mreža" : "Supplier / network"}
+          htmlFor="imp-supplier"
+        >
+          <SupplierPicker
+            id="imp-supplier"
+            value={supplier}
+            options={suppliers}
+            onChange={setSupplier}
+          />
         </FieldShell>
+        {kind === "pump" && (
+          <FieldShell
+            label={
+              sr
+                ? "Valuta cena (ako je nema u fajlu)"
+                : "Price currency (if not in the file)"
+            }
+            htmlFor="imp-cur"
+          >
+            <Select
+              id="imp-cur"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+            >
+              {PRICE_CURRENCIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.value}
+                </option>
+              ))}
+            </Select>
+          </FieldShell>
+        )}
         <FieldShell label={sr ? "Fajl" : "File"} span={2} htmlFor="imp-file">
           <label
             htmlFor="imp-file"
             className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-line-strong bg-surface-2/50 px-3 py-3 text-sm text-ink-2 hover:bg-surface-2"
           >
             <FileUp size={16} className="text-ink-3" />
-            <span className="min-w-0 flex-1 truncate">{fileName ?? (sr ? "Izaberi .csv, .txt, .kml ili .gpx fajl" : "Choose a .csv, .txt, .kml or .gpx file")}</span>
-            <input id="imp-file" type="file" accept=".csv,.txt,.kml,.gpx,.xml,text/csv,text/plain" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
+            <span className="min-w-0 flex-1 truncate">
+              {fileName ??
+                (sr
+                  ? "Izaberi .csv, .txt, .kml ili .gpx fajl"
+                  : "Choose a .csv, .txt, .kml or .gpx file")}
+            </span>
+            <input
+              id="imp-file"
+              type="file"
+              accept=".csv,.txt,.kml,.gpx,.xml,text/csv,text/plain"
+              className="sr-only"
+              onChange={(e) => onFile(e.target.files?.[0])}
+            />
           </label>
         </FieldShell>
-        <FieldShell label={sr ? "…ili nalepi redove" : "…or paste rows"} span={2} htmlFor="imp-text">
+        <FieldShell
+          label={sr ? "…ili nalepi redove" : "…or paste rows"}
+          span={2}
+          htmlFor="imp-text"
+        >
           <TextArea
             id="imp-text"
             rows={4}
             value={fileName ? "" : text}
             disabled={!!fileName}
             onChange={(e) => setText(e.target.value)}
-            placeholder={"naziv;adresa;lat;lng\nRapidex Novi Sad;Sentandrejski put 11;45.2671;19.8335"}
+            placeholder={
+              "naziv;adresa;lat;lng\nRapidex Novi Sad;Sentandrejski put 11;45.2671;19.8335"
+            }
             className="font-mono text-xs"
           />
         </FieldShell>
 
         {parsed && (
           <div className="sm:col-span-2">
-            <div className={cn("text-sm font-medium", parsed.rows.length ? "text-good-ink" : "text-bad-ink")}>
-              {parsed.rows.length
+            <div
+              className={cn(
+                "text-sm font-medium",
+                total ? "text-good-ink" : "text-bad-ink",
+              )}
+            >
+              {total
                 ? sr
-                  ? `Pronađeno ${parsed.rows.length} lokacija${parsed.skipped ? `, ${parsed.skipped} redova bez naziva ili koordinata se preskače` : ""}.`
-                  : `Found ${parsed.rows.length} places${parsed.skipped ? `, ${parsed.skipped} rows without a name or coordinates are skipped` : ""}.`
+                  ? [
+                      parsed.rows.length
+                        ? `Pronađeno ${parsed.rows.length} lokacija${pricedRows ? ` (${pricedRows} sa cenom)` : ""}`
+                        : "",
+                      updates
+                        ? `${updates} cena za postojeće pumpe (po nazivu)`
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(", ") +
+                    (parsed.skipped
+                      ? `; ${parsed.skipped} redova se preskače`
+                      : "") +
+                    "."
+                  : [
+                      parsed.rows.length
+                        ? `Found ${parsed.rows.length} places${pricedRows ? ` (${pricedRows} with a price)` : ""}`
+                        : "",
+                      updates
+                        ? `${updates} prices for existing stations (by name)`
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(", ") +
+                    (parsed.skipped ? `; ${parsed.skipped} rows skipped` : "") +
+                    "."
                 : sr
-                  ? "Nisam prepoznao nijednu lokaciju. Proveri da fajl ima naziv i koordinate."
-                  : "No places recognised. Check that the file has names and coordinates."}
+                  ? "Nisam prepoznao nijednu lokaciju. Proveri da fajl ima naziv i koordinate (ili naziv i cenu)."
+                  : "Nothing recognised. Check that the file has names and coordinates (or names and prices)."}
             </div>
-            {parsed.rows.length > 0 && (
+            {total > 0 && (
               <div className="mt-2 overflow-hidden rounded-lg border border-line">
                 <table className="w-full text-xs">
                   <tbody>
-                    {parsed.rows.slice(0, 5).map((r, i) => (
-                      <tr key={i} className="border-b border-line last:border-0">
-                        <td className="px-2.5 py-1.5 font-medium">{r.name}</td>
-                        <td className="px-2.5 py-1.5 text-ink-3">{r.address ?? ""}</td>
-                        <td className="px-2.5 py-1.5 text-right text-ink-3 tnum whitespace-nowrap">
-                          {r.lat.toFixed(4)}, {r.lng.toFixed(4)}
-                        </td>
-                      </tr>
-                    ))}
+                    {[
+                      ...parsed.rows.map((r) => ({ ...r, coords: true })),
+                      ...parsed.updates.map((u) => ({
+                        ...u,
+                        address: null,
+                        lat: 0,
+                        lng: 0,
+                        coords: false,
+                      })),
+                    ]
+                      .slice(0, 5)
+                      .map((r, i) => (
+                        <tr
+                          key={i}
+                          className="border-b border-line last:border-0"
+                        >
+                          <td className="px-2.5 py-1.5 font-medium">
+                            {r.name}
+                          </td>
+                          <td className="px-2.5 py-1.5 text-ink-3">
+                            {r.address ?? ""}
+                          </td>
+                          <td className="px-2.5 py-1.5 text-right tnum whitespace-nowrap">
+                            {r.dieselPrice
+                              ? `${r.dieselPrice} ${r.priceCurrency ?? currency}`
+                              : ""}
+                          </td>
+                          <td className="px-2.5 py-1.5 text-right text-ink-3 tnum whitespace-nowrap">
+                            {r.coords
+                              ? `${r.lat.toFixed(4)}, ${r.lng.toFixed(4)}`
+                              : sr
+                                ? "samo cena"
+                                : "price only"}
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -217,22 +431,49 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
           </div>
         )}
 
-        <label className="flex items-start gap-2.5 text-sm text-ink-2 sm:col-span-2">
-          <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} className="mt-0.5 size-4 accent-[var(--accent)]" />
-          <span>
-            {sr
-              ? `Zameni postojeće ${kind === "pump" ? "pumpe" : "prodavnice"}${supplierLabel ? ` dobavljača „${supplierLabel}“` : " bez dobavljača"} ovim spiskom (za ažuriranje liste).`
-              : `Replace the existing ${kind === "pump" ? "fuel stations" : "shops"}${supplierLabel ? ` of “${supplierLabel}”` : " without a supplier"} with this list (to update it).`}
-          </span>
-        </label>
+        {(parsed?.rows.length ?? 0) > 0 && (
+          <label className="flex items-start gap-2.5 text-sm text-ink-2 sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={replace}
+              onChange={(e) => setReplace(e.target.checked)}
+              className="mt-0.5 size-4 accent-[var(--accent)]"
+            />
+            <span>
+              {sr
+                ? `Zameni postojeće ${kind === "pump" ? "pumpe" : "prodavnice"}${supplierLabel ? ` dobavljača „${supplierLabel}“` : " bez dobavljača"} ovim spiskom (za ažuriranje liste).`
+                : `Replace the existing ${kind === "pump" ? "fuel stations" : "shops"}${supplierLabel ? ` of “${supplierLabel}”` : " without a supplier"} with this list (to update it).`}
+            </span>
+          </label>
+        )}
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-4 py-3">
-        <span className="text-sm text-bad">{message}</span>
+        {done ? (
+          <span className="text-sm text-good-ink">{done}</span>
+        ) : (
+          <span className="text-sm text-bad">{message}</span>
+        )}
         <div className="flex gap-2">
-          <Button onClick={onDone}>{sr ? "Otkaži" : "Cancel"}</Button>
-          <Button variant="primary" disabled={pending || !parsed?.rows.length} onClick={submit}>
-            {pending ? (sr ? "Uvozim…" : "Importing…") : sr ? `Uvezi ${parsed?.rows.length ?? ""}`.trim() : `Import ${parsed?.rows.length ?? ""}`.trim()}
-          </Button>
+          {done ? (
+            <Button variant="primary" onClick={onDone}>
+              {sr ? "Gotovo" : "Done"}
+            </Button>
+          ) : (
+            <>
+              <Button onClick={onDone}>{sr ? "Otkaži" : "Cancel"}</Button>
+              <Button
+                variant="primary"
+                disabled={pending || !total}
+                onClick={submit}
+              >
+                {pending
+                  ? sr
+                    ? "Uvozim…"
+                    : "Importing…"
+                  : `${sr ? "Uvezi" : "Import"} ${total || ""}`.trim()}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>
