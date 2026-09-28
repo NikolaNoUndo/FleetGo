@@ -67,12 +67,15 @@ export function UnderlineTabs<T extends string>({
   onChange?: (v: T) => void;
 }) {
   return (
-    <div role="tablist" className="no-scrollbar flex gap-6 overflow-x-auto border-b border-line">
+    // The bottom rule is an inset shadow and the active underline sits inside each tab,
+    // so nothing pokes below the scroll box: no vertical scroll, underline never clipped.
+    <div role="tablist" className="no-scrollbar flex gap-6 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--line)]">
       {items.map((it) => {
         const active = it.value === value;
         const cls = cn(
-          "focus-ring relative -mb-px inline-flex h-9 shrink-0 items-center gap-1.5 border-b-2 text-sm whitespace-nowrap transition-colors",
-          active ? "border-accent font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink-2",
+          "focus-ring relative inline-flex h-9 shrink-0 items-center gap-1.5 text-sm whitespace-nowrap transition-colors",
+          "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:transition-colors",
+          active ? "font-medium text-ink after:bg-accent" : "text-ink-3 after:bg-transparent hover:text-ink-2",
         );
         const inner = (
           <>
