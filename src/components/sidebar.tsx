@@ -212,7 +212,7 @@ export function Sidebar({
   const full = (mobile?: boolean) => (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center gap-2.5 pr-2 pl-3">
-        <RoadlineLogo height={15} className="opacity-95" />
+        <RoadlineLogo height={17} className="ml-1 opacity-95" />
         {!mobile && (
           <button
             type="button"
@@ -274,7 +274,7 @@ export function Sidebar({
   const rail = (
     <div className="flex h-full flex-col items-center">
       <div className="flex h-14 items-center">
-        <RoadlineMark height={18} className="opacity-95" />
+        <RoadlineMark size={28} />
       </div>
       <button
         type="button"
@@ -309,7 +309,7 @@ export function Sidebar({
   return (
     <>
       <div className="sticky top-[var(--bar-h,0px)] z-40 flex h-12 items-center gap-2.5 bg-side px-4 lg:hidden">
-        <RoadlineLogo height={14} className="opacity-95" />
+        <RoadlineLogo height={15} className="opacity-95" />
         <button type="button" onClick={() => setMobileOpen(true)} className="focus-ring ml-auto grid size-8 place-items-center rounded-lg text-side-ink-2 hover:bg-side-2" aria-label={t("nav.menu")}>
           <MenuIcon size={18} />
         </button>

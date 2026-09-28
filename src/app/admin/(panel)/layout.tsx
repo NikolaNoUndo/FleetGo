@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     <PrefsProvider value={{ locale: "sr", currency, rate: 117.2, warnDays: 30 }}>
       <div className="min-h-dvh bg-bg">
         <header className="flex h-14 items-center gap-3 bg-side px-4 sm:px-6">
-          <RoadlineLogo height={15} className="opacity-95" />
+          <RoadlineLogo height={17} className="opacity-95" />
           <span className="rounded border border-side-line px-1.5 text-xs font-medium text-side-ink-2">Admin</span>
           <form action={adminLogout} className="ml-auto">
             <button type="submit" className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm text-side-ink-2 hover:bg-side-2 hover:text-white">

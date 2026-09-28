@@ -14,7 +14,7 @@ export default async function AdminLoginPage() {
   return (
     <PrefsProvider value={{ locale, currency, rate: 117.2, warnDays: 30 }}>
       <div className="flex min-h-dvh flex-col items-center bg-side px-4 pt-16">
-        <RoadlineLogo height={20} className="mb-8" />
+        <RoadlineLogo height={22} className="mb-8" />
         <AdminLoginForm />
       </div>
     </PrefsProvider>
