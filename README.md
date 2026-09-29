@@ -108,7 +108,9 @@ Kod: `src/lib/telematics/` (jedan ulaz `getPositions`, provajder `wialon.ts`, pa
 - **Dodaj**: nalepi link sa Google mapa (i kratki `maps.app.goo.gl`), upiši „širina, dužina“ ili ostavi prazno pa se lokacija traži po adresi (OpenStreetMap Nominatim).
 - **Uvezi fajl**: CSV/TXT sa zaglavljem (naziv, adresa, grad, država, lat/lng), Garmin POI bez zaglavlja (dužina, širina, naziv, opis), KML ili GPX. Opcija „Zameni postojeće“ briše stare lokacije iste vrste i istog dobavljača, pa se lista lako osvežava novim fajlom.
 - **Cena dizela** (samo pumpe): upisuje se ručno ili dolazi iz fajla (kolone cena/dizel, valuta, datum). Spisak cena bez koordinata ažurira postojeće pumpe istog naziva i dobavljača. Klik na pumpu na mapi pokazuje samo naziv, cenu dizela, kada je ažurirana i koordinate. Ako fajl nema datum, „ažurirano“ je vreme uvoza.
-- Na mapi su gore desno pretraga (lokacije i vozila; izbor centrira mapu i otvara lokaciju čak i kad njen sloj nije uključen), „Pumpe“ (jedan prekidač) i „Delovi i servisi“ sa izborom po dobavljaču (Sve / Nijedna / pojedinačno). Ništa nije uključeno dok se ne čekira; izbor se pamti u pregledaču. Crtaju se samo lokacije u vidljivom delu mape, pa i nekoliko hiljada pumpi radi brzo.
+- Vrste lokacija: prodavnica delova, servis, pumpa, i naše lokacije: sedište firme (može više) i parking / plac.
+- Na mapi su gore desno pretraga (lokacije i vozila; izbor centrira mapu) i tri prekidača: „Pumpe“, „Delovi i servisi“ i „Firma“. Klik na naziv uključi ili isključi celu grupu, a strelica pored otvara izbor po mreži / dobavljaču (npr. samo Rapidex) ili po vrsti (sedište, parking). Kad se grupa ponovo uključi, vraća se prethodni izbor. Uključena grupa se odmah prikaže na mapi. Izbor važi dok je aplikacija otvorena u toj kartici; novi ulazak u aplikaciju kreće od nule.
+- Uvoz fajla bez koordinata: ako redovi imaju adresu i grad, „Pronađi po adresi“ ih nađe na mapi (OpenStreetMap, oko 1 u sekundi); ako ulica nije pronađena, uzima se grad i lokacija se označi kao približna.
 - Pravo izmene imaju oni koji mogu da menjaju dobavljače (delovi ili servisi); gledanje ima svako ko vidi Mapu uživo.
 
 ## Struktura

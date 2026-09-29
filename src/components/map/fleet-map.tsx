@@ -16,6 +16,7 @@ import type { MapPlace } from "@/lib/places";
 import { PLACE_COLORS } from "./place-colors";
 import { usePrefs } from "../prefs";
 import { relTime } from "@/lib/format";
+import { PLACE_KINDS, optLabel } from "@/lib/catalog";
 import { Check, Copy, MapPin, Phone, StickyNote } from "lucide-react";
 
 export type MapPoint = Position & { label: string };
@@ -59,10 +60,12 @@ const PLACE_GLYPH = {
   shop: '<path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>',
   service:
     '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/>',
+  hq: '<path d="M10 12h4"/><path d="M10 8h4"/><path d="M14 21v-3a2 2 0 0 0-4 0v3"/><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/>',
+  parking: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/>',
 } as const;
 
 /** Ask the map to center on a truck or a place; `n` changes on every click so a repeat click re-centers. */
-export type MapFocus = { type: "unit" | "place"; id: string; n: number } | null;
+export type MapFocus = { type: "unit" | "place"; id: string; n: number } | { type: "fit"; ids: string[]; n: number } | null;
 
 const placeIcons = new Map<string, L.DivIcon>();
 function placeIcon(kind: MapPlace["kind"]) {
@@ -86,15 +89,7 @@ function placeIcon(kind: MapPlace["kind"]) {
 /** Only markers inside the visible area are drawn, so thousands of stations stay fast. */
 const MAX_PLACE_MARKERS = 1500;
 
-function PlacesLayer({
-  places,
-  fit,
-  focus,
-}: {
-  places: MapPlace[];
-  fit: boolean;
-  focus: MapFocus;
-}) {
+function PlacesLayer({ places, focus }: { places: MapPlace[]; focus: MapFocus }) {
   const map = useMap();
   const markers = useRef(new Map<string, L.Marker>());
 
@@ -111,17 +106,16 @@ function PlacesLayer({
   const [bounds, setBounds] = useState(() => map.getBounds());
   useMapEvents({ moveend: () => setBounds(map.getBounds()) });
 
-  // with no vehicles on the map, frame the places the first time some are switched on
-  const has = places.length > 0;
+  // a group was just switched on (e.g. Rapidex): frame its places unless they are all in view
   useEffect(() => {
-    if (!fit || !has) return;
-    const b = L.latLngBounds(
-      places.map((p) => [p.lat, p.lng] as [number, number]),
-    );
-    if (!map.getBounds().intersects(b) || places.length < 50)
-      map.fitBounds(b.pad(0.15), { animate: false, maxZoom: 12 });
+    if (focus?.type !== "fit" || !focus.ids.length) return;
+    const ids = new Set(focus.ids);
+    const pts = places.filter((p) => ids.has(p.id)).map((p) => [p.lat, p.lng] as [number, number]);
+    if (!pts.length) return;
+    const b = L.latLngBounds(pts);
+    if (!map.getBounds().contains(b)) map.flyToBounds(b.pad(0.15), { maxZoom: 12, duration: 0.8 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fit, has, map]);
+  }, [focus, map]);
 
   const visible = useMemo(() => {
     const b = bounds.pad(0.25);
@@ -210,7 +204,7 @@ function PlacePopup({ p }: { p: MapPlace }) {
   const price =
     p.dieselPrice !== null ? new Intl.NumberFormat(tag, { minimumFractionDigits: 2, maximumFractionDigits: 3 }).format(p.dieselPrice) : null;
   const updated = p.priceUpdatedAt ? new Date(p.priceUpdatedAt) : null;
-  const kind = { pump: sr ? "Pumpa" : "Fuel station", shop: sr ? "Prodavnica delova" : "Parts shop", service: sr ? "Servis" : "Workshop" }[p.kind];
+  const kind = optLabel(PLACE_KINDS, p.kind, locale);
   return (
     <div className="min-w-[240px] font-sans text-[13px] leading-snug text-ink">
       <div className="pr-4 font-semibold">{p.name}</div>
@@ -334,7 +328,7 @@ export default function FleetMap({
       />
       <Fit points={valid} focus={focus} />
       {places && (
-        <PlacesLayer places={places} fit={valid.length === 0} focus={focus} />
+        <PlacesLayer places={places} focus={focus} />
       )}
       {valid.map((p) => (
         <Marker

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, FileUp } from "lucide-react";
+import { ExternalLink, FileUp, MapPin } from "lucide-react";
 import { DataTable, type Column, type Filter } from "../data-table";
 import { SupplierPicker, useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
@@ -12,6 +12,7 @@ import { AddButton, Stack } from "./common";
 import { KindDot } from "../map/map-overlay";
 import { importPlaces } from "@/app/actions";
 import { parsePlacesFile, type ParsedPlaces } from "@/lib/place-import";
+import { geocodeRows, type GeoResult } from "@/lib/geocode-client";
 import { relTime } from "@/lib/format";
 import { PLACE_KINDS, PRICE_CURRENCIES, optLabel } from "@/lib/catalog";
 import type { Refs } from "@/lib/resources";
@@ -145,6 +146,11 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
       label: sr ? "Pumpe" : "Fuel",
       predicate: (r) => r.kind === "pump",
     },
+    {
+      value: "company",
+      label: sr ? "Firma" : "Company",
+      predicate: (r) => r.kind === "hq" || r.kind === "parking",
+    },
   ];
 
   return (
@@ -205,12 +211,33 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
     () => (text.trim() ? parsePlacesFile(text) : null),
     [text],
   );
+  // rows with only an address get coordinates in the browser (OpenStreetMap), on request
+  const [geoState, setGeo] = useState<{ text: string; result: GeoResult } | null>(null);
+  const [geoDone, setGeoDone] = useState<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const geo = geoState?.text === text ? geoState.result : null;
+  const toGeocode = parsed?.toGeocode ?? [];
+  const allRows = [...(parsed?.rows ?? []), ...(geo?.found ?? []).map(({ approx: _approx, ...r }) => r)];
+  const findCoords = async () => {
+    abortRef.current?.abort();
+    const ctl = new AbortController();
+    abortRef.current = ctl;
+    setGeoDone(0);
+    try {
+      const result = await geocodeRows(toGeocode, setGeoDone, ctl.signal);
+      setGeo({ text, result });
+    } catch {
+      /* stopped */
+    } finally {
+      setGeoDone(null);
+    }
+  };
   const updates = kind === "pump" ? (parsed?.updates.length ?? 0) : 0;
   const pricedRows =
     kind === "pump"
-      ? (parsed?.rows.filter((r) => r.dieselPrice).length ?? 0)
+      ? allRows.filter((r) => r.dieselPrice).length
       : 0;
-  const total = (parsed?.rows.length ?? 0) + updates;
+  const total = allRows.length + updates;
 
   const onFile = async (f: File | undefined) => {
     if (!f) return;
@@ -227,19 +254,19 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
 
   const submit = () =>
     start(async () => {
-      if (!parsed || (!parsed.rows.length && !parsed.updates.length)) return;
+      if (!parsed || (!allRows.length && !parsed.updates.length)) return;
       // send in parts to stay well under the request size limit; only the first part replaces
       let sup = supplier;
       let added = 0;
       let updated = 0;
-      const n = Math.max(parsed.rows.length, parsed.updates.length);
+      const n = Math.max(allRows.length, parsed.updates.length);
       for (let i = 0; i < n; i += 2000) {
         const res = await importPlaces({
           kind,
           supplier: sup,
           currency,
           replace: replace && i === 0,
-          rows: parsed.rows.slice(i, i + 2000),
+          rows: allRows.slice(i, i + 2000),
           updates: kind === "pump" ? parsed.updates.slice(i, i + 2000) : [],
         });
         if (!res.ok) {
@@ -357,6 +384,38 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
           />
         </FieldShell>
 
+        {toGeocode.length > 0 && (
+          <div className="rounded-lg border border-line bg-surface-2/60 px-3 py-2.5 text-sm sm:col-span-2">
+            {geo ? (
+              <span className={geo.missing.length ? "text-warn-ink" : "text-good-ink"}>
+                {sr
+                  ? `Po adresi pronađeno: ${geo.found.length}${geo.found.some((r) => r.approx) ? ` (${geo.found.filter((r) => r.approx).length} približno, po gradu)` : ""}${geo.missing.length ? `. Nije pronađeno: ${geo.missing.map((r) => r.name).join(", ")}` : ""}.`
+                  : `Found by address: ${geo.found.length}${geo.found.some((r) => r.approx) ? ` (${geo.found.filter((r) => r.approx).length} approximate, by city)` : ""}${geo.missing.length ? `. Not found: ${geo.missing.map((r) => r.name).join(", ")}` : ""}.`}
+              </span>
+            ) : geoDone !== null ? (
+              <span className="flex items-center justify-between gap-3">
+                <span className="text-ink-2 tnum">
+                  {sr ? "Tražim lokacije po adresi…" : "Looking up addresses…"} {geoDone}/{toGeocode.length}
+                </span>
+                <Button size="sm" onClick={() => abortRef.current?.abort()}>
+                  {sr ? "Zaustavi" : "Stop"}
+                </Button>
+              </span>
+            ) : (
+              <span className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-ink-2">
+                  {sr
+                    ? `${toGeocode.length} redova ima adresu, ali ne i koordinate. Mogu da ih nađem na mapi (oko ${Math.ceil((toGeocode.length * 1.2) / 60)} min).`
+                    : `${toGeocode.length} rows have an address but no coordinates. I can find them on the map (about ${Math.ceil((toGeocode.length * 1.2) / 60)} min).`}
+                </span>
+                <Button size="sm" variant="primary" onClick={findCoords}>
+                  <MapPin /> {sr ? "Pronađi po adresi" : "Find by address"}
+                </Button>
+              </span>
+            )}
+          </div>
+        )}
+
         {parsed && (
           <div className="sm:col-span-2">
             <div
@@ -368,8 +427,8 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
               {total
                 ? sr
                   ? [
-                      parsed.rows.length
-                        ? `Pronađeno ${parsed.rows.length} lokacija${pricedRows ? ` (${pricedRows} sa cenom)` : ""}`
+                      allRows.length
+                        ? `Pronađeno ${allRows.length} lokacija${pricedRows ? ` (${pricedRows} sa cenom)` : ""}`
                         : "",
                       updates
                         ? `${updates} cena za postojeće pumpe (po nazivu)`
@@ -382,8 +441,8 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
                       : "") +
                     "."
                   : [
-                      parsed.rows.length
-                        ? `Found ${parsed.rows.length} places${pricedRows ? ` (${pricedRows} with a price)` : ""}`
+                      allRows.length
+                        ? `Found ${allRows.length} places${pricedRows ? ` (${pricedRows} with a price)` : ""}`
                         : "",
                       updates
                         ? `${updates} prices for existing stations (by name)`
@@ -402,7 +461,7 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
                 <table className="w-full text-xs">
                   <tbody>
                     {[
-                      ...parsed.rows.map((r) => ({ ...r, coords: true })),
+                      ...allRows.map((r) => ({ ...r, coords: true })),
                       ...parsed.updates.map((u) => ({
                         ...u,
                         address: null,

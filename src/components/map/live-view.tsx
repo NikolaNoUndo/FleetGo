@@ -11,12 +11,8 @@ import type { PositionsResult } from "@/lib/telematics/types";
 import type { MapPoint } from "./fleet-map";
 import { relTime } from "@/lib/format";
 import type { MapPlace } from "@/lib/places";
-import {
-  MapOverlay,
-  NO_SUPPLIER,
-  type Layers,
-  type MapHit,
-} from "./map-overlay";
+import { MapOverlay, type MapHit } from "./map-overlay";
+import { isShown, parseLayers, type Layers } from "./layers";
 import type { MapFocus } from "./fleet-map";
 
 const FleetMap = dynamic(() => import("./fleet-map"), {
@@ -126,23 +122,13 @@ const DOT = {
   offline: "bg-ink-4",
 } as const;
 
-/* ---------- Shops / fuel stations toggles (top right of the map) ---------- */
+/* ---------- Which places are switched on (top right of the map) ---------- */
 
-const LAYERS_KEY = "rl_map_layers";
+const LAYERS_KEY = "rl_map_layers_v2";
 
-function parseLayers(raw: string | null): Layers {
-  try {
-    const j = JSON.parse(raw ?? "null");
-    if (j && typeof j.pumps === "boolean" && Array.isArray(j.shops))
-      return { pumps: j.pumps, shops: j.shops.map(String) };
-  } catch {
-    /* bad value */
-  }
-  return { pumps: false, shops: [] };
-}
-
-// The choice lives in this browser only (per viewer), read through an external store
-// so the server render and first paint show nothing switched on.
+// Kept for this browser tab only (sessionStorage): the choice survives moving between
+// pages and reloads, but opening the app anew starts with everything switched off.
+// Read through an external store so the server render and first paint show nothing on.
 const layerListeners = new Set<() => void>();
 let memoryLayers: string | null = null;
 const layerStore = {
@@ -152,7 +138,7 @@ const layerStore = {
   },
   get(): string | null {
     try {
-      return localStorage.getItem(LAYERS_KEY);
+      return sessionStorage.getItem(LAYERS_KEY);
     } catch {
       return memoryLayers;
     }
@@ -161,7 +147,7 @@ const layerStore = {
     const raw = JSON.stringify(l);
     memoryLayers = raw;
     try {
-      localStorage.setItem(LAYERS_KEY, raw);
+      sessionStorage.setItem(LAYERS_KEY, raw);
     } catch {
       /* private mode: keep it in memory */
     }
@@ -170,24 +156,15 @@ const layerStore = {
 };
 
 function usePlaceLayers(places: MapPlace[]) {
-  const raw = useSyncExternalStore(
-    layerStore.subscribe,
-    layerStore.get,
-    () => null,
-  );
+  const raw = useSyncExternalStore(layerStore.subscribe, layerStore.get, () => null);
   const layers = useMemo(() => parseLayers(raw), [raw]);
-  const shown = useMemo(() => {
-    const shops = new Set(layers.shops);
-    return places.filter((p) =>
-      p.kind === "pump" ? layers.pumps : shops.has(p.supplierId ?? NO_SUPPLIER),
-    );
-  }, [places, layers]);
+  const shown = useMemo(() => places.filter((p) => isShown(p, layers)), [places, layers]);
   return { layers, setLayers: layerStore.set, shown };
 }
 
 export function LiveView({ places = [] }: { places?: MapPlace[] }) {
   const { t, locale, can } = usePrefs();
-  const { layers, setLayers, shown } = usePlaceLayers(places);
+  const { layers, setLayers: storeLayers, shown } = usePlaceLayers(places);
   const { data, points, error, paused } = useLivePositions();
   const [selected, setSelected] = useState<string | null>(null);
   const [focus, setFocus] = useState<MapFocus>(null);
@@ -196,6 +173,13 @@ export function LiveView({ places = [] }: { places?: MapPlace[] }) {
   const select = (unitId: string) => {
     setSelected(unitId);
     setFocus((f) => ({ type: "unit", id: unitId, n: (f?.n ?? 0) + 1 }));
+  };
+  // switching a group on (e.g. Rapidex) also moves the map to show its places
+  const setLayers = (next: Layers) => {
+    const before = new Set(shown.map((p) => p.id));
+    const added = places.filter((p) => isShown(p, next) && !before.has(p.id)).map((p) => p.id);
+    storeLayers(next);
+    if (added.length) setFocus((f) => ({ type: "fit", ids: added, n: (f?.n ?? 0) + 1 }));
   };
   const onPick = (h: MapHit) => {
     if (h.type === "unit") return select(h.point.unitId);

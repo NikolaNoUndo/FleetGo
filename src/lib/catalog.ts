@@ -149,7 +149,13 @@ export const ALL_DOC_TYPES: Option[] = (() => {
   return [...seen.values()];
 })();
 
-export const PLACE_KINDS: Option[] = [o("shop", "Prodavnica delova", "Parts shop"), o("service", "Servis", "Workshop"), o("pump", "Pumpa", "Fuel station")];
+export const PLACE_KINDS: Option[] = [
+  o("shop", "Prodavnica delova", "Parts shop"),
+  o("service", "Servis", "Workshop"),
+  o("pump", "Pumpa", "Fuel station"),
+  o("hq", "Sedište firme", "Head office"),
+  o("parking", "Parking / plac", "Parking / yard"),
+];
 
 /** Kinds of "other costs": company overhead, not fuel/services/parts/driver pay. */
 export const EXPENSE_CATEGORIES: Option[] = [

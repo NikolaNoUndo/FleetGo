@@ -2,85 +2,57 @@
 
 import Link from "@/components/ui/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowUpRight,
-  Check,
-  ChevronDown,
-  Fuel,
-  Search,
-  Store,
-  Truck,
-  Wrench,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, Building2, Check, ChevronDown, Fuel, Minus, Search, SquareParking, Store, Truck, Wrench, X } from "lucide-react";
 import { usePrefs } from "../prefs";
 import { cn } from "../ui/primitives";
 import { PLACE_COLORS } from "./place-colors";
 import type { MapPlace, PlaceKind } from "@/lib/places";
 import type { MapPoint } from "./fleet-map";
+import { groupState, setAll, subGroups, toggleGroup, toggleSub, type GroupKey, type Layers } from "./layers";
 
-export type Layers = { pumps: boolean; shops: string[] };
-export const NO_SUPPLIER = "_none";
+const KIND_ICON: Record<PlaceKind, typeof Fuel> = { pump: Fuel, shop: Store, service: Wrench, hq: Building2, parking: SquareParking };
 
-const KIND_ICON: Record<PlaceKind, typeof Fuel> = {
-  pump: Fuel,
-  shop: Store,
-  service: Wrench,
-};
-
-export function KindDot({
-  kind,
-  size = 18,
-}: {
-  kind: PlaceKind;
-  size?: number;
-}) {
+export function KindDot({ kind, size = 18 }: { kind: PlaceKind; size?: number }) {
   const Icon = KIND_ICON[kind];
   return (
-    <span
-      className="flex shrink-0 items-center justify-center rounded-full text-white"
-      style={{ width: size, height: size, background: PLACE_COLORS[kind] }}
-    >
+    <span className="flex shrink-0 items-center justify-center rounded-full text-white" style={{ width: size, height: size, background: PLACE_COLORS[kind] }}>
       <Icon size={Math.round(size * 0.58)} strokeWidth={2} />
     </span>
   );
 }
 
-function Check2({ on, color }: { on: boolean; color: string }) {
+function Check3({ state, color }: { state: "checked" | "mixed" | "off"; color: string }) {
+  const on = state !== "off";
   return (
     <span
-      className={cn(
-        "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
-        on ? "border-transparent text-white" : "border-line-strong bg-surface",
-      )}
+      className={cn("flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors", on ? "border-transparent text-white" : "border-line-strong bg-surface")}
       style={on ? { background: color } : undefined}
     >
-      {on && <Check size={11} strokeWidth={3} />}
+      {state === "checked" && <Check size={11} strokeWidth={3} />}
+      {state === "mixed" && <Minus size={11} strokeWidth={3} />}
     </span>
   );
 }
 
 function useDismiss(open: boolean, close: () => void) {
   const ref = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  });
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e: MouseEvent) =>
-      !ref.current?.contains(e.target as Node) && close();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    const onDoc = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && closeRef.current();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeRef.current();
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, close]);
+  }, [open]);
   return ref;
 }
-
-const chip =
-  "inline-flex h-8 items-center gap-2 rounded-lg border border-line bg-surface/95 px-2.5 text-[13px] font-medium text-ink shadow-xs backdrop-blur transition-colors hover:bg-surface-2";
-
-/* ---------- Search: places (all of them, switched on or not) and trucks ---------- */
 
 type Hit =
   { type: "place"; place: MapPlace } | { type: "unit"; point: MapPoint };
@@ -221,6 +193,121 @@ function MapSearch({
 
 /* ---------- Toggles ---------- */
 
+/* ---------- Layer switches: click the name for all, the arrow to pick ---------- */
+
+const GROUP_META: Record<GroupKey, { icon: typeof Fuel; color: string; sr: string; en: string }> = {
+  pumps: { icon: Fuel, color: PLACE_COLORS.pump, sr: "Pumpe", en: "Fuel" },
+  shops: { icon: Store, color: PLACE_COLORS.shop, sr: "Delovi i servisi", en: "Parts & workshops" },
+  company: { icon: Building2, color: PLACE_COLORS.hq, sr: "Firma", en: "Company" },
+};
+
+function GroupSwitch({
+  group,
+  places,
+  layers,
+  setLayers,
+  open,
+  setOpen,
+}: {
+  group: GroupKey;
+  places: MapPlace[];
+  layers: Layers;
+  setLayers: (l: Layers) => void;
+  open: boolean;
+  setOpen: (o: boolean) => void;
+}) {
+  const { locale, can } = usePrefs();
+  const sr = locale === "sr";
+  const meta = GROUP_META[group];
+  const Icon = meta.icon;
+  const subs = useMemo(() => subGroups(places, group, locale), [places, group, locale]);
+  const total = subs.reduce((n, s) => n + s.count, 0);
+  const state = groupState(layers, group, subs);
+  const g = layers[group];
+  const onSub = (key: string) => g.on && (g.sel === null || g.sel.includes(key));
+  const ref = useDismiss(open, () => setOpen(false));
+  const disabled = total === 0;
+
+  return (
+    <div ref={ref} className="relative">
+      <div className={cn("inline-flex h-8 items-stretch overflow-hidden rounded-lg border border-line bg-surface/95 text-[13px] font-medium text-ink shadow-xs backdrop-blur", disabled && "opacity-60")}>
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={state === "mixed" ? "mixed" : state === "checked"}
+          disabled={disabled}
+          onClick={() => setLayers(toggleGroup(layers, group))}
+          title={disabled ? (sr ? "Još nema unetih lokacija" : "No places added yet") : sr ? "Prikaži / sakrij sve" : "Show / hide all"}
+          className="inline-flex items-center gap-2 pr-2 pl-2.5 transition-colors enabled:hover:bg-surface-2 disabled:cursor-not-allowed"
+        >
+          <Check3 state={state} color={meta.color} />
+          <Icon size={14} className="hidden sm:block" style={{ color: meta.color }} />
+          {sr ? meta.sr : meta.en}
+          <span className="text-xs text-ink-3 tnum">{state === "mixed" ? `${subs.filter((s) => onSub(s.key)).length}/${subs.length}` : total}</span>
+        </button>
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label={sr ? `Izaberi: ${meta.sr}` : `Choose: ${meta.en}`}
+          onClick={() => setOpen(!open)}
+          className="grid w-7 place-items-center border-l border-line text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+        >
+          <ChevronDown size={14} className={cn("transition-transform", open && "rotate-180")} />
+        </button>
+      </div>
+      {open && (
+        <div role="dialog" className="animate-pop absolute top-full right-0 z-10 mt-1.5 w-72 rounded-xl border border-line bg-surface p-1.5 text-ink shadow-pop">
+          {subs.length > 0 ? (
+            <>
+              <div className="flex items-center justify-between px-2 pt-1 pb-1.5 text-xs text-ink-3">
+                <span>{sr ? "Prikaži na mapi" : "Show on map"}</span>
+                <span className="flex gap-2">
+                  <button type="button" className="font-medium text-accent hover:underline" onClick={() => setLayers(setAll(layers, group, true))}>
+                    {sr ? "Sve" : "All"}
+                  </button>
+                  <button type="button" className="font-medium text-accent hover:underline" onClick={() => setLayers(setAll(layers, group, false))}>
+                    {sr ? "Nijedna" : "None"}
+                  </button>
+                </span>
+              </div>
+              <ul className="max-h-64 overflow-y-auto">
+                {subs.map((sub) => (
+                  <li key={sub.key}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={onSub(sub.key)}
+                      onClick={() => setLayers(toggleSub(layers, group, sub.key, subs))}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-2"
+                    >
+                      <Check3 state={onSub(sub.key) ? "checked" : "off"} color={meta.color} />
+                      <span className="min-w-0 flex-1 truncate">{sub.label}</span>
+                      <span className="flex gap-0.5">
+                        {sub.kinds.map((k) => (
+                          <KindDot key={k} kind={k} size={16} />
+                        ))}
+                      </span>
+                      <span className="w-6 text-right text-xs text-ink-3 tnum">{sub.count}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="px-2 py-2 text-sm text-ink-3">{sr ? "Još nema unetih lokacija ove vrste." : "No places of this kind yet."}</p>
+          )}
+          <div className="mt-1 border-t border-line px-2 pt-2 pb-1">
+            <Link href="/live/places" className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline">
+              {can("suppliers", "edit") ? (sr ? "Dodaj ili izmeni lokacije" : "Add or edit places") : sr ? "Sve lokacije" : "All places"} <ArrowUpRight size={12} />
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function MapOverlay({
   places,
   points,
@@ -234,177 +321,13 @@ export function MapOverlay({
   setLayers: (l: Layers) => void;
   onPick: (h: Hit) => void;
 }) {
-  const { locale, can } = usePrefs();
-  const L = (sr: string, en: string) => (locale === "sr" ? sr : en);
-  const [open, setOpen] = useState(false);
-  const ref = useDismiss(open, () => setOpen(false));
-
-  const pumps = places.filter((p) => p.kind === "pump").length;
-  // parts shops and workshops, grouped by supplier (e.g. every Rapidex store)
-  const groups = useMemo(() => {
-    const m = new Map<
-      string,
-      { key: string; label: string; count: number; kinds: Set<PlaceKind> }
-    >();
-    for (const p of places) {
-      if (p.kind === "pump") continue;
-      const key = p.supplierId ?? NO_SUPPLIER;
-      const g = m.get(key) ?? {
-        key,
-        label: p.supplierName ?? L("Bez dobavljača", "No supplier"),
-        count: 0,
-        kinds: new Set<PlaceKind>(),
-      };
-      g.count++;
-      g.kinds.add(p.kind);
-      m.set(key, g);
-    }
-    return [...m.values()].sort((a, b) =>
-      a.key === NO_SUPPLIER
-        ? 1
-        : b.key === NO_SUPPLIER
-          ? -1
-          : a.label.localeCompare(b.label),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [places, locale]);
-  const on = new Set(
-    layers.shops.filter((k) => groups.some((g) => g.key === k)),
-  );
-  const toggleShop = (k: string) =>
-    setLayers({
-      ...layers,
-      shops: on.has(k) ? [...on].filter((x) => x !== k) : [...on, k],
-    });
-
+  const [open, setOpen] = useState<GroupKey | null>(null);
   return (
     <div className="absolute top-3 right-3 left-14 z-[500] flex flex-wrap items-start justify-end gap-1.5">
       <MapSearch places={places} points={points} onPick={onPick} />
-
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={layers.pumps}
-        disabled={!pumps}
-        onClick={() => setLayers({ ...layers, pumps: !layers.pumps })}
-        className={cn(
-          chip,
-          !pumps && "cursor-not-allowed opacity-60 hover:bg-surface/95",
-        )}
-        title={
-          pumps
-            ? undefined
-            : L("Još nema unetih pumpi", "No fuel stations added yet")
-        }
-      >
-        <Check2 on={layers.pumps && pumps > 0} color={PLACE_COLORS.pump} />
-        <Fuel size={14} className="hidden sm:block" style={{ color: PLACE_COLORS.pump }} />
-        {L("Pumpe", "Fuel")}
-        <span className="text-xs text-ink-3 tnum">{pumps}</span>
-      </button>
-
-      <div ref={ref} className="relative">
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-          className={chip}
-        >
-          <Check2 on={on.size > 0} color={PLACE_COLORS.shop} />
-          <Store size={14} className="hidden sm:block" style={{ color: PLACE_COLORS.shop }} />
-          {L("Delovi i servisi", "Parts & workshops")}
-          <span className="text-xs text-ink-3 tnum">
-            {on.size ? `${on.size}/${groups.length}` : groups.length}
-          </span>
-          <ChevronDown
-            size={14}
-            className={cn(
-              "text-ink-3 transition-transform",
-              open && "rotate-180",
-            )}
-          />
-        </button>
-        {open && (
-          <div
-            role="dialog"
-            className="animate-pop absolute top-full right-0 mt-1.5 w-72 rounded-xl border border-line bg-surface p-1.5 text-ink shadow-pop"
-          >
-            {groups.length > 0 ? (
-              <>
-                <div className="flex items-center justify-between px-2 pt-1 pb-1.5 text-xs text-ink-3">
-                  <span>{L("Prikaži na mapi", "Show on map")}</span>
-                  <span className="flex gap-2">
-                    <button
-                      type="button"
-                      className="font-medium text-accent hover:underline"
-                      onClick={() =>
-                        setLayers({
-                          ...layers,
-                          shops: groups.map((g) => g.key),
-                        })
-                      }
-                    >
-                      {L("Sve", "All")}
-                    </button>
-                    <button
-                      type="button"
-                      className="font-medium text-accent hover:underline"
-                      onClick={() => setLayers({ ...layers, shops: [] })}
-                    >
-                      {L("Nijedna", "None")}
-                    </button>
-                  </span>
-                </div>
-                <ul className="max-h-64 overflow-y-auto">
-                  {groups.map((g) => (
-                    <li key={g.key}>
-                      <button
-                        type="button"
-                        role="checkbox"
-                        aria-checked={on.has(g.key)}
-                        onClick={() => toggleShop(g.key)}
-                        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-2"
-                      >
-                        <Check2 on={on.has(g.key)} color={PLACE_COLORS.shop} />
-                        <span className="min-w-0 flex-1 truncate">
-                          {g.label}
-                        </span>
-                        <span className="flex gap-0.5">
-                          {[...g.kinds].map((k) => (
-                            <KindDot key={k} kind={k} size={16} />
-                          ))}
-                        </span>
-                        <span className="w-5 text-right text-xs text-ink-3 tnum">
-                          {g.count}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <p className="px-2 py-2 text-sm text-ink-3">
-                {L(
-                  "Još nema unetih prodavnica ni servisa.",
-                  "No shops or workshops added yet.",
-                )}
-              </p>
-            )}
-            <div className="mt-1 border-t border-line px-2 pt-2 pb-1">
-              <Link
-                href="/live/places"
-                className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
-              >
-                {can("suppliers", "edit")
-                  ? L("Dodaj ili izmeni lokacije", "Add or edit places")
-                  : L("Sve lokacije", "All places")}{" "}
-                <ArrowUpRight size={12} />
-              </Link>
-            </div>
-          </div>
-        )}
-      </div>
+      {(["pumps", "shops", "company"] as const).map((g) => (
+        <GroupSwitch key={g} group={g} places={places} layers={layers} setLayers={setLayers} open={open === g} setOpen={(o) => setOpen(o ? g : null)} />
+      ))}
     </div>
   );
 }

@@ -14,6 +14,7 @@ import { DOC_TYPES, OPTION_SETS, type EntityType } from "@/lib/catalog";
 import { getPositions, normalizeWialonHost } from "@/lib/telematics";
 import { resolveLocation, validLatLng } from "@/lib/geo";
 import { addMonthsDate, MAX_SPREAD } from "@/lib/expenses";
+import { asPlaceKind } from "@/lib/places";
 
 const TABLES = {
   vehicles: schema.vehicles,
@@ -471,6 +472,7 @@ type ImportRow = {
   name: string;
   address?: string | null;
   phone?: string | null;
+  note?: string | null;
   lat: number;
   lng: number;
   dieselPrice?: number | null;
@@ -508,7 +510,7 @@ export async function importPlaces(input: {
     return { ok: false, message: "Nemaš pravo izmene lokacija." };
   }
   const companyId = ctx.company.id;
-  const kind = input.kind === "pump" || input.kind === "service" ? input.kind : "shop";
+  const kind = asPlaceKind(String(input.kind));
   const rowsIn = Array.isArray(input.rows) ? input.rows : [];
   const updatesIn = kind === "pump" && Array.isArray(input.updates) ? input.updates : [];
   if (!rowsIn.length && !updatesIn.length) return { ok: false, message: "Fajl nema nijednu lokaciju." };
@@ -528,8 +530,9 @@ export async function importPlaces(input: {
     }
     const address = String(r?.address ?? "").trim().slice(0, 300) || null;
     const phone = String(r?.phone ?? "").trim().slice(0, 60) || null;
+    const note = String(r?.note ?? "").trim().slice(0, 300) || null;
     const price = kind === "pump" ? importPrice(r?.dieselPrice, r?.priceCurrency, fallbackCurrency, r?.priceUpdatedAt) : null;
-    clean.push({ companyId, kind, supplierId, name, address, phone, lat, lng, ...(price ?? {}) });
+    clean.push({ companyId, kind, supplierId, name, address, phone, note, lat, lng, ...(price ?? {}) });
   }
 
   const prices = updatesIn

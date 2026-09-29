@@ -8,6 +8,7 @@ export type PlaceImportRow = {
   name: string;
   address?: string | null;
   phone?: string | null;
+  note?: string | null;
   lat: number;
   lng: number;
   dieselPrice?: number | null;
@@ -17,7 +18,16 @@ export type PlaceImportRow = {
 };
 /** A price for a station that is already in the list, matched by name (price lists often have no coordinates). */
 export type PriceUpdate = { name: string; dieselPrice: number; priceCurrency?: string | null; priceUpdatedAt?: string | null };
-export type ParsedPlaces = { rows: PlaceImportRow[]; updates: PriceUpdate[]; skipped: number; format: "csv" | "kml" | "gpx" | "unknown" };
+/** A row with an address but no coordinates; the browser looks it up before importing. */
+export type GeoRow = Omit<PlaceImportRow, "lat" | "lng"> & { street: string; city: string; country: string };
+export type ParsedPlaces = {
+  rows: PlaceImportRow[];
+  updates: PriceUpdate[];
+  /** rows that only have an address */
+  toGeocode: GeoRow[];
+  skipped: number;
+  format: "csv" | "kml" | "gpx" | "unknown";
+};
 
 /** "1,459", "1.459 €", "195,50 RSD", "1 234,5" → number (+ currency if written next to it) */
 export function parsePrice(raw: string | undefined): { value: number; currency: string | null } | null {
@@ -55,7 +65,7 @@ const clean = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").t
 
 function parseXml(text: string): ParsedPlaces {
   const doc = new DOMParser().parseFromString(text, "application/xml");
-  if (doc.getElementsByTagName("parsererror").length) return { rows: [], updates: [], skipped: 0, format: "unknown" };
+  if (doc.getElementsByTagName("parsererror").length) return { rows: [], updates: [], toGeocode: [], skipped: 0, format: "unknown" };
   const rows: PlaceImportRow[] = [];
   let skipped = 0;
   const child = (el: Element, tag: string) => clean(el.getElementsByTagName(tag)[0]?.textContent);
@@ -69,7 +79,7 @@ function parseXml(text: string): ParsedPlaces {
       if (!ok(lat, lng) || !name) skipped++;
       else rows.push({ name, address: child(w, "desc") || child(w, "cmt") || null, lat, lng });
     }
-    return { rows, updates: [], skipped, format: "gpx" };
+    return { rows, updates: [], toGeocode: [], skipped, format: "gpx" };
   }
 
   for (const pm of [...doc.getElementsByTagName("Placemark")]) {
@@ -82,7 +92,7 @@ function parseXml(text: string): ParsedPlaces {
     if (!ok(lat, lng) || !name) skipped++;
     else rows.push({ name, address: desc || null, lat, lng });
   }
-  return { rows, updates: [], skipped, format: rows.length || skipped ? "kml" : "unknown" };
+  return { rows, updates: [], toGeocode: [], skipped, format: rows.length || skipped ? "kml" : "unknown" };
 }
 
 /* ---------- CSV ---------- */
@@ -142,6 +152,7 @@ const H = {
   price: /(diesel|dizel|nafta|^cena$|^cijena$|^price$|^unit price$|cena po litru|price per l)/i,
   currency: /^(currency|valuta|curr\.?)$/i,
   phone: /(phone|telefon|^tel\.?$|mobile|mob\.?$|kontakt)/i,
+  note: /^(napomena|note|notes|radno vreme|radno vrijeme|hours|opening hours)$/i,
   date: /(updated|ažurirano|azurirano|^datum|^date|valid from|važi od|vazi od|last change|izmena|promena)/i,
   address: /(address|adresa|street|ulica)/i,
   city: /(^city$|grad|mesto|town|place|locality)/i,
@@ -156,7 +167,7 @@ export function parsePlacesFile(input: string): ParsedPlaces {
   const firstLine = text.split(/\r?\n/).find((l) => l.trim()) ?? "";
   const d = detectDelimiter(firstLine);
   const table = splitCsv(text, d).map((r) => r.map((c) => c.trim()));
-  if (!table.length) return { rows: [], updates: [], skipped: 0, format: "unknown" };
+  if (!table.length) return { rows: [], updates: [], toGeocode: [], skipped: 0, format: "unknown" };
   const num = (s: string | undefined) => {
     if (!s) return NaN;
     const v = d === "," ? s : s.replace(",", ".");
@@ -167,6 +178,7 @@ export function parsePlacesFile(input: string): ParsedPlaces {
   const isHeader = head.some((c) => Object.values(H).some((re) => re.test(c))) && !head.some((c) => Number.isFinite(num(c)));
   const rows: PlaceImportRow[] = [];
   const updates: PriceUpdate[] = [];
+  const toGeocode: GeoRow[] = [];
   let skipped = 0;
 
   if (isHeader) {
@@ -187,6 +199,7 @@ export function parsePlacesFile(input: string): ParsedPlaces {
       city: find(H.city),
       zip: find(H.zip),
       country: find(H.country),
+      note: find(H.note),
     };
     for (const r of table.slice(1)) {
       let lat = num(r[ci.lat]);
@@ -195,7 +208,9 @@ export function parsePlacesFile(input: string): ParsedPlaces {
         const m = (r[ci.both] ?? "").match(/(-?\d{1,3}[.,]\d+)\s*[,; ]\s*(-?\d{1,3}[.,]\d+)/);
         if (m) [lat, lng] = [Number(m[1].replace(",", ".")), Number(m[2].replace(",", "."))];
       }
-      const address = [r[ci.address], [r[ci.zip], r[ci.city]].filter(Boolean).join(" "), r[ci.country]]
+      // a bare country code ("RS", "BA") adds nothing to a readable address
+      const countryText = /^[A-Za-z]{2,3}$/.test(clean(r[ci.country])) ? "" : r[ci.country];
+      const address = [r[ci.address], [r[ci.zip], r[ci.city]].filter(Boolean).join(" "), countryText]
         .map((x) => clean(x))
         .filter(Boolean)
         .join(", ");
@@ -203,11 +218,15 @@ export function parsePlacesFile(input: string): ParsedPlaces {
       const price = ci.price >= 0 ? parsePrice(r[ci.price]) : null;
       const priceCurrency = price ? (clean(r[ci.currency]).toUpperCase().slice(0, 3) || price.currency) : null;
       const priceUpdatedAt = price && ci.date >= 0 ? parseDateTime(r[ci.date]) : null;
-      if (name && ok(lat, lng)) rows.push({ name, address: address || null, phone: clean(r[ci.phone]) || null, lat, lng, dieselPrice: price?.value ?? null, priceCurrency, priceUpdatedAt });
+      const extra = { phone: clean(r[ci.phone]) || null, note: clean(r[ci.note]) || null, dieselPrice: price?.value ?? null, priceCurrency, priceUpdatedAt };
+      const street = clean(r[ci.address]);
+      const city = clean(r[ci.city]);
+      if (name && ok(lat, lng)) rows.push({ name, address: address || null, lat, lng, ...extra });
+      else if (name && (street || city)) toGeocode.push({ name, address: address || null, street, city, country: clean(r[ci.country]), ...extra });
       else if (name && price) updates.push({ name, dieselPrice: price.value, priceCurrency, priceUpdatedAt });
       else skipped++;
     }
-    return { rows, updates, skipped, format: "csv" };
+    return { rows, updates, toGeocode, skipped, format: "csv" };
   }
 
   // No header (Garmin POI and similar): two number columns + text columns.
@@ -226,5 +245,5 @@ export function parsePlacesFile(input: string): ParsedPlaces {
     if (!ok(lat, lng)) skipped++;
     else rows.push({ name: clean(texts[0]), address: clean(texts.slice(1).join(", ")) || null, lat, lng });
   }
-  return { rows, updates: [], skipped, format: rows.length ? "csv" : "unknown" };
+  return { rows, updates: [], toGeocode: [], skipped, format: rows.length ? "csv" : "unknown" };
 }
