@@ -162,7 +162,7 @@ function usePlaceLayers(places: MapPlace[]) {
   return { layers, setLayers: layerStore.set, shown };
 }
 
-export function LiveView({ places = [] }: { places?: MapPlace[] }) {
+export function LiveView({ places = [], hq = null }: { places?: MapPlace[]; hq?: MapPlace | null }) {
   const { t, locale, can } = usePrefs();
   const { layers, setLayers: storeLayers, shown } = usePlaceLayers(places);
   const { data, points, error, paused } = useLivePositions();
@@ -174,7 +174,7 @@ export function LiveView({ places = [] }: { places?: MapPlace[] }) {
     setSelected(unitId);
     setFocus((f) => ({ type: "unit", id: unitId, n: (f?.n ?? 0) + 1 }));
   };
-  // switching a group on (e.g. Rapidex) also moves the map to show its places
+  // switching a group on (e.g. one supplier) also moves the map to show its places
   const setLayers = (next: Layers) => {
     const before = new Set(shown.map((p) => p.id));
     const added = places.filter((p) => isShown(p, next) && !before.has(p.id)).map((p) => p.id);
@@ -188,10 +188,9 @@ export function LiveView({ places = [] }: { places?: MapPlace[] }) {
   };
   const onMap = useMemo(
     () =>
-      picked && !shown.some((p) => p.id === picked.id)
-        ? [...shown, picked]
-        : shown,
-    [shown, picked],
+      // the head office is always on the map
+      [...(hq ? [hq] : []), ...(picked && !shown.some((p) => p.id === picked.id) ? [...shown, picked] : shown)],
+    [shown, picked, hq],
   );
   const [filter, setFilter] = useState<
     "all" | "moving" | "stopped" | "offline"
@@ -393,6 +392,7 @@ export function LiveView({ places = [] }: { places?: MapPlace[] }) {
           />
           <MapOverlay
             places={places}
+            hq={hq}
             points={points}
             layers={layers}
             setLayers={setLayers}

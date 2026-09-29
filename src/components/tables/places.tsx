@@ -146,11 +146,6 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
       label: sr ? "Pumpe" : "Fuel",
       predicate: (r) => r.kind === "pump",
     },
-    {
-      value: "company",
-      label: sr ? "Firma" : "Company",
-      predicate: (r) => r.kind === "hq" || r.kind === "parking",
-    },
   ];
 
   return (
@@ -378,7 +373,7 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
             disabled={!!fileName}
             onChange={(e) => setText(e.target.value)}
             placeholder={
-              "naziv;adresa;lat;lng\nRapidex Novi Sad;Sentandrejski put 11;45.2671;19.8335"
+              "naziv;adresa;lat;lng\nAuto delovi Novi Sad;Sentandrejski put 11;45.2671;19.8335"
             }
             className="font-mono text-xs"
           />

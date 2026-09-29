@@ -35,7 +35,7 @@ type Req = {
   createdAt: string;
   handledAt: string | null;
 };
-type Company = { id: string; name: string; pib: string | null; status: string; createdAt: string; vehicles: number; members: { id: string; userId: string; email: string; role: string }[] };
+type Company = { id: string; name: string; pib: string | null; status: string; createdAt: string; vehicles: number; supportUntil: string | null; members: { id: string; userId: string; email: string; role: string }[] };
 type User = {
   id: string;
   email: string;
@@ -45,7 +45,7 @@ type User = {
   mustChange: boolean;
   lastLoginAt: string | null;
   createdAt: string;
-  memberships: { companyId: string; company: string; role: string }[];
+  memberships: { companyId: string; company: string; role: string; support: boolean }[];
 };
 type Log = { id: string; actor: string; action: string; company: string | null; details: unknown; createdAt: string };
 
@@ -145,6 +145,14 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log }:
     { key: "members", header: "Članovi", align: "right", sortValue: (c) => c.members.length, render: (c) => <span className="tnum">{c.members.length}</span> },
     { key: "vehicles", header: "Vozila", align: "right", sortValue: (c) => c.vehicles, render: (c) => <span className="tnum">{c.vehicles}</span> },
     { key: "created", header: "Kreirana", hide: "md", sortValue: (c) => c.createdAt, render: (c) => <span className="text-ink-3 tnum">{dt(c.createdAt)}</span> },
+    {
+      key: "support",
+      header: "Pristup podrške",
+      hide: "md",
+      sortValue: (c) => c.supportUntil,
+      render: (c) =>
+        c.supportUntil ? <Badge tone="good">do {dt(c.supportUntil)}</Badge> : <span className="text-xs text-ink-4">nije dozvoljen</span>,
+    },
     { key: "status", header: "Status", sortValue: (c) => c.status, render: (c) => <StatusDot tone={c.status === "active" ? "good" : "bad"}>{c.status === "active" ? "Aktivna" : "Blokirana"}</StatusDot> },
   ];
 
@@ -232,7 +240,8 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log }:
             const owner = c.members.find((m) => m.role === "owner") ?? c.members[0];
             return [
               { label: "Dodaj člana / vlasnika", icon: <UserPlus />, onSelect: () => setAddMemberTo(c) },
-              ...(owner ? [{ label: `Uđi kao ${owner.email}`, icon: <Eye />, onSelect: () => start(() => impersonate(owner.userId, c.id)) }] : []),
+              // only while the owner allows it (Settings → Pristup podrške)
+              ...(owner && c.supportUntil ? [{ label: `Uđi kao ${owner.email}`, icon: <Eye />, onSelect: () => start(() => impersonate(owner.userId, c.id)) }] : []),
               c.status === "active"
                 ? { label: "Blokiraj firmu", icon: <Ban />, danger: true, onSelect: () => run(() => setCompanyStatus(c.id, "blocked")) }
                 : { label: "Aktiviraj firmu", icon: <RotateCcw />, onSelect: () => run(() => setCompanyStatus(c.id, "active")) },
@@ -255,7 +264,7 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log }:
           actions={(u) => [
             { label: "Link za lozinku", icon: <Link2 />, onSelect: () => run(() => adminPasswordLink(u.id), u.email) },
             { label: "Privremena lozinka", icon: <KeyRound />, onSelect: () => run(() => adminTempPassword(u.id), u.email) },
-            ...u.memberships.map((m) => ({ label: `Uđi kao · ${m.company}`, icon: <Eye />, onSelect: () => start(() => impersonate(u.id, m.companyId)) })),
+            ...u.memberships.filter((m) => m.support).map((m) => ({ label: `Uđi kao · ${m.company}`, icon: <Eye />, onSelect: () => start(() => impersonate(u.id, m.companyId)) })),
             u.status === "active"
               ? { label: "Blokiraj nalog", icon: <Ban />, danger: true, onSelect: () => run(() => setUserStatus(u.id, "blocked")) }
               : { label: "Aktiviraj nalog", icon: <RotateCcw />, onSelect: () => run(() => setUserStatus(u.id, "active")) },

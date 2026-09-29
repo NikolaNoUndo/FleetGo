@@ -198,7 +198,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
     fields: [
       { name: "kind", label: "f.placeKind", type: "select", options: "placeKinds", required: true, defaultValue: "shop" },
       { name: "supplierId", label: "f.chain", type: "supplier" },
-      { name: "name", label: "f.placeName", type: "text", span: 2, placeholder: "Rapidex Novi Sad" },
+      { name: "name", label: "f.placeName", type: "text", span: 2, placeholder: "Auto delovi Novi Sad" },
       { name: "address", label: "f.address", type: "text", span: 2, placeholder: "Sentandrejski put 11, Novi Sad" },
       { name: "phone", label: "f.phone", type: "text", placeholder: "+381 21 …" },
       { name: "coords", label: "f.coords", type: "coords", span: 2, placeholder: "45.2671, 19.8335" },

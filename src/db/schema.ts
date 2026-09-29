@@ -44,6 +44,11 @@ export const companies = pgTable("companies", {
   wialonToken: text("wialon_token"),
   /** Wialon Local server; null = Wialon Hosting. */
   wialonHost: text("wialon_host"),
+  /** head office on the live map */
+  hqLat: doublePrecision("hq_lat"),
+  hqLng: doublePrecision("hq_lng"),
+  /** until when the platform admin may open this company ("Uđi kao"); set by the owner */
+  supportAccessUntil: timestamp("support_access_until", { withTimezone: true }),
   createdAt: createdAt(),
 });
 
@@ -249,7 +254,7 @@ export const suppliers = pgTable(
 
 /**
  * Places shown on the live map: shops/workshops (usually a supplier's branches, e.g.
- * every Rapidex store) and fuel stations (e.g. the Eurowag network).
+ * every branch of one supplier) and fuel stations (e.g. the Eurowag network).
  */
 export const places = pgTable(
   "places",

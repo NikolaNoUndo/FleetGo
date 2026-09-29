@@ -9,7 +9,7 @@ Upravljanje voznim parkom za prevozničke, transportne i logističke firme: vozi
 | Modul | Šta prati |
 | --- | --- |
 | Pregled | Aktivna vozila, istekla i dokumenta koja uskoro ističu, troškovi po mesecima (gorivo, servisi, delovi, uplate), troškovi i potrošnja po vozilu, mini mapa |
-| Mapa uživo | Pozicije, brzina, status (u vožnji / stoji / van mreže), vozač, preko Wialona. Gore desno pretraga lokacija i vozila (centrira mapu), pumpe i „Delovi i servisi“ (filter po dobavljaču, npr. samo Rapidex). Klik na vozilo centrira mapu na njega |
+| Mapa uživo | Pozicije, brzina, status (u vožnji / stoji / van mreže), vozač, preko Wialona. Gore desno pretraga lokacija i vozila (centrira mapu), pumpe i „Delovi i servisi“ (filter po dobavljaču, npr. samo jedan dobavljač). Klik na vozilo centrira mapu na njega |
 | Lokacije | Prodavnice delova, servisi i pumpe (sa telefonom) za mapu: ručno (link sa Google mapa, koordinate ili adresa) ili uvoz fajla (CSV, Garmin POI, KML, GPX), npr. spisak Eurowag pumpi |
 | Vozila | Tip, marka/model, VIN, EURO norma, kilometraža, glavni vozač i po potrebi drugi, treći… vozač, prikačena prikolica, Wialon ID; detalj sa dokumentima, servisima, gorivom, delovima i potrošnjom l/100 km |
 | Prikolice | Tip (cerada, hladnjača, cisterna…), osovine, nosivost, koja vozila je koriste (može više, a može i nijedno); dokumenta, servisi, delovi |
@@ -27,7 +27,7 @@ Interfejs je na srpskom i engleskom (klik na svoje ime dole levo → Jezik / Val
 
 ## Prijava, uloge i admin
 
-- **Admin panel** (`/admin`) je samo za tebe kao developera. Korisničko ime i hash lozinke su u env promenljivama `ADMIN_USERNAME` i `ADMIN_PASSWORD_HASH` (lozinka se nigde ne čuva u čistom obliku). Tu vidiš zahteve za pristup, firme, korisnike i dnevnik aktivnosti; praviš firmu sa vlasnikom, dodaješ člana/vlasnika postojećoj firmi, šalješ link za lozinku ili privremenu lozinku, blokiraš korisnika ili firmu i možeš da „uđeš kao“ vlasnik (2 sata, uz traku na vrhu).
+- **Admin panel** (`/admin`) je samo za tebe kao developera. Ne prikazuje podatke firmi (troškove, vozila, lokacije…), već samo firme, korisnike, broj vozila i događaje platforme. „Uđi kao“ radi samo dok vlasnik u Podešavanjima → Pristup podrške dozvoli pristup (24 sata, može da prekine bilo kad; svaki ulazak vidi u listi). Korisničko ime i hash lozinke su u env promenljivama `ADMIN_USERNAME` i `ADMIN_PASSWORD_HASH` (lozinka se nigde ne čuva u čistom obliku). Tu vidiš zahteve za pristup, firme, korisnike i dnevnik aktivnosti; praviš firmu sa vlasnikom, dodaješ člana/vlasnika postojećoj firmi, šalješ link za lozinku ili privremenu lozinku, blokiraš korisnika ili firmu i možeš da „uđeš kao“ vlasnik (2 sata, uz traku na vrhu).
 - **Lozinke se ne mogu videti** ni u adminu ni u bazi; čuvaju se kao scrypt hash. Umesto toga admin šalje jednokratni link (važi 7 dana) ili privremenu lozinku koju korisnik menja pri prvoj prijavi.
 - **Registracija** (`/register`) je samo zahtev. Kad ga odobriš u adminu, pravi se firma i vlasnik, a ti dobiješ link koji mu pošalješ.
 - **Vlasnik** u Podešavanjima → Članovi dodaje ljude emailom i bira ulogu: dispečer, servis ili knjigovodstvo. Za svaki modul može da podesi Nema / Gleda / Menja.
@@ -103,13 +103,13 @@ Kod: `src/lib/telematics/` (jedan ulaz `getPositions`, provajder `wialon.ts`, pa
 
 ## Lokacije na mapi (prodavnice i pumpe)
 
-**Mapa uživo → Lokacije** vodi spisak mesta koja se mogu prikazati na mapi. Svaka lokacija je *prodavnica delova*, *servis* ili *pumpa* (na mapi se razlikuju samo po ikonici; naziv se vidi tek na klik), ima opcioni telefon (ako ga nema, koristi se telefon dobavljača) i može da pripada dobavljaču (npr. Rapidex sa više radnji, Eurowag za pumpe).
+**Mapa uživo → Lokacije** vodi spisak mesta koja se mogu prikazati na mapi. Svaka lokacija je *prodavnica delova*, *servis* ili *pumpa* (na mapi se razlikuju samo po ikonici; naziv se vidi tek na klik), ima opcioni telefon (ako ga nema, koristi se telefon dobavljača) i može da pripada dobavljaču (npr. lanac prodavnica sa više radnji, Eurowag za pumpe).
 
 - **Dodaj**: nalepi link sa Google mapa (i kratki `maps.app.goo.gl`), upiši „širina, dužina“ ili ostavi prazno pa se lokacija traži po adresi (OpenStreetMap Nominatim).
 - **Uvezi fajl**: CSV/TXT sa zaglavljem (naziv, adresa, grad, država, lat/lng), Garmin POI bez zaglavlja (dužina, širina, naziv, opis), KML ili GPX. Opcija „Zameni postojeće“ briše stare lokacije iste vrste i istog dobavljača, pa se lista lako osvežava novim fajlom.
 - **Cena dizela** (samo pumpe): upisuje se ručno ili dolazi iz fajla (kolone cena/dizel, valuta, datum). Spisak cena bez koordinata ažurira postojeće pumpe istog naziva i dobavljača. Klik na pumpu na mapi pokazuje samo naziv, cenu dizela, kada je ažurirana i koordinate. Ako fajl nema datum, „ažurirano“ je vreme uvoza.
-- Vrste lokacija: prodavnica delova, servis, pumpa, i naše lokacije: sedište firme (može više) i parking / plac.
-- Na mapi su gore desno pretraga (lokacije i vozila; izbor centrira mapu) i tri prekidača: „Pumpe“, „Delovi i servisi“ i „Firma“. Klik na naziv uključi ili isključi celu grupu, a strelica pored otvara izbor po mreži / dobavljaču (npr. samo Rapidex) ili po vrsti (sedište, parking). Kad se grupa ponovo uključi, vraća se prethodni izbor. Uključena grupa se odmah prikaže na mapi. Izbor važi dok je aplikacija otvorena u toj kartici; novi ulazak u aplikaciju kreće od nule.
+- Vrste lokacija: prodavnica delova, servis i pumpa. Sedište firme se upisuje u Podešavanjima (koordinate ili link sa Google mapa) i uvek se vidi na mapi.
+- Na mapi su gore desno pretraga (lokacije, sedište i vozila; izbor centrira mapu) i dva prekidača: „Pumpe“ i „Delovi i servisi“. Klik na naziv uključi ili isključi celu grupu, a strelica pored otvara izbor po mreži / dobavljaču. Kad se grupa ponovo uključi, vraća se prethodni izbor. Uključena grupa se odmah prikaže na mapi. Izbor važi dok je aplikacija otvorena u toj kartici; novi ulazak u aplikaciju kreće od nule.
 - Uvoz fajla bez koordinata: ako redovi imaju adresu i grad, „Pronađi po adresi“ ih nađe na mapi (OpenStreetMap, oko 1 u sekundi); ako ulica nije pronađena, uzima se grad i lokacija se označi kao približna.
 - Pravo izmene imaju oni koji mogu da menjaju dobavljače (delovi ili servisi); gledanje ima svako ko vidi Mapu uživo.
 

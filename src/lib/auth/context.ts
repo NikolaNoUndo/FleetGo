@@ -42,6 +42,8 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
   if (!row) return null;
   const impersonating = !!s.session.impersonatedBy;
   if (row.company.status !== "active" && !impersonating) return null;
+  // the admin only gets in while the owner's 24-hour support access is open
+  if (impersonating && !(row.company.supportAccessUntil && row.company.supportAccessUntil > new Date())) return null;
   const companies = (await userCompanies(s.user.id)).filter((c) => c.status === "active" || impersonating);
   return {
     user: s.user,

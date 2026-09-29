@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AdminPanel } from "@/components/admin-panel";
 
@@ -29,10 +29,17 @@ export default async function AdminPage(props: PageProps<"/admin">) {
       .innerJoin(schema.users, eq(schema.users.id, schema.memberships.userId)),
     db.select().from(schema.users).orderBy(desc(schema.users.createdAt)),
     db.select({ companyId: schema.vehicles.companyId, n: sql<number>`count(*)::int` }).from(schema.vehicles).groupBy(schema.vehicles.companyId),
-    db.select().from(schema.auditLog).orderBy(desc(schema.auditLog.createdAt)).limit(200),
+    // platform events only; what members do inside their company stays with the company
+    db
+      .select()
+      .from(schema.auditLog)
+      .where(or(eq(schema.auditLog.actor, "admin"), inArray(schema.auditLog.action, ["request.created", "support.granted", "support.revoked"])))
+      .orderBy(desc(schema.auditLog.createdAt))
+      .limit(200),
   ]);
 
   const companyName = new Map(companies.map((c) => [c.id, c.name]));
+  const supportOpen = new Set(companies.filter((c) => c.supportAccessUntil && c.supportAccessUntil > new Date()).map((c) => c.id));
   const weekAgo = daysAgo(7);
   const activeWeek = users.filter((u) => u.lastLoginAt && u.lastLoginAt > weekAgo).length;
   return (
@@ -47,6 +54,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
         status: c.status,
         createdAt: c.createdAt.toISOString(),
         vehicles: vehicleCounts.find((v) => v.companyId === c.id)?.n ?? 0,
+        supportUntil: c.supportAccessUntil && c.supportAccessUntil > new Date() ? c.supportAccessUntil.toISOString() : null,
         members: members.filter((m) => m.companyId === c.id).map((m) => ({ id: m.id, userId: m.userId, email: m.email, role: m.role })),
       }))}
       users={users.map((u) => ({
@@ -58,7 +66,9 @@ export default async function AdminPage(props: PageProps<"/admin">) {
         mustChange: u.mustChangePassword,
         lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
         createdAt: u.createdAt.toISOString(),
-        memberships: members.filter((m) => m.userId === u.id).map((m) => ({ companyId: m.companyId, company: companyName.get(m.companyId) ?? "—", role: m.role })),
+        memberships: members
+          .filter((m) => m.userId === u.id)
+          .map((m) => ({ companyId: m.companyId, company: companyName.get(m.companyId) ?? "—", role: m.role, support: supportOpen.has(m.companyId) })),
       }))}
       log={log.map((l) => ({ id: l.id, actor: l.actor, action: l.action, company: l.companyId ? (companyName.get(l.companyId) ?? null) : null, details: l.details, createdAt: l.createdAt.toISOString() }))}
     />

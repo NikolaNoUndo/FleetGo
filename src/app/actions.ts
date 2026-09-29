@@ -274,7 +274,7 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
   }
 
   if (resourceName === "places") {
-    // the name defaults to the supplier's name ("Rapidex")
+    // the name defaults to the supplier's name 
     if (!out.name && out.supplierId) {
       const [sup] = await db.select({ name: schema.suppliers.name }).from(schema.suppliers).where(eq(schema.suppliers.id, String(out.supplierId))).limit(1);
       out.name = sup?.name ?? null;
@@ -374,7 +374,7 @@ export async function setPreference(key: "locale" | "currency", value: string) {
   revalidatePath("/", "layout");
 }
 
-export async function saveSettings(raw: { name: string; pib: string; address: string; eurRsdRate: string; warnDays: string; rateMode: string }) {
+export async function saveSettings(raw: { name: string; pib: string; address: string; hqLocation?: string; eurRsdRate: string; warnDays: string; rateMode: string }) {
   const ctx = await assertAccess("settings", "edit");
   const rate = parseNumber(raw.eurRsdRate);
   const warn = parseNumber(raw.warnDays);
@@ -383,10 +383,19 @@ export async function saveSettings(raw: { name: string; pib: string; address: st
   if (!raw.name?.trim()) errors.name = "required";
   if (rateMode === "manual" && (rate === null || Number.isNaN(rate) || rate <= 0)) errors.eurRsdRate = "number";
   if (warn === null || Number.isNaN(warn) || warn < 1 || warn > 365) errors.warnDays = "number";
+  // head office on the map: coordinates or a map link (empty = not shown)
+  let hq: { lat: number; lng: number } | null = null;
+  const hqRaw = String(raw.hqLocation ?? "").trim();
+  if (hqRaw) {
+    hq = await resolveLocation(hqRaw, "");
+    if (!hq) errors.hqLocation = "coords";
+  }
   if (Object.keys(errors).length) return { ok: false as const, errors };
   await db
     .update(schema.companies)
     .set({
+      hqLat: hq?.lat ?? null,
+      hqLng: hq?.lng ?? null,
       name: raw.name.trim(),
       pib: raw.pib?.trim() || null,
       address: raw.address?.trim() || null,
@@ -567,4 +576,41 @@ export async function importPlaces(input: {
   await audit(ctx.user.email, "import.places", { kind, count: clean.length, updated, replace: input.replace }, companyId);
   revalidatePath("/", "layout");
   return { ok: true, count: clean.length, updated, skipped, supplierId };
+}
+
+/* ---------- Support access: the owner lets the platform admin in for 24 hours ---------- */
+
+async function ownerContext() {
+  const ctx = await getContext();
+  if (!ctx || !ctx.isOwner || ctx.impersonating) throw new Error("Forbidden");
+  return ctx;
+}
+
+export async function grantSupportAccess(): Promise<{ ok: boolean; until?: string }> {
+  let ctx;
+  try {
+    ctx = await ownerContext();
+  } catch {
+    return { ok: false };
+  }
+  const until = new Date(Date.now() + 24 * 3600_000);
+  await db.update(schema.companies).set({ supportAccessUntil: until }).where(eq(schema.companies.id, ctx.company.id));
+  await audit(ctx.user.email, "support.granted", { until: until.toISOString() }, ctx.company.id);
+  revalidatePath("/settings");
+  return { ok: true, until: until.toISOString() };
+}
+
+export async function revokeSupportAccess(): Promise<{ ok: boolean }> {
+  let ctx;
+  try {
+    ctx = await ownerContext();
+  } catch {
+    return { ok: false };
+  }
+  await db.update(schema.companies).set({ supportAccessUntil: null }).where(eq(schema.companies.id, ctx.company.id));
+  // end any admin session that is open right now
+  await db.delete(schema.sessions).where(and(eq(schema.sessions.companyId, ctx.company.id), sql`${schema.sessions.impersonatedBy} is not null`));
+  await audit(ctx.user.email, "support.revoked", {}, ctx.company.id);
+  revalidatePath("/settings");
+  return { ok: true };
 }

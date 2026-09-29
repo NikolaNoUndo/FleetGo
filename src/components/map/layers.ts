@@ -1,26 +1,27 @@
 import type { MapPlace, PlaceKind } from "@/lib/places";
 
 /**
- * Which places the live map shows. Three groups, each with a main switch and an
- * optional sub-selection: fuel stations by network, parts shops / workshops by
- * supplier (e.g. every Rapidex store), and our own places (head office, parking).
+ * Which places the live map shows. Two groups, each with a main switch and an
+ * optional sub-selection: fuel stations by network and parts shops / workshops by
+ * supplier. The head office (from Settings) is always shown and isn't a group.
  * `sel: null` means "all of the group"; switching the group off keeps `sel`, so
  * switching it on again brings back the same choice.
  */
-export type GroupKey = "pumps" | "shops" | "company";
+export type GroupKey = "pumps" | "shops";
 export type GroupState = { on: boolean; sel: string[] | null };
 export type Layers = Record<GroupKey, GroupState>;
 
-export const GROUPS: GroupKey[] = ["pumps", "shops", "company"];
+export const GROUPS: GroupKey[] = ["pumps", "shops"];
 export const NO_SUPPLIER = "_none";
-export const EMPTY_LAYERS: Layers = { pumps: { on: false, sel: null }, shops: { on: false, sel: null }, company: { on: false, sel: null } };
+export const EMPTY_LAYERS: Layers = { pumps: { on: false, sel: null }, shops: { on: false, sel: null } };
 
-export const groupOf = (p: Pick<MapPlace, "kind">): GroupKey => (p.kind === "pump" ? "pumps" : p.kind === "hq" || p.kind === "parking" ? "company" : "shops");
+export const groupOf = (p: Pick<MapPlace, "kind">): GroupKey => (p.kind === "pump" ? "pumps" : "shops");
 
-/** Sub-group within a group: the supplier / network, or the kind for our own places. */
-export const subKeyOf = (p: Pick<MapPlace, "kind" | "supplierId">): string => (groupOf(p) === "company" ? p.kind : (p.supplierId ?? NO_SUPPLIER));
+/** Sub-group within a group: the supplier / network. */
+export const subKeyOf = (p: Pick<MapPlace, "supplierId">): string => p.supplierId ?? NO_SUPPLIER;
 
 export function isShown(p: MapPlace, layers: Layers): boolean {
+  if (p.kind === "hq") return true;
   const g = layers[groupOf(p)];
   return g.on && (g.sel === null || g.sel.includes(subKeyOf(p)));
 }
@@ -29,19 +30,17 @@ export type SubGroup = { key: string; label: string; count: number; kinds: Place
 
 export function subGroups(places: MapPlace[], group: GroupKey, locale: "sr" | "en"): SubGroup[] {
   const sr = locale === "sr";
-  const KIND_LABEL: Partial<Record<PlaceKind, string>> = { hq: sr ? "Sedište" : "Head office", parking: sr ? "Parking / plac" : "Parking / yard" };
   const m = new Map<string, SubGroup>();
   for (const p of places) {
     if (groupOf(p) !== group) continue;
     const key = subKeyOf(p);
-    const label =
-      group === "company" ? (KIND_LABEL[p.kind] ?? p.kind) : (p.supplierName ?? (group === "pumps" ? (sr ? "Bez mreže" : "No network") : sr ? "Bez dobavljača" : "No supplier"));
+    const label = p.supplierName ?? (group === "pumps" ? (sr ? "Bez mreže" : "No network") : sr ? "Bez dobavljača" : "No supplier");
     const g = m.get(key) ?? { key, label, count: 0, kinds: [] };
     g.count++;
     if (!g.kinds.includes(p.kind)) g.kinds.push(p.kind);
     m.set(key, g);
   }
-  const order = (k: string) => (k === "hq" ? 0 : k === "parking" ? 1 : k === NO_SUPPLIER ? 3 : 2);
+  const order = (k: string) => (k === NO_SUPPLIER ? 1 : 0);
   return [...m.values()].sort((a, b) => order(a.key) - order(b.key) || a.label.localeCompare(b.label));
 }
 

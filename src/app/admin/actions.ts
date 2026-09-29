@@ -153,10 +153,15 @@ export async function adminTempPassword(userId: string): Promise<AdminResult> {
   return { ok: true, password };
 }
 
-/** Open the app as this user, in this company. Logged, limited to 2 hours. */
+/**
+ * Open the app as this user, in this company. Only while the company's owner has
+ * allowed support access (Settings → Pristup podrške, 24 h). Logged, max 2 hours.
+ */
 export async function impersonate(userId: string, companyId: string) {
   await guard();
   if (!UUID.test(userId) || !UUID.test(companyId)) return;
+  const [c] = await db.select({ until: schema.companies.supportAccessUntil }).from(schema.companies).where(eq(schema.companies.id, companyId)).limit(1);
+  if (!c?.until || c.until <= new Date()) return;
   const [m] = await db
     .select()
     .from(schema.memberships)

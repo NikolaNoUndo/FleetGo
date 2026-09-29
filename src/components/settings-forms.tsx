@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, PlugZap, RefreshCw } from "lucide-react";
-import { refreshRate, saveSettings, saveTelematics, testTelematics } from "@/app/actions";
+import { grantSupportAccess, refreshRate, revokeSupportAccess, saveSettings, saveTelematics, testTelematics } from "@/app/actions";
 import { usePrefs } from "./prefs";
 import { Badge, Button, cn } from "./ui/primitives";
 import { FieldShell, Segmented, TextInput } from "./ui/client";
@@ -15,7 +15,7 @@ export function CompanyForm({
   nbs: initialNbs,
   readOnly,
 }: {
-  initial: { name: string; pib: string; address: string; eurRsdRate: string; warnDays: string; rateMode: string };
+  initial: { name: string; pib: string; address: string; hqLocation: string; eurRsdRate: string; warnDays: string; rateMode: string };
   nbs: Nbs;
   readOnly?: boolean;
 }) {
@@ -32,7 +32,8 @@ export function CompanyForm({
     setSaved(false);
     setV({ ...v, [k]: e.target.value });
   };
-  const err = (k: string) => (errors[k] ? (errors[k] === "required" ? t("c.required") : t("err.number")) : undefined);
+  const err = (k: string) =>
+    errors[k] ? (errors[k] === "required" ? t("c.required") : errors[k] === "coords" ? t("err.coords") : t("err.number")) : undefined;
   return (
     <form
       onSubmit={(e) => {
@@ -56,6 +57,16 @@ export function CompanyForm({
         </FieldShell>
         <FieldShell label={t("s.address")} htmlFor="s-addr">
           <TextInput id="s-addr" value={v.address} onChange={set("address")} />
+        </FieldShell>
+        <FieldShell label={sr ? "Sedište na mapi" : "Head office on the map"} error={err("hqLocation")} span={2} htmlFor="s-hq">
+          <TextInput id="s-hq" value={v.hqLocation} onChange={set("hqLocation")} placeholder="44.8125, 20.4612" />
+          {!errors.hqLocation && (
+            <span className="text-xs text-ink-3">
+              {sr
+                ? "Nalepi link sa Google mapa ili upiši „širina, dužina“. Sedište se tada uvek vidi na Mapi uživo. Prazno = ne prikazuje se."
+                : "Paste a Google Maps link or type “lat, lng”. The head office then always shows on the Live map. Empty = not shown."}
+            </span>
+          )}
         </FieldShell>
 
         <div className="space-y-3 rounded-xl border border-line bg-surface-2/60 p-4 sm:col-span-2">
@@ -248,6 +259,70 @@ export function TelematicsSettings({ hasToken, hint, host, canEdit }: { hasToken
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Owner lets the platform admin open the company for 24 hours (e.g. for help); can end it any time. */
+export function SupportAccess({ until, visits }: { until: string | null; visits: string[] }) {
+  const { locale } = usePrefs();
+  const sr = locale === "sr";
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const fmt = (iso: string) =>
+    new Intl.DateTimeFormat(sr ? "sr-Latn-RS" : "en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  const active = !!until && new Date(until) > new Date();
+  return (
+    <div className="space-y-4 px-5 py-5">
+      <p className="text-sm leading-relaxed text-ink-2">
+        {sr
+          ? "Administrator Roadline-a ne vidi podatke vaše firme. Ako vam treba pomoć u aplikaciji, možete mu dozvoliti pristup na 24 sata; tada može da uđe i vidi sve kao vlasnik. Pristup možete prekinuti bilo kad, a svaki njegov ulazak je zabeležen ispod."
+          : "The Roadline administrator can't see your company's data. If you need help, you can allow access for 24 hours; they can then open the app and see everything as the owner. You can end it at any time, and every visit is listed below."}
+      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        {active ? (
+          <>
+            <Badge tone="good">{sr ? `Pristup dozvoljen do ${fmt(until!)}` : `Access allowed until ${fmt(until!)}`}</Badge>
+            <Button
+              size="sm"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  await revokeSupportAccess();
+                  router.refresh();
+                })
+              }
+            >
+              {sr ? "Prekini pristup" : "End access"}
+            </Button>
+          </>
+        ) : (
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                await grantSupportAccess();
+                router.refresh();
+              })
+            }
+          >
+            {sr ? "Dozvoli pristup na 24 sata" : "Allow access for 24 hours"}
+          </Button>
+        )}
+      </div>
+      <div className="text-xs text-ink-3">
+        {visits.length ? (
+          <>
+            <span className="font-medium text-ink-2">{sr ? "Ulasci administratora:" : "Administrator visits:"}</span> {visits.map(fmt).join(" · ")}
+          </>
+        ) : sr ? (
+          "Administrator još nije ulazio."
+        ) : (
+          "The administrator hasn't visited yet."
+        )}
+      </div>
     </div>
   );
 }

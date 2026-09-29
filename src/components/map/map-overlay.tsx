@@ -2,7 +2,7 @@
 
 import Link from "@/components/ui/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Building2, Check, ChevronDown, Fuel, Minus, Search, SquareParking, Store, Truck, Wrench, X } from "lucide-react";
+import { ArrowUpRight, Building2, Check, ChevronDown, Fuel, Minus, Search, Store, Truck, Wrench, X } from "lucide-react";
 import { usePrefs } from "../prefs";
 import { cn } from "../ui/primitives";
 import { PLACE_COLORS } from "./place-colors";
@@ -10,7 +10,7 @@ import type { MapPlace, PlaceKind } from "@/lib/places";
 import type { MapPoint } from "./fleet-map";
 import { groupState, setAll, subGroups, toggleGroup, toggleSub, type GroupKey, type Layers } from "./layers";
 
-const KIND_ICON: Record<PlaceKind, typeof Fuel> = { pump: Fuel, shop: Store, service: Wrench, hq: Building2, parking: SquareParking };
+const KIND_ICON: Record<PlaceKind, typeof Fuel> = { pump: Fuel, shop: Store, service: Wrench, hq: Building2 };
 
 export function KindDot({ kind, size = 18 }: { kind: PlaceKind; size?: number }) {
   const Icon = KIND_ICON[kind];
@@ -198,7 +198,6 @@ function MapSearch({
 const GROUP_META: Record<GroupKey, { icon: typeof Fuel; color: string; sr: string; en: string }> = {
   pumps: { icon: Fuel, color: PLACE_COLORS.pump, sr: "Pumpe", en: "Fuel" },
   shops: { icon: Store, color: PLACE_COLORS.shop, sr: "Delovi i servisi", en: "Parts & workshops" },
-  company: { icon: Building2, color: PLACE_COLORS.hq, sr: "Firma", en: "Company" },
 };
 
 function GroupSwitch({
@@ -310,12 +309,14 @@ function GroupSwitch({
 
 export function MapOverlay({
   places,
+  hq,
   points,
   layers,
   setLayers,
   onPick,
 }: {
   places: MapPlace[];
+  hq?: MapPlace | null;
   points: MapPoint[];
   layers: Layers;
   setLayers: (l: Layers) => void;
@@ -324,8 +325,8 @@ export function MapOverlay({
   const [open, setOpen] = useState<GroupKey | null>(null);
   return (
     <div className="absolute top-3 right-3 left-14 z-[500] flex flex-wrap items-start justify-end gap-1.5">
-      <MapSearch places={places} points={points} onPick={onPick} />
-      {(["pumps", "shops", "company"] as const).map((g) => (
+      <MapSearch places={hq ? [hq, ...places] : places} points={points} onPick={onPick} />
+      {(["pumps", "shops"] as const).map((g) => (
         <GroupSwitch key={g} group={g} places={places} layers={layers} setLayers={setLayers} open={open === g} setOpen={(o) => setOpen(o ? g : null)} />
       ))}
     </div>

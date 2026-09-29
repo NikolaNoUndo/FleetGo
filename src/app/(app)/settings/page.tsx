@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { eq } from "drizzle-orm";
-import { Building2, SatelliteDish, Users } from "lucide-react";
+import { and, desc, eq } from "drizzle-orm";
+import { Building2, LifeBuoy, SatelliteDish, Users } from "lucide-react";
 import { Badge, PageHeader, Shell } from "@/components/ui/primitives";
-import { CompanyForm, TelematicsSettings } from "@/components/settings-forms";
+import { CompanyForm, SupportAccess, TelematicsSettings } from "@/components/settings-forms";
 import { MembersManager } from "@/components/members";
 import { getPrefs, getT } from "@/lib/prefs";
 import { requireAccess } from "@/lib/auth/context";
@@ -27,6 +27,15 @@ export default async function SettingsPage() {
         .where(eq(schema.memberships.companyId, company.id))
     : [];
 
+  const visits = ctx.isOwner
+    ? await db
+        .select({ at: schema.auditLog.createdAt })
+        .from(schema.auditLog)
+        .where(and(eq(schema.auditLog.companyId, company.id), eq(schema.auditLog.action, "impersonate.start")))
+        .orderBy(desc(schema.auditLog.createdAt))
+        .limit(10)
+    : [];
+
   return (
     <>
       <PageHeader title={t("p.settings.title")} sub={t("p.settings.sub")} />
@@ -39,6 +48,7 @@ export default async function SettingsPage() {
               name: company.name,
               pib: company.pib ?? "",
               address: company.address ?? "",
+              hqLocation: company.hqLat !== null && company.hqLng !== null ? `${company.hqLat}, ${company.hqLng}` : "",
               eurRsdRate: String(company.eurRsdRate),
               warnDays: String(company.warnDays),
               rateMode: company.rateMode,
@@ -59,6 +69,15 @@ export default async function SettingsPage() {
                 lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
                 isSelf: u.id === ctx.user.id,
               }))}
+            />
+          </Shell>
+        )}
+
+        {ctx.isOwner && !ctx.impersonating && (
+          <Shell icon={<LifeBuoy />} title={sr ? "Pristup podrške" : "Support access"} action={<span>{sr ? "Samo vlasnik vidi ovaj deo" : "Only owners see this"}</span>}>
+            <SupportAccess
+              until={company.supportAccessUntil && company.supportAccessUntil > new Date() ? company.supportAccessUntil.toISOString() : null}
+              visits={visits.map((v) => v.at.toISOString())}
             />
           </Shell>
         )}
