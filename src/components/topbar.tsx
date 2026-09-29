@@ -4,6 +4,7 @@ import Link from "@/components/ui/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useState } from "react";
 import { CalendarClock, ChevronRight, Container, Fuel, Package, Plus, Truck, UserPlus, Wallet, Wrench, Building2 } from "lucide-react";
+import type { TKey } from "@/lib/i18n";
 import { usePrefs } from "./prefs";
 import { RecordForm } from "./record-form";
 import { Menu, Modal, UnderlineTabs } from "./ui/client";
@@ -30,7 +31,6 @@ export function Topbar({ refs }: { refs: Refs }) {
     { r: "trailers", icon: <Container /> },
     { r: "employees", icon: <UserPlus /> },
   ] as { r: Exclude<ResourceKey, "suppliers" | "places">; icon: React.ReactNode }[]).filter((x) => can(RESOURCE_MODULE[x.r], "edit"));
-  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   return (
     <div className="flex h-12 items-center gap-3 px-4 sm:px-6 lg:pl-8">
@@ -64,7 +64,7 @@ export function Topbar({ refs }: { refs: Refs }) {
               <span className="hidden sm:inline">{t("q.new")}</span>
             </>
           }
-          items={items.map(({ r, icon }) => ({ label: cap(t(RESOURCES[r].title)), icon, onSelect: () => setAdding(r) }))}
+          items={items.map(({ r, icon }) => ({ label: t(`q.${r}` as TKey), icon, onSelect: () => setAdding(r) }))}
         />}
       </div>
       <Modal open={!!adding} onClose={() => setAdding(null)} title={adding ? `${t("c.add")} ${t(RESOURCES[adding].title)}` : ""}>
