@@ -267,7 +267,7 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
       (!p.paid || (p.paid === "paid" ? r.paid : !r.paid));
     const svc = can(perms, "services") ? (await listServices()).filter(match) : [];
     const prt = can(perms, "parts") ? (await listParts()).filter(match) : [];
-    type Row = { date: string; type: string; asset: string; what: string; supplier: string; invoice: string; amount: number; currency: string; paid: boolean };
+    type Row = { date: string; type: string; asset: string; what: string; supplier: string; invoice: string; amount: number | null; currency: string; paid: boolean };
     const rows: Row[] = [
       ...svc.map((r) => ({
         date: r.date,
@@ -302,6 +302,9 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
         { label: L("Kupljenih delova", "Parts purchases"), value: num(prt.length), sub: prt.length ? total(sumConv(prt)) : undefined },
         { label: L("Ukupno", "Total"), value: total(sumConv(rows)), sub: byCurrency(rows) },
         { label: L("Nije plaćeno", "Unpaid"), value: total(sumConv(unpaid)), sub: unpaid.length ? L(`${unpaid.length} računa`, `${unpaid.length} invoices`) : undefined },
+        ...(rows.some((r) => r.amount === null)
+          ? [{ label: L("Bez cene", "No price"), value: num(rows.filter((r) => r.amount === null).length), sub: L("nisu u zbiru", "not in the total") }]
+          : []),
       ],
       tables: [
         {
@@ -322,7 +325,7 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
             what: r.what,
             supplier: r.supplier,
             invoice: r.invoice,
-            amount: money(r.amount, r.currency),
+            amount: r.amount !== null ? money(r.amount, r.currency) : L("bez cene", "no price"),
             paid: r.paid ? L("Da", "Yes") : L("Ne", "No"),
           })),
           foot: { date: L("Ukupno", "Total"), amount: total(sumConv(rows)) },

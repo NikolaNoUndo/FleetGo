@@ -7,12 +7,20 @@ import { DataTable, type Column } from "../data-table";
 import { useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { ExpiryBadge, Select } from "../ui/client";
+import { Badge } from "../ui/primitives";
 import { AddButton, Amount, PaidBadge, PeriodSelect, Stack, TotalRow, usePeriod } from "./common";
 import { COUNTRIES, DOC_TYPES, DOC_VALIDITY_DAYS, addDaysISO, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
 import { expiryState, todayISO } from "@/lib/format";
 import type { Refs } from "@/lib/resources";
 
 type Common = { refs: Refs; names: Record<string, string>; fixed?: Record<string, string>; hide?: string[]; flush?: boolean };
+/** Amount, or a "no price yet" marker so entries saved without a price are easy to spot and fill in. */
+function OptionalAmount({ amount, currency }: { amount: number | null; currency: string }) {
+  const { locale } = usePrefs();
+  if (amount !== null) return <Amount amount={amount} currency={currency} />;
+  return <Badge tone="warn">{locale === "sr" ? "Bez cene" : "No price"}</Badge>;
+}
+
 const keep = <T,>(cols: Column<T>[], hide?: string[]) => (hide?.length ? cols.filter((c) => !hide.includes(c.key)) : cols);
 
 /* ------------------------------ Documents ------------------------------ */
@@ -129,7 +137,8 @@ export type ServiceRow = {
   odometerKm: number | null;
   supplierId: string | null;
   invoiceNo: string | null;
-  amount: number;
+  /** can be left empty and filled in later */
+  amount: number | null;
   currency: string;
   paid: boolean;
 };
@@ -147,7 +156,7 @@ export function ServicesTable({ rows, refs, names, fixed, hide, flush }: Common 
       { key: "for", header: t("f.for"), sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}</span> },
       { key: "kind", header: t("f.kind"), sortValue: (r) => r.kind, render: (r) => <Stack main={opt(SERVICE_KINDS, r.kind)} sub={r.description} /> },
       { key: "workshop", header: t("f.workshop"), sortValue: (r) => names[r.supplierId ?? ""] ?? "", hide: "lg", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
-      { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => conv(r.amount, r.currency), render: (r) => <Amount amount={r.amount} currency={r.currency} /> },
+      { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => (r.amount === null ? -1 : conv(r.amount, r.currency)), render: (r) => <OptionalAmount amount={r.amount} currency={r.currency} /> },
       { key: "paid", header: t("f.paid"), sortValue: (r) => Number(r.paid), hide: "sm", render: (r) => <PaidBadge paid={r.paid} /> },
     ],
     hide,
@@ -163,6 +172,7 @@ export function ServicesTable({ rows, refs, names, fixed, hide, flush }: Common 
         filters={[
           { value: "all", label: t("c.all"), predicate: () => true },
           { value: "unpaid", label: t("c.unpaid"), predicate: (r) => !r.paid },
+          { value: "noPrice", label: locale === "sr" ? "Bez cene" : "No price", predicate: (r) => r.amount === null },
         ]}
         toolbar={
           <>
@@ -205,7 +215,8 @@ export type PartRow = {
   trailerId: string | null;
   date: string;
   invoiceNo: string | null;
-  amount: number;
+  /** can be left empty and filled in later */
+  amount: number | null;
   currency: string;
   paid: boolean;
 };
@@ -224,7 +235,7 @@ export function PartsTable({ rows, refs, names, fixed, hide, flush }: Common & {
       { key: "qty", header: t("f.quantity"), align: "right", sortValue: (r) => r.quantity, hide: "sm", render: (r) => <span className="text-ink-2">{num(r.quantity)}</span> },
       { key: "for", header: t("f.for"), sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}</span> },
       { key: "supplier", header: t("f.supplier"), sortValue: (r) => names[r.supplierId ?? ""] ?? "", hide: "lg", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
-      { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => conv(r.amount, r.currency), render: (r) => <Amount amount={r.amount} currency={r.currency} /> },
+      { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => (r.amount === null ? -1 : conv(r.amount, r.currency)), render: (r) => <OptionalAmount amount={r.amount} currency={r.currency} /> },
       { key: "paid", header: t("f.paid"), sortValue: (r) => Number(r.paid), hide: "sm", render: (r) => <PaidBadge paid={r.paid} /> },
     ],
     hide,
@@ -240,6 +251,7 @@ export function PartsTable({ rows, refs, names, fixed, hide, flush }: Common & {
         filters={[
           { value: "all", label: t("c.all"), predicate: () => true },
           { value: "unpaid", label: t("c.unpaid"), predicate: (r) => !r.paid },
+          { value: "noPrice", label: locale === "sr" ? "Bez cene" : "No price", predicate: (r) => r.amount === null },
         ]}
         toolbar={
           <>
