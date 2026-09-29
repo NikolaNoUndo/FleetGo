@@ -227,6 +227,29 @@ async function syncLinks(resource: ResourceKey, companyId: string, id: string, i
     .onConflictDoNothing();
 }
 
+/**
+ * A vehicle's registration includes the technical check, so the 6-month inspection
+ * isn't due again until 6 months after the registration. When a registration is
+ * saved, the vehicle's (or trailer's) existing "Šestomesečni pregled" moves to
+ * registration date + 6 months, if that is later than what it has now.
+ */
+async function afterRegistration(companyId: string, out: Record<string, unknown>) {
+  if (out.docType !== "registration" || (out.entityType !== "vehicle" && out.entityType !== "trailer")) return;
+  const expires = typeof out.expiresAt === "string" ? out.expiresAt : null;
+  const regDate = typeof out.issuedAt === "string" && out.issuedAt ? out.issuedAt : expires ? addMonthsDate(expires, -12) : null;
+  if (!regDate) return;
+  const due = addMonthsDate(regDate, 6);
+  const D = schema.documents;
+  const [six] = await db
+    .select({ id: D.id, expiresAt: D.expiresAt })
+    .from(D)
+    .where(and(eq(D.companyId, companyId), eq(D.entityType, String(out.entityType)), eq(D.entityId, String(out.entityId)), eq(D.docType, "six_month")))
+    .orderBy(sql`${D.expiresAt} desc nulls last`)
+    .limit(1);
+  if (!six || (six.expiresAt && six.expiresAt >= due)) return;
+  await db.update(D).set({ issuedAt: regDate, expiresAt: due }).where(eq(D.id, six.id));
+}
+
 export async function saveRecord(resourceName: string, id: string | null, raw: Record<string, unknown>): Promise<ActionResult> {
   if (!isResource(resourceName)) return { ok: false, errors: {}, message: "Unknown resource" };
   let companyId: string;
@@ -318,6 +341,7 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
         .returning({ id: table.id });
       if (!res.length) return { ok: false, errors: {}, message: "Not found" };
       if (links) await syncLinks(resourceName, companyId, res[0].id, links);
+      if (resourceName === "documents") await afterRegistration(companyId, out);
       revalidatePath("/", "layout");
       return { ok: true, id: res[0].id };
     }
@@ -327,6 +351,7 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
       .returning({ id: table.id });
     const newId = (res as { id: string }[])[0].id;
     if (links) await syncLinks(resourceName, companyId, newId, links);
+    if (resourceName === "documents") await afterRegistration(companyId, out);
     revalidatePath("/", "layout");
     return { ok: true, id: newId };
   } catch (e) {
