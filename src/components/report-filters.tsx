@@ -5,7 +5,8 @@ import { Printer } from "lucide-react";
 import type { ReportKind, ReportParams } from "@/lib/reports";
 import { usePrefs } from "./prefs";
 import { Button } from "./ui/primitives";
-import { FieldShell, Segmented, Select, TextInput } from "./ui/client";
+import { FieldShell, Segmented, Select } from "./ui/client";
+import { DateField } from "./ui/date-field";
 
 type Opt = { id: string; label: string };
 
@@ -59,10 +60,10 @@ export function ReportFilters({
         {params.period === "custom" && (
           <>
             <FieldShell label={L("Od", "From")} htmlFor="r-from">
-              <TextInput id="r-from" type="date" value={params.from} onChange={(e) => e.target.value && go({ from: e.target.value })} />
+              <DateField id="r-from" value={params.from} required onChange={(v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && go({ from: v })} />
             </FieldShell>
             <FieldShell label={L("Do", "To")} htmlFor="r-to">
-              <TextInput id="r-to" type="date" value={params.to} onChange={(e) => e.target.value && go({ to: e.target.value })} />
+              <DateField id="r-to" value={params.to} required onChange={(v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && go({ to: v })} />
             </FieldShell>
           </>
         )}

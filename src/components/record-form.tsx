@@ -12,6 +12,7 @@ import { todayISO } from "@/lib/format";
 import { usePrefs } from "./prefs";
 import { Button, cn } from "./ui/primitives";
 import { FieldShell, Modal, Segmented, Select, TextArea, TextInput, layerFor, type MenuItem } from "./ui/client";
+import { DateField, MonthField, expiryPresets } from "./ui/date-field";
 import type { TKey } from "@/lib/i18n";
 
 type Values = Record<string, string | boolean>;
@@ -346,7 +347,16 @@ export function RecordForm({
         );
         break;
       case "date":
-        control = <TextInput id={id} type="date" value={String(val ?? "")} onChange={(e) => set(f.name, e.target.value)} />;
+        control = (
+          <DateField
+            id={id}
+            value={String(val ?? "")}
+            onChange={(v) => set(f.name, v)}
+            required={f.required}
+            invalid={!!err}
+            presets={f.name === "expiresAt" ? expiryPresets(String(values.issuedAt || ""), locale) : undefined}
+          />
+        );
         break;
       case "bool":
         if (f.hint)
@@ -472,7 +482,7 @@ export function RecordForm({
         control = <SupplierPicker id={id} value={String(val ?? "")} options={refs.suppliers ?? []} onChange={(v) => set(f.name, v)} />;
         break;
       case "month":
-        control = <TextInput id={id} type="month" value={String(val ?? "")} onChange={(e) => set(f.name, e.target.value)} />;
+        control = <MonthField id={id} value={String(val ?? "")} onChange={(v) => set(f.name, v)} />;
         break;
       default:
         control = <TextInput id={id} value={String(val ?? "")} onChange={(e) => set(f.name, e.target.value)} placeholder={f.placeholder} />;
