@@ -145,9 +145,11 @@ export function DateField({
 
   const base = ISO.test(value) ? value : todayIso();
   const [view, setView] = useState({ y: +base.slice(0, 4), m: +base.slice(5, 7) });
+  const [menu, setMenu] = useState<"m" | "y" | null>(null);
   const openCalendar = () => {
     const b = ISO.test(value) ? value : todayIso();
     setView({ y: +b.slice(0, 4), m: +b.slice(5, 7) });
+    setMenu(null);
     setOpen((o) => !o);
   };
   const pick = (iso: string) => {
@@ -169,7 +171,7 @@ export function DateField({
     setView({ y: t.getUTCFullYear(), m: t.getUTCMonth() + 1 });
   };
   const nowY = new Date().getFullYear();
-  const years = Array.from({ length: 31 }, (_, i) => nowY - 15 + i);
+  const years = Array.from({ length: 51 }, (_, i) => nowY - 20 + i);
   if (!years.includes(view.y)) years.push(view.y);
   years.sort((a, b) => a - b);
 
@@ -223,45 +225,80 @@ export function DateField({
 
       {pos &&
         createPortal(
-          <div ref={panel} role="dialog" aria-label={sr ? "Kalendar" : "Calendar"} style={pos.style} className={panelCls}>
+          <div
+            ref={panel}
+            role="dialog"
+            aria-label={sr ? "Kalendar" : "Calendar"}
+            style={pos.style}
+            className={panelCls}
+            onMouseDown={(e) => {
+              // a click anywhere else in the calendar closes the month / year list
+              if (menu && !(e.target as HTMLElement).closest("[role=listbox], [aria-haspopup=listbox]")) setMenu(null);
+            }}
+          >
             <div className="mb-2 flex items-center gap-1">
               <button type="button" className={navBtn} onClick={() => move(-1)} aria-label={sr ? "Prethodni mesec" : "Previous month"}>
                 <ChevronLeft size={16} />
               </button>
-              <span className="relative min-w-0 flex-1">
-                <select
-                  value={view.m}
-                  onChange={(e) => setView({ ...view, m: +e.target.value })}
-                  className="h-8 w-full cursor-pointer appearance-none rounded-lg bg-transparent pr-6 pl-2 text-sm font-semibold capitalize hover:bg-surface-2"
-                  aria-label={sr ? "Mesec" : "Month"}
-                >
-                  {MONTHS[locale].map((n, i) => (
-                    <option key={n} value={i + 1}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={13} className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-ink-3" />
-              </span>
-              <span className="relative">
-                <select
-                  value={view.y}
-                  onChange={(e) => setView({ ...view, y: +e.target.value })}
-                  className="h-8 cursor-pointer appearance-none rounded-lg bg-transparent pr-6 pl-2 text-sm font-semibold tnum hover:bg-surface-2"
-                  aria-label={sr ? "Godina" : "Year"}
-                >
-                  {years.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={13} className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-ink-3" />
-              </span>
+              <button
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={menu === "m"}
+                onClick={() => setMenu(menu === "m" ? null : "m")}
+                className={cn("inline-flex h-8 min-w-0 flex-1 items-center justify-between gap-1 rounded-lg pr-1.5 pl-2 text-sm font-semibold capitalize hover:bg-surface-2", menu === "m" && "bg-surface-2")}
+              >
+                <span className="truncate">{MONTHS[locale][view.m - 1]}</span>
+                <ChevronDown size={13} className={cn("shrink-0 text-ink-3 transition-transform", menu === "m" && "rotate-180")} />
+              </button>
+              <button
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={menu === "y"}
+                onClick={() => setMenu(menu === "y" ? null : "y")}
+                className={cn("inline-flex h-8 items-center gap-1 rounded-lg pr-1.5 pl-2 text-sm font-semibold tnum hover:bg-surface-2", menu === "y" && "bg-surface-2")}
+              >
+                {view.y}
+                <ChevronDown size={13} className={cn("shrink-0 text-ink-3 transition-transform", menu === "y" && "rotate-180")} />
+              </button>
               <button type="button" className={navBtn} onClick={() => move(1)} aria-label={sr ? "Sledeći mesec" : "Next month"}>
                 <ChevronRight size={16} />
               </button>
             </div>
+
+            {menu && (
+              <ul
+                role="listbox"
+                // opens right under the header; 7 rows visible, the rest by scrolling, chosen one on top
+                ref={(el) => {
+                  const sel = el?.querySelector<HTMLElement>("[aria-selected=true]");
+                  if (el && sel) el.scrollTop = sel.offsetTop - 4;
+                }}
+                className="absolute top-[52px] right-3 left-3 z-10 max-h-[218px] overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-pop"
+              >
+                {(menu === "y" ? years.map((y) => ({ v: y, label: String(y) })) : MONTHS[locale].map((n, i) => ({ v: i + 1, label: n }))).map((o) => {
+                  const sel = menu === "y" ? o.v === view.y : o.v === view.m;
+                  return (
+                    <li key={o.v}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={sel}
+                        onClick={() => {
+                          setView(menu === "y" ? { ...view, y: o.v } : { ...view, m: o.v });
+                          setMenu(null);
+                        }}
+                        className={cn(
+                          "flex h-[30px] w-full items-center rounded-md px-2.5 text-left text-sm capitalize tnum",
+                          sel ? "bg-accent font-semibold text-white" : o.v === (menu === "y" ? nowY : 0) ? "font-semibold text-accent-ink hover:bg-surface-2" : "hover:bg-surface-2",
+                        )}
+                      >
+                        {o.label}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
 
             <div className="grid grid-cols-7 gap-0.5 text-center">
               {DAYS[locale].map((d, i) => (
