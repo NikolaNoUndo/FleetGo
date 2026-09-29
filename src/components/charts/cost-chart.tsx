@@ -6,13 +6,14 @@ import { Select, Segmented } from "../ui/client";
 import { fmtMoney, fmtMonth } from "@/lib/format";
 import type { TKey } from "@/lib/i18n";
 
-export type MonthCosts = { key: string; fuel: number; services: number; parts: number; payments: number };
+export type MonthCosts = { key: string; fuel: number; services: number; parts: number; payments: number; expenses: number };
 
 const SERIES: { key: keyof Omit<MonthCosts, "key">; label: TKey; color: string }[] = [
   { key: "fuel", label: "cat.fuel", color: "var(--s1)" },
   { key: "services", label: "cat.services", color: "var(--s2)" },
   { key: "parts", label: "cat.parts", color: "var(--s3)" },
   { key: "payments", label: "cat.payments", color: "var(--s4)" },
+  { key: "expenses", label: "cat.expenses", color: "var(--s5)" },
 ];
 
 function niceMax(v: number) {
@@ -36,7 +37,7 @@ export function CostChart({ data, keys }: { data: MonthCosts[]; keys?: (keyof Om
   const [hover, setHover] = useState<number | null>(null);
   const rows = useMemo(() => data.slice(-Number(range)), [data, range]);
 
-  const totals = rows.map((d) => d.fuel + d.services + d.parts + d.payments);
+  const totals = rows.map((d) => d.fuel + d.services + d.parts + d.payments + d.expenses);
   const max = niceMax(Math.max(...totals, 1) * 1.08);
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max);
   const plotW = W - PAD.left - PAD.right;

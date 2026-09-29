@@ -9,7 +9,8 @@ import { DetailTabs, RecordActions } from "@/components/detail";
 import { AssetStatus } from "@/components/tables/common";
 import { DocumentsTable, FuelTable, PartsTable, ServicesTable } from "@/components/tables/records";
 import { getPrefs, getT } from "@/lib/prefs";
-import { consumptionByVehicle, documentsWithOwner, getRefs, getVehicle, listEmployees, listFuel, listParts, listServices, listTrailers, listVehicleTrailers } from "@/lib/queries";
+import { consumptionByVehicle, documentsWithOwner, getRefs, getVehicle, listEmployees, listExpenses, listFuel, listParts, listServices, listTrailers, listVehicleTrailers } from "@/lib/queries";
+import { ExpensesTable } from "@/components/tables/expenses";
 import { getMoney } from "@/lib/money-server";
 import { EURO_NORMS, VEHICLE_TYPES, optLabel } from "@/lib/catalog";
 import { fmtNum } from "@/lib/format";
@@ -28,7 +29,7 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
   const v = await getVehicle(id);
   if (!v) notFound();
 
-  const [t, { locale }, m, { refs, names }, docs, services, fuel, parts, trailers, employees, links] = await Promise.all([
+  const [t, { locale }, m, { refs, names }, docs, services, fuel, parts, trailers, employees, links, expenses] = await Promise.all([
     getT(),
     getPrefs(),
     getMoney(),
@@ -40,7 +41,9 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
     listTrailers(),
     listEmployees(),
     listVehicleTrailers(),
+    allow("expenses") ? listExpenses() : Promise.resolve([]),
   ]);
+  const vExpenses = expenses.filter((e) => e.vehicleId === id);
   const vServices = services.filter((s) => s.vehicleId === id);
   const vFuel = fuel.filter((f) => f.vehicleId === id);
   const vParts = parts.filter((p) => p.vehicleId === id);
@@ -109,6 +112,7 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
               {allow("fuel") && <Kv label={t("cat.fuel")}>{m.fmt(m.sum(vFuel))}</Kv>}
               {allow("services") && <Kv label={t("cat.services")}>{m.fmt(m.sum(vServices))}</Kv>}
               {allow("parts") && <Kv label={t("cat.parts")}>{m.fmt(m.sum(vParts))}</Kv>}
+              {allow("expenses") && vExpenses.length > 0 && <Kv label={t("cat.expenses")}>{m.fmt(m.sum(vExpenses))}</Kv>}
               <Kv label={t("f.consumption")}>{cons ? `${fmtNum(cons.l100, locale, 1)} l/100 km` : "—"}</Kv>
             </div>
           </Shell>
@@ -120,6 +124,7 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
             allow("services") && { key: "services", label: t("x.services"), count: vServices.length, content: <ServicesTable rows={vServices} refs={refs} names={names} fixed={{ vehicleId: id, trailerId: "" }} hide={["for"]} /> },
             allow("fuel") && { key: "fuel", label: t("x.fuel"), count: vFuel.length, content: <FuelTable rows={vFuel} refs={refs} names={names} fixed={{ vehicleId: id }} hide={["vehicle"]} /> },
             allow("parts") && { key: "parts", label: t("x.parts"), count: vParts.length, content: <PartsTable rows={vParts} refs={refs} names={names} fixed={{ vehicleId: id, trailerId: "" }} hide={["for"]} /> },
+            allow("expenses") && { key: "expenses", label: t("cat.expenses"), count: vExpenses.length, content: <ExpensesTable rows={vExpenses} refs={refs} names={names} fixed={{ vehicleId: id, trailerId: "" }} hide={["for"]} /> },
           ]}
         />
       </div>

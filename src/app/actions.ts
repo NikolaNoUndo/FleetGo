@@ -13,6 +13,7 @@ import { getNbsRate } from "@/lib/fx";
 import { DOC_TYPES, OPTION_SETS, type EntityType } from "@/lib/catalog";
 import { getPositions, normalizeWialonHost } from "@/lib/telematics";
 import { resolveLocation, validLatLng } from "@/lib/geo";
+import { addMonthsDate, MAX_SPREAD } from "@/lib/expenses";
 
 const TABLES = {
   vehicles: schema.vehicles,
@@ -25,6 +26,7 @@ const TABLES = {
   payments: schema.driverPayments,
   suppliers: schema.suppliers,
   places: schema.places,
+  expenses: schema.expenses,
 } as const;
 
 export type ActionResult = { ok: true; id: string } | { ok: false; errors: Record<string, string>; message?: string };
@@ -137,6 +139,11 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
         if (!DATE.test(s)) errors[f.name] = "date";
         else out[f.name] = s;
         break;
+      case "month":
+        // <input type="month"> gives "2026-11"; stored as the first day of that month
+        if (!/^\d{4}-\d{2}$/.test(s.slice(0, 7))) errors[f.name] = "date";
+        else out[f.name] = `${s.slice(0, 7)}-01`;
+        break;
       case "select": {
         const set = OPTION_SETS[f.options!];
         if (!set.some((o) => o.value === s)) errors[f.name] = "option";
@@ -239,6 +246,31 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
     if (!out.name && !supplierFields.some((f) => f.value)) return { ok: false, errors: { name: "required" } };
   }
   for (const sf of supplierFields) out[sf.field] = await resolveSupplier(companyId, sf.value);
+
+  if (resourceName === "expenses") {
+    // a monthly cost is counted month by month, so it is never spread or shifted
+    const date = String(out.date);
+    if (out.recurring) {
+      out.costFrom = null;
+      out.spreadMonths = 1;
+      if (out.recurringUntil && String(out.recurringUntil) < date) return { ok: false, errors: { recurringUntil: "date" } };
+      let prevNext: string | null = null;
+      let prevDate: string | null = null;
+      if (id && UUID.test(id)) {
+        const E = schema.expenses;
+        const [prev] = await db.select({ next: E.recurringNext, date: E.date, recurring: E.recurring }).from(E).where(and(eq(E.id, id), eq(E.companyId, companyId))).limit(1);
+        if (prev?.recurring) [prevNext, prevDate] = [prev.next, prev.date];
+      }
+      // keep the schedule unless the template's date moved
+      out.recurringNext = prevNext && prevDate === date ? prevNext : addMonthsDate(date, 1);
+    } else {
+      out.recurringUntil = null;
+      out.recurringNext = null;
+      const n = Number(out.spreadMonths ?? 1);
+      if (!Number.isInteger(n) || n < 1 || n > MAX_SPREAD) return { ok: false, errors: { spreadMonths: "number" } };
+      out.spreadMonths = n;
+    }
+  }
 
   if (resourceName === "places") {
     // the name defaults to the supplier's name ("Rapidex")

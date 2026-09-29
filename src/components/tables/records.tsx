@@ -15,7 +15,7 @@ import type { Refs } from "@/lib/resources";
 
 type Common = { refs: Refs; names: Record<string, string>; fixed?: Record<string, string>; hide?: string[]; flush?: boolean };
 /** Amount, or a "no price yet" marker so entries saved without a price are easy to spot and fill in. */
-function OptionalAmount({ amount, currency }: { amount: number | null; currency: string }) {
+export function OptionalAmount({ amount, currency }: { amount: number | null; currency: string }) {
   const { locale } = usePrefs();
   if (amount !== null) return <Amount amount={amount} currency={currency} />;
   return <Badge tone="warn">{locale === "sr" ? "Bez cene" : "No price"}</Badge>;

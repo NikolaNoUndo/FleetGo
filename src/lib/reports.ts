@@ -1,12 +1,13 @@
 import "server-only";
 import type { AppContext } from "./auth/context";
 import { can } from "./auth/permissions";
-import { FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, COUNTRIES, optLabel, type Currency, type Locale } from "./catalog";
+import { EXPENSE_CATEGORIES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, COUNTRIES, optLabel, type Currency, type Locale } from "./catalog";
 import { fmtDate, fmtMoney, fmtNum, toCurrency, todayISO } from "./format";
 import { companyRate } from "./fx";
-import { consumptionByVehicle, fullName, listEmployees, listFuel, listParts, listPayments, listServices, listSuppliers, listTrailers, listVehicles } from "./queries";
+import { consumptionByVehicle, fullName, listEmployees, listExpenses, listFuel, listParts, listPayments, listServices, listSuppliers, listTrailers, listVehicles } from "./queries";
+import { allocationLabel, expenseMonthRows } from "./expenses";
 
-export const REPORT_KINDS = ["fuel", "payments", "services", "vehicles"] as const;
+export const REPORT_KINDS = ["fuel", "payments", "services", "expenses", "vehicles"] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
 export const PERIODS = ["this_month", "last_month", "this_year", "last_year", "custom"] as const;
 export type Period = (typeof PERIODS)[number];
@@ -81,7 +82,8 @@ export function allowedReports(ctx: AppContext): ReportKind[] {
   if (can(p, "fuel")) out.push("fuel");
   if (can(p, "payments")) out.push("payments");
   if (can(p, "services") || can(p, "parts")) out.push("services");
-  if (can(p, "vehicles") && (can(p, "fuel") || can(p, "services") || can(p, "parts"))) out.push("vehicles");
+  if (can(p, "expenses")) out.push("expenses");
+  if (can(p, "vehicles") && (can(p, "fuel") || can(p, "services") || can(p, "parts") || can(p, "expenses"))) out.push("vehicles");
   return out;
 }
 
@@ -90,6 +92,7 @@ export const reportTitle = (kind: ReportKind, locale: Locale) =>
     fuel: { sr: "Izveštaj o sipanju goriva", en: "Fuel report" },
     payments: { sr: "Izveštaj o uplatama vozačima", en: "Driver payments report" },
     services: { sr: "Izveštaj o servisima i delovima", en: "Services and parts report" },
+    expenses: { sr: "Izveštaj o ostalim troškovima", en: "Other costs report" },
     vehicles: { sr: "Troškovi po vozilu", en: "Costs per vehicle" },
   })[kind][locale];
 
@@ -98,6 +101,7 @@ export const reportTab = (kind: ReportKind, locale: Locale) =>
     fuel: { sr: "Gorivo", en: "Fuel" },
     payments: { sr: "Uplate vozačima", en: "Driver payments" },
     services: { sr: "Servisi i delovi", en: "Services and parts" },
+    expenses: { sr: "Ostali troškovi", en: "Other costs" },
     vehicles: { sr: "Troškovi po vozilu", en: "Costs per vehicle" },
   })[kind][locale];
 
@@ -334,11 +338,80 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
     };
   }
 
+  /* --------------------------- other costs ---------------------------- */
+  if (p.kind === "expenses") {
+    const all = await listExpenses();
+    const match = (r: (typeof all)[number]) =>
+      (!p.vehicle || r.vehicleId === p.vehicle || r.trailerId === p.vehicle) &&
+      (!p.supplier || r.supplierId === p.supplier) &&
+      (!p.paid || (p.paid === "paid" ? r.paid : !r.paid));
+    const rows = all.filter((r) => inRange(r.date) && match(r)).sort((a, b) => a.date.localeCompare(b.date));
+    // what falls on the period: spread / shifted / monthly costs counted in their own months
+    const falls = expenseMonthRows(all.filter(match)).filter((s) => inRange(s.date));
+    const unpaid = rows.filter((r) => !r.paid);
+    const noPrice = rows.filter((r) => r.amount === null).length;
+    const byCat = EXPENSE_CATEGORIES.map((c) => ({ c, sum: sumConv(falls.filter((s) => s.category === c.value)) })).filter((x) => x.sum > 0).sort((a, b) => b.sum - a.sum);
+    return {
+      ...base,
+      landscape: true,
+      empty: rows.length === 0 && falls.length === 0,
+      summary: [
+        { label: L("Uneto u periodu", "Entered in period"), value: total(sumConv(rows)), sub: L(`${rows.length} troškova`, `${rows.length} costs`) },
+        { label: L("Pada na period", "Falls on period"), value: total(sumConv(falls)), sub: L("sa raspoređenim i mesečnim", "incl. spread and monthly") },
+        { label: L("Nije plaćeno", "Unpaid"), value: total(sumConv(unpaid)), sub: unpaid.length ? L(`${unpaid.length} računa`, `${unpaid.length} invoices`) : undefined },
+        ...(noPrice ? [{ label: L("Bez cene", "No price"), value: num(noPrice), sub: L("nisu u zbiru", "not in the total") }] : []),
+      ],
+      tables: [
+        {
+          columns: [
+            { key: "date", label: L("Datum", "Date"), nowrap: true },
+            { key: "cat", label: L("Vrsta", "Type") },
+            { key: "what", label: L("Opis", "Description") },
+            { key: "asset", label: L("Za", "For"), nowrap: true },
+            { key: "supplier", label: L("Dobavljač", "Supplier") },
+            { key: "invoice", label: L("Račun br.", "Invoice") },
+            { key: "how", label: L("Računa se", "Counted") },
+            { key: "amount", label: L("Iznos", "Amount"), align: "right", nowrap: true },
+            { key: "paid", label: L("Plaćeno", "Paid") },
+          ],
+          rows: rows.map((r) => ({
+            date: date(r.date),
+            cat: optLabel(EXPENSE_CATEGORIES, r.category, locale),
+            what: r.description ?? "",
+            asset: plate.get(r.vehicleId ?? r.trailerId ?? "") ?? L("Firma", "Company"),
+            supplier: r.supplierId ? (supplierName.get(r.supplierId) ?? "") : "",
+            invoice: r.invoiceNo ?? "",
+            how: allocationLabel(r, locale) ?? "",
+            amount: r.amount !== null ? money(r.amount, r.currency) : L("bez cene", "no price"),
+            paid: r.paid ? L("Da", "Yes") : L("Ne", "No"),
+          })),
+          foot: { date: L("Ukupno", "Total"), amount: total(sumConv(rows)) },
+        },
+        ...(byCat.length
+          ? [
+              {
+                title: L("Po vrsti troška (koliko pada na period)", "By type (what falls on the period)"),
+                columns: [
+                  { key: "cat", label: L("Vrsta", "Type") },
+                  { key: "sum", label: L("Iznos", "Amount"), align: "right" as const, nowrap: true },
+                ],
+                rows: byCat.map((x) => ({ cat: x.c.label[locale], sum: total(x.sum) })),
+                foot: { cat: L("Ukupno", "Total"), sum: total(sumConv(falls)) },
+              },
+            ]
+          : []),
+      ],
+      note: `${base.note} ${L("„Pada na period“ uključuje mesečne troškove i delove troškova raspoređenih na više meseci ili onih koji se računaju od kasnijeg meseca.", "“Falls on period” includes monthly costs and the parts of costs spread over several months or counted from a later month.")}`,
+    };
+  }
+
   /* ------------------------- costs per vehicle ------------------------ */
   const showFuel = can(perms, "fuel");
   const showSvc = can(perms, "services");
   const showParts = can(perms, "parts");
-  const [fuelAll, svcAll, partsAll] = await Promise.all([showFuel ? listFuel() : [], showSvc ? listServices() : [], showParts ? listParts() : []]);
+  const showExp = can(perms, "expenses");
+  const [fuelAll, svcAll, partsAll, expAll] = await Promise.all([showFuel ? listFuel() : [], showSvc ? listServices() : [], showParts ? listParts() : [], showExp ? listExpenses() : []]);
+  const exp = expenseMonthRows(expAll).filter((s) => inRange(s.date));
   const fuel = fuelAll.filter((f) => inRange(f.date));
   const svc = svcAll.filter((s) => inRange(s.date));
   const prt = partsAll.filter((s) => inRange(s.date));
@@ -357,11 +430,16 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
       const fc = sumConv(f);
       const sc = sumConv(s);
       const pc = sumConv(pr);
-      return { a, liters: f.reduce((t, x) => t + x.liters, 0), fc, sc, pc, sum: fc + sc + pc, km, l100: cons[a.id]?.l100 ?? null };
+      const oc = sumConv(exp.filter((x) => x.vehicleId === a.id || x.trailerId === a.id));
+      return { a, liters: f.reduce((t, x) => t + x.liters, 0), fc, sc, pc, oc, sum: fc + sc + pc + oc, km, l100: (cons[a.id]?.l100 ?? null) as number | null };
     })
     .filter((x) => x.sum > 0 || x.liters > 0)
     .sort((x, y) => y.sum - x.sum);
-  const tot = lines.reduce((t, x) => ({ liters: t.liters + x.liters, fc: t.fc + x.fc, sc: t.sc + x.sc, pc: t.pc + x.pc, sum: t.sum + x.sum, km: t.km + x.km }), { liters: 0, fc: 0, sc: 0, pc: 0, sum: 0, km: 0 });
+  // company overhead (not tied to a vehicle) as its own line, so the total is the whole fleet cost
+  const overhead = !p.vehicle && showExp ? sumConv(exp.filter((x) => !x.vehicleId && !x.trailerId)) : 0;
+  if (overhead > 0)
+    lines.push({ a: { id: "_company", plate: L("Firma (opšti troškovi)", "Company (overhead)"), model: "", trailer: false }, liters: 0, fc: 0, sc: 0, pc: 0, oc: overhead, sum: overhead, km: 0, l100: null });
+  const tot = lines.reduce((t, x) => ({ liters: t.liters + x.liters, fc: t.fc + x.fc, sc: t.sc + x.sc, pc: t.pc + x.pc, oc: t.oc + x.oc, sum: t.sum + x.sum, km: t.km + x.km }), { liters: 0, fc: 0, sc: 0, pc: 0, oc: 0, sum: 0, km: 0 });
   const columns: Col[] = [
     { key: "plate", label: L("Vozilo", "Vehicle"), nowrap: true },
     { key: "model", label: L("Marka / model", "Make / model") },
@@ -375,6 +453,7 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
       : []),
     ...(showSvc ? [{ key: "sc", label: L("Servisi", "Services"), align: "right" as const, nowrap: true }] : []),
     ...(showParts ? [{ key: "pc", label: L("Delovi", "Parts"), align: "right" as const, nowrap: true }] : []),
+    ...(showExp ? [{ key: "oc", label: L("Ostalo", "Other"), align: "right" as const, nowrap: true }] : []),
     { key: "sum", label: L("Ukupno", "Total"), align: "right", nowrap: true },
   ];
   return {
@@ -383,9 +462,10 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
     landscape: true,
     empty: lines.length === 0,
     summary: [
-      { label: L("Vozila sa troškovima", "Vehicles with costs"), value: num(lines.length) },
+      { label: L("Vozila sa troškovima", "Vehicles with costs"), value: num(lines.filter((x) => x.a.id !== "_company").length) },
       ...(showFuel ? [{ label: L("Gorivo", "Fuel"), value: total(tot.fc), sub: `${num(tot.liters, 2)} l` }] : []),
       ...(showSvc || showParts ? [{ label: L("Servisi i delovi", "Services and parts"), value: total(tot.sc + tot.pc) }] : []),
+      ...(showExp ? [{ label: L("Ostali troškovi", "Other costs"), value: total(tot.oc), sub: overhead ? L(`${total(overhead)} na firmu`, `${total(overhead)} company overhead`) : undefined }] : []),
       { label: L("Ukupno", "Total"), value: total(tot.sum) },
     ],
     tables: [
@@ -400,9 +480,10 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
           fc: x.fc ? total(x.fc) : "—",
           sc: x.sc ? total(x.sc) : "—",
           pc: x.pc ? total(x.pc) : "—",
+          oc: x.oc ? total(x.oc) : "—",
           sum: total(x.sum),
         })),
-        foot: { plate: L("Ukupno", "Total"), km: num(tot.km), liters: num(tot.liters, 2), fc: total(tot.fc), sc: total(tot.sc), pc: total(tot.pc), sum: total(tot.sum) },
+        foot: { plate: L("Ukupno", "Total"), km: num(tot.km), liters: num(tot.liters, 2), fc: total(tot.fc), sc: total(tot.sc), pc: total(tot.pc), oc: total(tot.oc), sum: total(tot.sum) },
       },
     ],
     note: `${base.note} ${L("Pređeni km su razlika najveće i najmanje kilometraže sa sipanja u periodu; l/100 km se računa samo iz sipanja do punog rezervoara.", "Km driven is the difference between the highest and lowest odometer on refuels in the period; l/100 km uses full-tank refuels only.")}`,

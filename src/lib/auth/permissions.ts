@@ -12,6 +12,7 @@ export const MODULES = [
   { key: "services", label: { sr: "Servisi", en: "Services" } },
   { key: "parts", label: { sr: "Delovi i nabavka", en: "Parts & purchases" } },
   { key: "payments", label: { sr: "Uplate vozačima", en: "Driver payments" } },
+  { key: "expenses", label: { sr: "Ostali troškovi", en: "Other costs" } },
   { key: "settings", label: { sr: "Podešavanja firme", en: "Company settings" } },
 ] as const satisfies readonly { key: string; label: L }[];
 
@@ -43,6 +44,7 @@ export const ROLE_PRESETS: Record<Role, Perms> = {
     services: "view",
     parts: "view",
     payments: "none",
+    expenses: "none",
     settings: "none",
   },
   service: {
@@ -56,6 +58,7 @@ export const ROLE_PRESETS: Record<Role, Perms> = {
     services: "edit",
     parts: "edit",
     payments: "none",
+    expenses: "none",
     settings: "none",
   },
   accounting: {
@@ -69,6 +72,7 @@ export const ROLE_PRESETS: Record<Role, Perms> = {
     services: "edit",
     parts: "edit",
     payments: "edit",
+    expenses: "edit",
     settings: "none",
   },
 };
@@ -93,7 +97,7 @@ export function can(perms: Perms, module: ModuleKey, level: "view" | "edit" = "v
 
 /** Reports are open to anyone who can see at least one cost module. */
 export function canReports(perms: Perms) {
-  return (["fuel", "payments", "services", "parts"] as const).some((m) => can(perms, m));
+  return (["fuel", "payments", "services", "parts", "expenses"] as const).some((m) => can(perms, m));
 }
 
 /** Suppliers are shared by parts and services. */
@@ -111,6 +115,7 @@ export const RESOURCE_MODULE = {
   parts: "parts",
   fuel: "fuel",
   payments: "payments",
+  expenses: "expenses",
 } as const satisfies Record<string, ModuleKey>;
 
 /** Sidebar route → module. */
@@ -126,6 +131,7 @@ export const ROUTE_MODULE: Record<string, ModuleKey | "suppliers" | "reports"> =
   "/parts": "parts",
   "/suppliers": "suppliers",
   "/payments": "payments",
+  "/expenses": "expenses",
   "/settings": "settings",
   "/reports": "reports",
 };

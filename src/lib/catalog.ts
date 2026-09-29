@@ -151,6 +151,22 @@ export const ALL_DOC_TYPES: Option[] = (() => {
 
 export const PLACE_KINDS: Option[] = [o("shop", "Prodavnica delova", "Parts shop"), o("service", "Servis", "Workshop"), o("pump", "Pumpa", "Fuel station")];
 
+/** Kinds of "other costs": company overhead, not fuel/services/parts/driver pay. */
+export const EXPENSE_CATEGORIES: Option[] = [
+  o("yard", "Plac i parking", "Yard & parking"),
+  o("rent", "Zakup", "Rent"),
+  o("utilities", "Struja, voda, komunalije", "Utilities"),
+  o("insurance", "Osiguranje", "Insurance"),
+  o("tolls", "Putarine i vinjete", "Tolls & vignettes"),
+  o("fines", "Kazne", "Fines"),
+  o("office", "Knjigovodstvo i administracija", "Accounting & admin"),
+  o("phone", "Telefoni i internet", "Phones & internet"),
+  o("washing", "Pranje vozila", "Vehicle washing"),
+  o("equipment", "Oprema i alat", "Equipment & tools"),
+  o("supplies", "Potrošni materijal", "Supplies"),
+  o("other", "Ostalo", "Other"),
+];
+
 /** Currencies fuel is priced in along the usual routes. */
 export const PRICE_CURRENCIES: Option[] = ["EUR", "RSD", "HUF", "CZK", "PLN", "RON", "BAM", "MKD", "CHF", "GBP", "SEK", "DKK", "NOK", "TRY"].map((c) => o(c, c, c));
 
@@ -171,6 +187,7 @@ export const OPTION_SETS = {
   docTypes: ALL_DOC_TYPES,
   placeKinds: PLACE_KINDS,
   priceCurrencies: PRICE_CURRENCIES,
+  expenseCategories: EXPENSE_CATEGORIES,
 } as const;
 export type OptionSetKey = keyof typeof OPTION_SETS;
 

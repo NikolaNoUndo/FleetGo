@@ -12,6 +12,7 @@ import {
   jsonb,
   primaryKey,
   doublePrecision,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -389,4 +390,41 @@ export const fxRates = pgTable(
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.day, t.currency] })],
+);
+
+/**
+ * Costs of the company that are not fuel, services, parts or driver pay: the yard,
+ * rent, utilities, insurance, tolls, fines, office… Optionally tied to one vehicle.
+ * A cost can count from a later month and be spread over several months, and a
+ * monthly one is a template that gets a copy every month.
+ */
+export const expenses = pgTable(
+  "expenses",
+  {
+    id: id(),
+    companyId: companyId(),
+    date: date("date").notNull(),
+    category: text("category").notNull().default("other"),
+    description: text("description"),
+    supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
+    vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
+    trailerId: uuid("trailer_id").references(() => trailers.id, { onDelete: "set null" }),
+    invoiceNo: text("invoice_no"),
+    amount: money("amount"),
+    currency: text("currency").notNull().default("RSD"),
+    paid: boolean("paid").notNull().default(true),
+    /** first month the cost counts in; empty = the month of `date` */
+    costFrom: date("cost_from"),
+    /** spread the amount evenly over this many months */
+    spreadMonths: integer("spread_months").notNull().default(1),
+    /** monthly: this row is the template and gets a copy every month */
+    recurring: boolean("recurring").notNull().default(false),
+    recurringUntil: date("recurring_until"),
+    /** date of the next copy to create */
+    recurringNext: date("recurring_next"),
+    /** copies point to their template */
+    parentId: uuid("parent_id").references((): AnyPgColumn => expenses.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("expenses_company_idx").on(t.companyId), index("expenses_date_idx").on(t.date), index("expenses_recurring_idx").on(t.companyId, t.recurring)],
 );

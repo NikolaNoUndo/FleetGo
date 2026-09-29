@@ -1,11 +1,12 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, lte, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getCompany } from "./tenant";
 import type { Refs } from "./resources";
 import { asPlaceKind, type MapPlace } from "./places";
-import { daysUntil } from "./format";
+import { daysUntil, todayISO } from "./format";
+import { addMonthsDate } from "./expenses";
 
 const S = schema;
 
@@ -48,6 +49,58 @@ export const listVehicleTrailers = cache(async () => {
   return db.select({ vehicleId: S.vehicleTrailers.vehicleId, trailerId: S.vehicleTrailers.trailerId }).from(S.vehicleTrailers).where(eq(S.vehicleTrailers.companyId, id));
 });
 
+/**
+ * Creates this month's (and any missed months') copies of monthly costs. Runs before
+ * expenses are read; the template rows are locked so two requests can't both add a copy.
+ */
+async function syncRecurringExpenses(companyId: string) {
+  const E = S.expenses;
+  const today = todayISO();
+  await db.transaction(async (tx) => {
+    const due = await tx
+      .select()
+      .from(E)
+      .where(and(eq(E.companyId, companyId), eq(E.recurring, true), lte(E.recurringNext, today)))
+      .for("update");
+    for (const t of due) {
+      const anchor = Number(t.date.slice(8, 10));
+      const copies: (typeof E.$inferInsert)[] = [];
+      let next = t.recurringNext!;
+      // months between the template and `next`, so the day stays the template's (31st → last day)
+      const step = (d: string) => {
+        const [y1, m1] = t.date.split("-").map(Number);
+        const [y2, m2] = d.split("-").map(Number);
+        return addMonthsDate(t.date, (y2 - y1) * 12 + (m2 - m1) + 1, anchor);
+      };
+      while (next <= today && (!t.recurringUntil || next <= t.recurringUntil) && copies.length < 36) {
+        copies.push({
+          companyId,
+          date: next,
+          category: t.category,
+          description: t.description,
+          supplierId: t.supplierId,
+          vehicleId: t.vehicleId,
+          trailerId: t.trailerId,
+          amount: t.amount,
+          currency: t.currency,
+          paid: t.paid,
+          parentId: t.id,
+        });
+        next = step(next);
+      }
+      if (copies.length) await tx.insert(E).values(copies);
+      const ended = t.recurringUntil && next > t.recurringUntil;
+      await tx.update(E).set({ recurringNext: ended ? null : next }).where(eq(E.id, t.id));
+    }
+  });
+}
+
+export const listExpenses = cache(async () => {
+  const { id } = await getCompany();
+  await syncRecurringExpenses(id);
+  return db.select().from(S.expenses).where(eq(S.expenses.companyId, id)).orderBy(desc(S.expenses.date), desc(S.expenses.createdAt));
+});
+
 export const listSuppliers = cache(async () => {
   const { id } = await getCompany();
   return db.select().from(S.suppliers).where(eq(S.suppliers.companyId, id)).orderBy(asc(S.suppliers.name));
@@ -86,6 +139,7 @@ export type Trailer = Awaited<ReturnType<typeof listTrailers>>[number];
 export type Employee = Awaited<ReturnType<typeof listEmployees>>[number];
 export type Doc = Awaited<ReturnType<typeof listDocuments>>[number];
 export type Service = Awaited<ReturnType<typeof listServices>>[number];
+export type Expense = Awaited<ReturnType<typeof listExpenses>>[number];
 export type Part = Awaited<ReturnType<typeof listParts>>[number];
 export type FuelEntry = Awaited<ReturnType<typeof listFuel>>[number];
 export type Payment = Awaited<ReturnType<typeof listPayments>>[number];

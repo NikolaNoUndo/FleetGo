@@ -1,4 +1,5 @@
 import {
+  Building2,
   CalendarClock,
   Container,
   FileText,
@@ -48,6 +49,7 @@ export const GROUPS: NavGroup[] = [
       { href: "/parts", label: "nav.parts", icon: Package },
       { href: "/suppliers", label: "nav.suppliers", icon: Store },
       { href: "/payments", label: "nav.payments", icon: Wallet },
+      { href: "/expenses", label: "nav.expenses", icon: Building2 },
     ],
   },
 ];

@@ -16,10 +16,11 @@ Upravljanje voznim parkom za prevozničke, transportne i logističke firme: vozi
 | Zaposleni | Vozači i ostali; dokumenta vozača, uplate, sipanja |
 | Rokovi i dokumenta | Registracija, tehnički, šestomesečni, zeleni karton, bela potvrda, baždarenje tahografa, CEMT, licenca, ATP, ADR, PP aparat, prva pomoć; za vozače: vozačka, kartica za tahograf, CPC/kod 95, lekarsko, ADR kartica, pasoš, radna dozvola. „Obnovi“ predlaže novi rok po tipičnom trajanju dokumenta |
 | Gorivo | Litri (obavezno), iznos (opciono), cena po litru, pumpa, država, kilometraža, način plaćanja |
-| Servisi / Delovi | Šta je rađeno ili kupljeno, za koje vozilo ili prikolicu, dobavljač/servis, iznos, plaćeno / nije plaćeno |
+| Servisi / Delovi | Šta je rađeno ili kupljeno, za koje vozilo ili prikolicu, dobavljač/servis, iznos (može i kasnije, filter „Bez cene“), plaćeno / nije plaćeno |
 | Dobavljači | Servisi i dobavljači delova. Novi se dodaje direktno iz forme (upišeš naziv → „Dodaj …“) i ostaje u bazi za filtriranje |
 | Uplate vozačima | Dnevnice, akontacije, plate, bonusi, troškovi puta |
-| Izveštaji | Gorivo, uplate vozačima, servisi i delovi, troškovi po vozilu – za izabrani period i filtere (vozilo, vozač, dobavljač, plaćeno). Štampa ili „Sačuvaj kao PDF“ na A4 sa zaglavljem firme i zbirovima |
+| Ostali troškovi | Troškovi firme van goriva, servisa, delova i plata: plac i parking, zakup, komunalije, osiguranje, putarine, kazne, administracija… Vozilo je opciono (inače ide na „Firma“). Trošak može da se ponavlja svakog meseca (sam se doda), da se računa od kasnijeg meseca (kupljeno sada, koristi se kasnije) i da se raspodeli na više meseci (npr. godišnje osiguranje na 12). Iznos nije obavezan |
+| Izveštaji | Gorivo, uplate vozačima, servisi i delovi, ostali troškovi, troškovi po vozilu (sa redom „Firma (opšti troškovi)“) – za izabrani period i filtere (vozilo, vozač, dobavljač, plaćeno). Štampa ili „Sačuvaj kao PDF“ na A4 sa zaglavljem firme i zbirovima |
 | Podešavanja | Podaci o firmi, kurs (NBS automatski ili ručno), broj dana za upozorenje, članovi tima i njihova prava, provera Wialon veze |
 
 Interfejs je na srpskom i engleskom (klik na svoje ime dole levo → Jezik / Valuta / Odjava). Svaki trošak se čuva u valuti u kojoj je plaćen (EUR ili RSD), a zbirovi se prikazuju u izabranoj valuti.

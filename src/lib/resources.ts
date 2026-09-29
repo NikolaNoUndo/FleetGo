@@ -1,10 +1,10 @@
 import type { OptionSetKey } from "./catalog";
 import type { TKey } from "./i18n";
 
-export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers" | "places";
+export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers" | "places" | "expenses";
 export type RefKey = "vehicles" | "trailers" | "employees" | "drivers" | "suppliers";
 
-export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers" | "links" | "coords";
+export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers" | "links" | "coords" | "month";
 
 export type FieldDef = {
   name: string;
@@ -18,6 +18,8 @@ export type FieldDef = {
   defaultValue?: string | number | boolean;
   /** only shown (and saved) when another field has this value */
   showIf?: { field: string; value: string };
+  /** short help under the field */
+  hint?: { sr: string; en: string };
 };
 
 export type RefOption = { id: string; label: string; sub?: string };
@@ -145,6 +147,50 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
       { name: "name", label: "f.name", type: "text", required: true, span: 2 },
       { name: "phone", label: "f.phone", type: "text" },
       { name: "note", label: "f.note", type: "text" },
+    ],
+  },
+  expenses: {
+    title: "r.expenses",
+    fields: [
+      { name: "date", label: "f.date", type: "date", required: true },
+      { name: "category", label: "f.expenseCategory", type: "select", options: "expenseCategories", required: true, defaultValue: "yard" },
+      { name: "description", label: "f.description", type: "text", span: 2, placeholder: "npr. Zakup placa za oktobar" },
+      { name: "amount", label: "f.amount", type: "money", defaultValue: "RSD" },
+      { name: "paid", label: "f.paid", type: "bool", defaultValue: true },
+      {
+        name: "vehicleId",
+        label: "f.vehicleOptional",
+        type: "ref",
+        ref: "vehicles",
+        hint: { sr: "Samo ako se trošak odnosi na jedno vozilo (npr. kazna). Inače ide na firmu.", en: "Only if it concerns one vehicle (e.g. a fine). Otherwise it goes to the company." },
+      },
+      { name: "trailerId", label: "f.trailer", type: "ref", ref: "trailers" },
+      { name: "supplierId", label: "f.supplier", type: "supplier" },
+      { name: "invoiceNo", label: "f.invoiceNo", type: "text" },
+      {
+        name: "recurring",
+        label: "f.recurring",
+        type: "bool",
+        defaultValue: false,
+        span: 2,
+        hint: { sr: "Svakog meseca se sam doda isti trošak (zakup, plac, telefoni…).", en: "The same cost is added automatically every month (rent, yard, phones…)." },
+      },
+      { name: "recurringUntil", label: "f.recurringUntil", type: "date", showIf: { field: "recurring", value: "true" } },
+      {
+        name: "costFrom",
+        label: "f.costFrom",
+        type: "month",
+        showIf: { field: "recurring", value: "false" },
+        hint: { sr: "Ako je kupljeno sada, a koristi se kasnije. Prazno = mesec datuma.", en: "If bought now but used later. Empty = the month of the date." },
+      },
+      {
+        name: "spreadMonths",
+        label: "f.spreadMonths",
+        type: "int",
+        defaultValue: 1,
+        showIf: { field: "recurring", value: "false" },
+        hint: { sr: "Iznos se deli jednako po mesecima (npr. godišnje osiguranje = 12).", en: "The amount is split evenly across months (e.g. yearly insurance = 12)." },
+      },
     ],
   },
   places: {

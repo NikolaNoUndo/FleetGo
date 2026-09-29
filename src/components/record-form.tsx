@@ -30,6 +30,8 @@ function initialValues(fields: FieldDef[], record: Row | null, fixed?: Record<st
     } else if (f.type === "drivers") {
       v[f.name] = raw ? String(raw) : "";
       v.extraDriverIds = Array.isArray(record?.extraDriverIds) ? (record.extraDriverIds as string[]).join(",") : "";
+    } else if (f.type === "month") {
+      v[f.name] = raw ? String(raw).slice(0, 7) : "";
     } else if (raw !== null && raw !== undefined) v[f.name] = String(raw);
     else if (!record && f.type === "date" && f.required) v[f.name] = todayISO();
     else v[f.name] = f.defaultValue !== undefined ? String(f.defaultValue) : "";
@@ -347,6 +349,16 @@ export function RecordForm({
         control = <TextInput id={id} type="date" value={String(val ?? "")} onChange={(e) => set(f.name, e.target.value)} />;
         break;
       case "bool":
+        if (f.hint)
+          return (
+            <label key={f.name} className={cn("flex cursor-pointer items-start gap-2.5 py-1 text-sm", f.span === 2 && "sm:col-span-2")}>
+              <input type="checkbox" checked={Boolean(val)} onChange={(e) => set(f.name, e.target.checked)} className="mt-0.5 size-[18px] shrink-0 rounded accent-[var(--accent)]" />
+              <span>
+                <span className="block font-medium text-ink-2">{t(f.label)}</span>
+                <span className="block text-xs leading-snug text-ink-3">{f.hint[locale]}</span>
+              </span>
+            </label>
+          );
         return (
           <label key={f.name} className={cn("flex h-10 cursor-pointer items-center gap-2.5 self-end text-sm font-medium text-ink-2", f.span === 2 && "sm:col-span-2")}>
             <input type="checkbox" checked={Boolean(val)} onChange={(e) => set(f.name, e.target.checked)} className="size-[18px] rounded accent-[var(--accent)]" />
@@ -459,12 +471,16 @@ export function RecordForm({
       case "supplier":
         control = <SupplierPicker id={id} value={String(val ?? "")} options={refs.suppliers ?? []} onChange={(v) => set(f.name, v)} />;
         break;
+      case "month":
+        control = <TextInput id={id} type="month" value={String(val ?? "")} onChange={(e) => set(f.name, e.target.value)} />;
+        break;
       default:
         control = <TextInput id={id} value={String(val ?? "")} onChange={(e) => set(f.name, e.target.value)} placeholder={f.placeholder} />;
     }
     return (
       <FieldShell key={f.name} label={label} error={err} span={f.span} htmlFor={id}>
         {control}
+        {f.hint && !err && <span className="text-xs leading-snug text-ink-3">{f.hint[locale]}</span>}
       </FieldShell>
     );
   };

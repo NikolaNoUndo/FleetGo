@@ -11,7 +11,8 @@ import { LiveMini } from "@/components/map/live-view";
 import { getPrefs, getT } from "@/lib/prefs";
 import { requireContext } from "@/lib/auth/context";
 import { can, ROUTE_MODULE, type ModuleKey } from "@/lib/auth/permissions";
-import { consumptionByVehicle, documentsWithOwner, listEmployees, listFuel, listParts, listPayments, listServices, listTrailers, listVehicles } from "@/lib/queries";
+import { consumptionByVehicle, documentsWithOwner, listEmployees, listExpenses, listFuel, listParts, listPayments, listServices, listTrailers, listVehicles } from "@/lib/queries";
+import { expenseMonthRows } from "@/lib/expenses";
 import { getMoney, inMonth, monthBounds, pctDelta } from "@/lib/money-server";
 import { DOC_TYPES, ENTITY_TYPES, type EntityType, optLabel } from "@/lib/catalog";
 import { daysUntil, expiryState, fmtDate, fmtNum } from "@/lib/format";
@@ -29,9 +30,9 @@ export default async function OverviewPage() {
     redirect(first?.href ?? "/no-access");
   }
 
-  const A = { vehicles: allow("vehicles"), docs: allow("documents"), fuel: allow("fuel"), services: allow("services"), parts: allow("parts"), payments: allow("payments"), live: allow("live") };
+  const A = { vehicles: allow("vehicles"), docs: allow("documents"), fuel: allow("fuel"), services: allow("services"), parts: allow("parts"), payments: allow("payments"), expenses: allow("expenses"), live: allow("live") };
   const none = Promise.resolve([] as never[]);
-  const [t, { locale }, m, vehicles, trailers, employees, fuel, services, parts, payments, docs] = await Promise.all([
+  const [t, { locale }, m, vehicles, trailers, employees, fuel, services, parts, payments, docs, expenseRows] = await Promise.all([
     getT(),
     getPrefs(),
     getMoney(),
@@ -43,24 +44,30 @@ export default async function OverviewPage() {
     A.parts ? listParts() : none,
     A.payments ? listPayments() : none,
     A.docs ? documentsWithOwner() : none,
+    A.expenses ? listExpenses() : none,
   ]);
+  // other costs count in the months they belong to (monthly, spread, shifted)
+  const expenses = expenseMonthRows(expenseRows);
   const sr = locale === "sr";
-  const costKeys = (["fuel", "services", "parts", "payments"] as const).filter((k) => A[k]);
+  const costKeys = (["fuel", "services", "parts", "payments", "expenses"] as const).filter((k) => A[k]);
   const anyCost = costKeys.length > 0;
 
   // monthly costs, 12 months, only for the categories this member may see
   const months: MonthCosts[] = Array.from({ length: 12 }, (_, i) => i - 11).map((off) => {
     const b = monthBounds(off);
     const inB = (r: { date: string }) => r.date >= b.from && r.date <= b.to;
-    return { key: b.key, fuel: m.sum(fuel.filter(inB)), services: m.sum(services.filter(inB)), parts: m.sum(parts.filter(inB)), payments: m.sum(payments.filter(inB)) };
+    return { key: b.key, fuel: m.sum(fuel.filter(inB)), services: m.sum(services.filter(inB)), parts: m.sum(parts.filter(inB)), payments: m.sum(payments.filter(inB)), expenses: m.sum(expenses.filter(inB)) };
   });
-  const total = (x: MonthCosts) => x.fuel + x.services + x.parts + x.payments;
+  const total = (x: MonthCosts) => x.fuel + x.services + x.parts + x.payments + x.expenses;
   const day = new Date().getDate();
   const b1 = monthBounds(-1);
   const cutoff = `${b1.key}-${String(day).padStart(2, "0")}`;
   const sameDays = (rows: { date: string; amount: number | null; currency: string }[]) => m.sum(rows.filter((r) => r.date >= b1.from && r.date <= cutoff));
   const thisMonth = total(months[11]);
-  const costDelta = pctDelta(thisMonth, sameDays(fuel) + sameDays(services) + sameDays(parts) + sameDays(payments));
+  // other costs are monthly amounts, so last month's share is prorated to the same number of days
+  const prevDays = new Date(new Date().getFullYear(), new Date().getMonth(), 0).getDate();
+  const expSame = months[10].expenses * Math.min(1, day / prevDays);
+  const costDelta = pctDelta(thisMonth, sameDays(fuel) + sameDays(services) + sameDays(parts) + sameDays(payments) + expSame);
   const litres = (off: number) => fuel.filter((f) => inMonth(f.date, off)).reduce((s, f) => s + f.liters, 0);
   const litresDelta = pctDelta(litres(0), fuel.filter((f) => f.date >= b1.from && f.date <= cutoff).reduce((s, f) => s + f.liters, 0));
 
@@ -84,7 +91,7 @@ export default async function OverviewPage() {
   const perVehicle = vehicles
     .map((v) => {
       const f = (r: { vehicleId: string | null; date: string }) => r.vehicleId === v.id && inMonth(r.date, 0);
-      return { v, sum: m.sum(fuel.filter(f)) + m.sum(services.filter(f)) + m.sum(parts.filter(f)) };
+      return { v, sum: m.sum(fuel.filter(f)) + m.sum(services.filter(f)) + m.sum(parts.filter(f)) + m.sum(expenses.filter(f)) };
     })
     .filter((x) => x.sum > 0)
     .sort((a, b) => b.sum - a.sum)

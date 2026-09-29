@@ -36,8 +36,8 @@ export function ReportFilters({
     const k = p.kind;
     if (p.vehicle && k !== "payments") q.set("vehicle", p.vehicle);
     if (p.driver && (k === "fuel" || k === "payments")) q.set("driver", p.driver);
-    if (p.supplier && k === "services") q.set("supplier", p.supplier);
-    if (p.paid && k === "services") q.set("paid", p.paid);
+    if (p.supplier && (k === "services" || k === "expenses")) q.set("supplier", p.supplier);
+    if (p.paid && (k === "services" || k === "expenses")) q.set("paid", p.paid);
     return q.toString();
   };
   const go = (next: Partial<ReportParams>) => router.replace(`/reports?${query(next)}`, { scroll: false });
@@ -67,7 +67,7 @@ export function ReportFilters({
           </>
         )}
         {k !== "payments" && (
-          <FieldShell label={k === "services" || k === "vehicles" ? L("Vozilo / prikolica", "Vehicle / trailer") : L("Vozilo", "Vehicle")} htmlFor="r-vehicle">
+          <FieldShell label={k === "services" || k === "vehicles" || k === "expenses" ? L("Vozilo / prikolica", "Vehicle / trailer") : L("Vozilo", "Vehicle")} htmlFor="r-vehicle">
             <Select id="r-vehicle" value={params.vehicle} onChange={(e) => go({ vehicle: e.target.value })}>
               <option value="">{L("Sva", "All")}</option>
               {vehicles.map((v) => (
@@ -90,9 +90,9 @@ export function ReportFilters({
             </Select>
           </FieldShell>
         )}
-        {k === "services" && (
+        {(k === "services" || k === "expenses") && (
           <>
-            <FieldShell label={L("Servis / dobavljač", "Workshop / supplier")} htmlFor="r-supplier">
+            <FieldShell label={k === "expenses" ? L("Dobavljač", "Supplier") : L("Servis / dobavljač", "Workshop / supplier")} htmlFor="r-supplier">
               <Select id="r-supplier" value={params.supplier} onChange={(e) => go({ supplier: e.target.value })}>
                 <option value="">{L("Svi", "All")}</option>
                 {suppliers.map((v) => (

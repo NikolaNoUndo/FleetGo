@@ -15,6 +15,7 @@ const sr = {
   "nav.parts": "Delovi i nabavka",
   "nav.payments": "Uplate vozačima",
   "nav.suppliers": "Dobavljači",
+  "nav.expenses": "Ostali troškovi",
   "nav.reports": "Izveštaji",
   "nav.profile": "Profil",
   "nav.company": "Firma",
@@ -138,6 +139,12 @@ const sr = {
   "f.address": "Adresa",
   "f.coords": "Koordinate ili link sa mape",
   "f.dieselPrice": "Cena dizela (po litru)",
+  "f.expenseCategory": "Vrsta troška",
+  "f.vehicleOptional": "Vozilo (ako se odnosi na jedno)",
+  "f.recurring": "Ponavlja se svakog meseca",
+  "f.recurringUntil": "Ponavlja se do (opciono)",
+  "f.costFrom": "Računa se od meseca",
+  "f.spreadMonths": "Raspodeli na (broj meseci)",
 
   // expiry
   "e.expired": "Isteklo",
@@ -165,6 +172,8 @@ const sr = {
   "p.fuel.sub": "Sva sipanja goriva, po vozilu, vozaču i državi.",
   "p.services.title": "Servisi",
   "p.services.sub": "Plaćeni i neplaćeni servisi i popravke.",
+  "p.expenses.title": "Ostali troškovi",
+  "p.expenses.sub": "Troškovi firme koji nisu gorivo, servis, delovi ni plata: plac, zakup, osiguranje, putarine, kazne…",
   "p.parts.title": "Delovi i nabavka",
   "p.parts.sub": "Kupljeni delovi, oprema i potrošni materijal.",
   "p.payments.title": "Uplate vozačima",
@@ -183,6 +192,7 @@ const sr = {
   "r.payments": "uplatu",
   "r.suppliers": "dobavljača",
   "r.places": "lokaciju",
+  "r.expenses": "trošak",
 
   // dashboard
   "d.activeVehicles": "Aktivna vozila",
@@ -210,6 +220,7 @@ const sr = {
   "cat.services": "Servisi",
   "cat.parts": "Delovi",
   "cat.payments": "Uplate vozačima",
+  "cat.expenses": "Ostali troškovi",
   "cat.documents": "Dokumenta",
 
   // live
@@ -279,6 +290,7 @@ const en: Dict = {
   "nav.parts": "Parts & purchases",
   "nav.payments": "Driver payments",
   "nav.suppliers": "Suppliers",
+  "nav.expenses": "Other costs",
   "nav.reports": "Reports",
   "nav.profile": "Profile",
   "nav.company": "Company",
@@ -400,6 +412,12 @@ const en: Dict = {
   "f.address": "Address",
   "f.coords": "Coordinates or map link",
   "f.dieselPrice": "Diesel price (per litre)",
+  "f.expenseCategory": "Cost type",
+  "f.vehicleOptional": "Vehicle (if it concerns one)",
+  "f.recurring": "Repeats every month",
+  "f.recurringUntil": "Repeats until (optional)",
+  "f.costFrom": "Counts from month",
+  "f.spreadMonths": "Spread over (months)",
 
   "e.expired": "Expired",
   "e.soon": "Expiring soon",
@@ -425,6 +443,8 @@ const en: Dict = {
   "p.fuel.sub": "Every refuel, by vehicle, driver and country.",
   "p.services.title": "Services",
   "p.services.sub": "Paid and unpaid services and repairs.",
+  "p.expenses.title": "Other costs",
+  "p.expenses.sub": "Company costs other than fuel, services, parts and pay: yard, rent, insurance, tolls, fines…",
   "p.parts.title": "Parts & purchases",
   "p.parts.sub": "Parts, equipment and consumables bought.",
   "p.payments.title": "Driver payments",
@@ -442,6 +462,7 @@ const en: Dict = {
   "r.payments": "payment",
   "r.suppliers": "supplier",
   "r.places": "place",
+  "r.expenses": "cost",
 
   "d.activeVehicles": "Active vehicles",
   "d.onRoad": "on the road",
@@ -467,6 +488,7 @@ const en: Dict = {
   "cat.services": "Services",
   "cat.parts": "Parts",
   "cat.payments": "Driver payments",
+  "cat.expenses": "Other costs",
   "cat.documents": "Documents",
 
   "l.moving": "Moving",

@@ -3,7 +3,7 @@
 import Link from "@/components/ui/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useState } from "react";
-import { CalendarClock, ChevronRight, Container, Fuel, Package, Plus, Truck, UserPlus, Wallet, Wrench } from "lucide-react";
+import { CalendarClock, ChevronRight, Container, Fuel, Package, Plus, Truck, UserPlus, Wallet, Wrench, Building2 } from "lucide-react";
 import { usePrefs } from "./prefs";
 import { RecordForm } from "./record-form";
 import { Menu, Modal, UnderlineTabs } from "./ui/client";
@@ -24,6 +24,7 @@ export function Topbar({ refs }: { refs: Refs }) {
     { r: "services", icon: <Wrench /> },
     { r: "parts", icon: <Package /> },
     { r: "payments", icon: <Wallet /> },
+    { r: "expenses", icon: <Building2 /> },
     { r: "documents", icon: <CalendarClock /> },
     { r: "vehicles", icon: <Truck /> },
     { r: "trailers", icon: <Container /> },
