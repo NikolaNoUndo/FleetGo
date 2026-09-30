@@ -639,3 +639,55 @@ export async function revokeSupportAccess(): Promise<{ ok: boolean }> {
   revalidatePath("/settings");
   return { ok: true };
 }
+
+/* ---------- Renewing a document (registration, certificate, licence…) ---------- */
+
+export async function renewDocument(
+  id: string,
+  input: { issuedAt: string; expiresAt: string; number: string; amount: string; currency: string; addExpense: boolean; label: string },
+): Promise<ActionResult> {
+  if (!UUID.test(id)) return { ok: false, errors: {}, message: "Bad id" };
+  let ctx;
+  try {
+    ctx = await editContext("documents");
+  } catch {
+    return { ok: false, errors: {}, message: "Nemaš pravo izmene dokumenata." };
+  }
+  const companyId = ctx.company.id;
+  const errors: Record<string, string> = {};
+  const issuedAt = input.issuedAt?.trim() || null;
+  if (issuedAt && !DATE.test(issuedAt)) errors.issuedAt = "date";
+  if (!DATE.test(input.expiresAt ?? "")) errors.expiresAt = "date";
+  else if (issuedAt && input.expiresAt <= issuedAt) errors.expiresAt = "date";
+  const amount = parseNumber(input.amount);
+  if (amount !== null && (Number.isNaN(amount) || amount < 0)) errors.amount = "number";
+  if (Object.keys(errors).length) return { ok: false, errors };
+  const currency = input.currency === "EUR" ? "EUR" : "RSD";
+
+  const D = schema.documents;
+  const [doc] = await db.select().from(D).where(and(eq(D.id, id), eq(D.companyId, companyId))).limit(1);
+  if (!doc) return { ok: false, errors: {}, message: "Not found" };
+  const number = input.number?.trim().slice(0, 200) || doc.number;
+  const price = amount === null ? null : Math.round(amount * 100) / 100;
+
+  await db.update(D).set({ issuedAt, expiresAt: input.expiresAt, number, amount: price, currency }).where(eq(D.id, id));
+  await afterRegistration(companyId, { docType: doc.docType, entityType: doc.entityType, entityId: doc.entityId, issuedAt, expiresAt: input.expiresAt });
+
+  // the renewal price can also go into the costs, tied to the vehicle / trailer
+  if (input.addExpense && price !== null && can(ctx.perms, "expenses", "edit")) {
+    await db.insert(schema.expenses).values({
+      companyId,
+      date: issuedAt ?? new Date().toISOString().slice(0, 10),
+      category: "documents",
+      description: String(input.label ?? "").slice(0, 200) || null,
+      vehicleId: doc.entityType === "vehicle" ? doc.entityId : null,
+      trailerId: doc.entityType === "trailer" ? doc.entityId : null,
+      invoiceNo: number,
+      amount: price,
+      currency,
+      paid: true,
+    });
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, id };
+}

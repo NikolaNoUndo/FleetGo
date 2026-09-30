@@ -162,6 +162,7 @@ export const EXPENSE_CATEGORIES: Option[] = [
   o("utilities", "Struja, voda, komunalije", "Utilities"),
   o("insurance", "Osiguranje", "Insurance"),
   o("tolls", "Putarine i vinjete", "Tolls & vignettes"),
+  o("documents", "Registracija i dokumenta", "Registration & documents"),
   o("fines", "Kazne", "Fines"),
   o("office", "Knjigovodstvo i administracija", "Accounting & admin"),
   o("phone", "Telefoni i internet", "Phones & internet"),

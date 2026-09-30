@@ -8,9 +8,10 @@ import { useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { ExpiryBadge, Select } from "../ui/client";
 import { Badge } from "../ui/primitives";
+import { RenewDialog } from "../renew-dialog";
 import { AddButton, Amount, PaidBadge, PeriodSelect, Stack, TotalRow, usePeriod } from "./common";
-import { COUNTRIES, DOC_TYPES, DOC_VALIDITY_DAYS, addDaysISO, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
-import { expiryState, todayISO } from "@/lib/format";
+import { COUNTRIES, DOC_TYPES, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
+import { expiryState } from "@/lib/format";
 import type { Refs } from "@/lib/resources";
 
 type Common = { refs: Refs; names: Record<string, string>; fixed?: Record<string, string>; hide?: string[]; flush?: boolean };
@@ -48,14 +49,9 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
   const shown = entity === "all" ? rows : rows.filter((r) => r.entityType === entity);
   const Icon = { vehicle: Truck, trailer: Container, employee: User } as const;
 
-  const renew = (r: DocRow) => {
-    const today = todayISO();
-    let span = DOC_VALIDITY_DAYS[r.docType] ?? 365;
-    if (r.issuedAt && r.expiresAt) span = Math.max(1, Math.round((Date.parse(r.expiresAt) - Date.parse(r.issuedAt)) / 86400000));
-    // Keep the anniversary if renewed early; start from today if it already lapsed.
-    const base = r.expiresAt && r.expiresAt > today ? r.expiresAt : today;
-    crud.edit({ ...r, issuedAt: today, expiresAt: addDaysISO(base, span) });
-  };
+  // "Obnovi" opens its own dialog: how long, from when, new number and price
+  const [renewing, setRenewing] = useState<DocRow | null>(null);
+  const renew = (r: DocRow) => setRenewing(r);
 
   const cols: Column<DocRow>[] = [
     {
@@ -122,6 +118,7 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
         initialSort={{ key: "expires", dir: "asc" }}
       />
       {crud.node}
+      <RenewDialog doc={renewing} onClose={() => setRenewing(null)} />
     </>
   );
 }
