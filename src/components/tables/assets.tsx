@@ -6,8 +6,7 @@ import { DataTable, IconTile, type Column } from "../data-table";
 import { useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { ExpiryBadge } from "../ui/client";
-import { AddButton, AssetStatus, EmployeeStatus, EXPIRY_TONE, Stack } from "./common";
-import { expiryState } from "@/lib/format";
+import { AddButton, AssetStatus, EmployeeStatus, Stack } from "./common";
 import { DOC_TYPES, EMPLOYEE_ROLES, TRAILER_TYPES, VEHICLE_TYPES } from "@/lib/catalog";
 import type { Refs } from "@/lib/resources";
 
@@ -75,7 +74,7 @@ function NextDocCell({ doc, kind }: { doc: NextDoc; kind: "vehicle" | "trailer" 
 }
 
 export function VehiclesTable({ rows, refs }: { rows: VehicleRow[]; refs: Refs }) {
-  const { t, opt, num, warnDays } = usePrefs();
+  const { t, opt, num } = usePrefs();
   const crud = useCrud("vehicles", refs);
   const router = useRouter();
   const cols: Column<VehicleRow>[] = [
@@ -104,7 +103,7 @@ export function VehiclesTable({ rows, refs }: { rows: VehicleRow[]; refs: Refs }
         actions={(r) => crud.menu(r, [{ label: t("c.open"), icon: <ExternalLink />, onSelect: () => router.push(`/vehicles/${r.id}`) }])}
         initialSort={{ key: "plate", dir: "asc" }}
         mIcon={(r) => (
-          <IconTile tone={EXPIRY_TONE[expiryState(r.nextDoc?.expiresAt, warnDays)]}>
+          <IconTile>
             <Truck />
           </IconTile>
         )}
@@ -131,7 +130,7 @@ export type TrailerRow = {
 };
 
 export function TrailersTable({ rows, refs }: { rows: TrailerRow[]; refs: Refs }) {
-  const { t, opt, num, warnDays } = usePrefs();
+  const { t, opt, num } = usePrefs();
   const crud = useCrud("trailers", refs);
   const router = useRouter();
   const types = [...new Set(rows.map((r) => r.type))];
@@ -170,7 +169,7 @@ export function TrailersTable({ rows, refs }: { rows: TrailerRow[]; refs: Refs }
         actions={(r) => crud.menu(r, [{ label: t("c.open"), icon: <ExternalLink />, onSelect: () => router.push(`/trailers/${r.id}`) }])}
         initialSort={{ key: "plate", dir: "asc" }}
         mIcon={(r) => (
-          <IconTile tone={EXPIRY_TONE[expiryState(r.nextDoc?.expiresAt, warnDays)]}>
+          <IconTile>
             <Container />
           </IconTile>
         )}
@@ -196,7 +195,7 @@ export type EmployeeRow = {
 };
 
 export function EmployeesTable({ rows, refs }: { rows: EmployeeRow[]; refs: Refs }) {
-  const { t, opt, conv, currency, money, can, warnDays } = usePrefs();
+  const { t, opt, conv, currency, money, can } = usePrefs();
   const crud = useCrud("employees", refs);
   const showPaid = can("payments");
   const router = useRouter();
@@ -231,7 +230,7 @@ export function EmployeesTable({ rows, refs }: { rows: EmployeeRow[]; refs: Refs
         toolbar={crud.canEdit ? <AddButton onClick={crud.create} quick /> : undefined}
         actions={(r) => crud.menu(r, [{ label: t("c.open"), icon: <ExternalLink />, onSelect: () => router.push(`/employees/${r.id}`) }])}
         initialSort={{ key: "name", dir: "asc" }}
-        mIcon={(r) => <IconTile tone={EXPIRY_TONE[expiryState(r.nextDoc?.expiresAt, warnDays)]}>{`${r.firstName[0] ?? ""}${r.lastName[0] ?? ""}`.toUpperCase()}</IconTile>}
+        mIcon={(r) => <IconTile>{`${r.firstName[0] ?? ""}${r.lastName[0] ?? ""}`.toUpperCase()}</IconTile>}
       />
       {crud.node}
     </>

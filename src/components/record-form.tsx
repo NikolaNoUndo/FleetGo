@@ -779,12 +779,12 @@ export function RecordForm({
 
   return (
     <form onSubmit={submit} noValidate>
-      <div className="grid max-h-[calc(94dvh-128px)] grid-cols-1 gap-4 overflow-y-auto overscroll-contain px-5 py-3 sm:px-4 sm:py-4 sm:max-h-[65vh] sm:grid-cols-2">
+      <div className="grid max-h-[calc(94dvh-128px)] grid-cols-1 gap-4 overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[65vh] sm:grid-cols-2">
         {fields.map(renderField)}
       </div>
-      <div className="flex items-center justify-between gap-3 border-t border-line/70 bg-surface px-5 py-3 sm:bg-surface-2/60 sm:px-4">
+      <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-4 py-3">
         {message && <span className="text-sm text-bad">{message}</span>}
-        <div className="ml-auto flex flex-1 gap-2.5 sm:flex-none sm:gap-2 [&>button]:flex-1 max-sm:[&>button]:h-[50px] max-sm:[&>button]:rounded-2xl max-sm:[&>button]:text-[15px] sm:[&>button]:flex-none">
+        <div className="ml-auto flex flex-1 gap-2 sm:flex-none [&>button]:flex-1 max-sm:[&>button]:h-[42px] sm:[&>button]:flex-none">
           <Button onClick={onCancel}>{t("c.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={pending}>
             {pending ? t("c.saving") : t("c.save")}
@@ -839,7 +839,7 @@ export function useCrud(
         <p className="px-4 py-4 text-sm leading-relaxed text-ink-2">
           {t("c.confirmDelete")}
         </p>
-        <div className="flex justify-end gap-2 border-t border-line/70 bg-surface px-5 py-3 sm:bg-surface-2/60 sm:px-4">
+        <div className="flex justify-end gap-2 border-t border-line bg-surface-2/60 px-4 py-3">
           <Button onClick={() => setDeleting(null)}>{t("c.cancel")}</Button>
           <Button
             variant="danger"

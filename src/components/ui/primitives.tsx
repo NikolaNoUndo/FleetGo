@@ -19,8 +19,9 @@ const btnVariants: Record<BtnVariant, string> = {
 const btnSizes: Record<BtnSize, string> = {
   sm: "h-7 px-2.5 rounded-md",
   // 40px touch targets on phones
-  md: "h-[44px] px-4 rounded-2xl sm:h-8 sm:px-3 sm:rounded-lg",
-  icon: "size-[44px] rounded-2xl sm:size-8 sm:rounded-lg",
+  // taller touch targets on phones
+  md: "h-10 px-3.5 rounded-lg sm:h-8 sm:px-3",
+  icon: "size-10 rounded-lg sm:size-8",
 };
 
 export function btnClass(variant: BtnVariant = "secondary", size: BtnSize = "md", extra?: string) {
@@ -38,7 +39,7 @@ export function ButtonLink({ variant = "secondary", size = "md", className, ...r
 /** White card with hairline border (the Purchasing / Spend by Vendor cards). */
 export function Card({ className, children, ...rest }: ComponentProps<"div">) {
   return (
-    <div className={cn("rounded-[20px] border border-line bg-surface lg:rounded-xl lg:shadow-xs", className)} {...rest}>
+    <div className={cn("rounded-xl border border-line bg-surface shadow-xs", className)} {...rest}>
       {children}
     </div>
   );
@@ -64,7 +65,7 @@ export function Shell({
   tabbed?: boolean;
 }) {
   return (
-    <section className={cn("flex min-w-0 flex-col rounded-[20px] border border-line bg-surface lg:rounded-xl lg:shadow-xs", className)}>
+    <section className={cn("flex min-w-0 flex-col rounded-xl border border-line bg-surface shadow-xs", className)}>
       <header className={cn("flex min-h-11 items-center gap-2", tabbed ? "border-b border-line pr-3" : "px-4 pt-1")}>
         <div className={cn("flex h-11 items-center gap-2", tabbed && "border-r border-line px-4")}>
           {icon && <span className="text-ink-3">{icon}</span>}
@@ -83,10 +84,10 @@ export function Shell({
  */
 export function PageHeader({ title, sub, actions, tabs, detail }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; tabs?: ReactNode; detail?: boolean }) {
   return (
-    <div className={cn("mb-5 lg:mb-6", !detail && !actions && !tabs && "max-lg:hidden")}>
+    <div className={cn("mb-4 sm:mb-6", !detail && !actions && !tabs && "max-lg:hidden")}>
       <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between", !detail && !actions && "max-lg:hidden")}>
         <div className={cn("min-w-0", !detail && "max-lg:hidden")}>
-          <h1 className="text-[26px] leading-8 font-bold tracking-[-0.025em] text-ink lg:text-xl lg:font-semibold lg:tracking-[-0.015em]">{title}</h1>
+          <h1 className="text-xl font-semibold tracking-[-0.015em] text-ink">{title}</h1>
           {sub && <p className="mt-0.5 text-sm text-ink-3">{sub}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

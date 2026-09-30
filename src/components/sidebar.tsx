@@ -2,8 +2,8 @@
 
 import Link from "@/components/ui/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { ChevronDown, Languages, LucideProvider, LogOut, PanelLeftClose, PanelLeftOpen, UserRound, Wallet } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { ChevronDown, Languages, LucideProvider, LogOut, PanelLeftClose, PanelLeftOpen, UserRound, Wallet, X } from "lucide-react";
 import { setPreference, switchCompany } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
 import { usePrefs } from "./prefs";
@@ -41,10 +41,23 @@ export function Sidebar({
   const { t, locale, currency, can } = usePrefs();
   const pathname = usePathname();
   const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ fleet: true, costs: true });
   const [, start] = useTransition();
   const alertCount = alerts.expired + alerts.soon;
+  // MobileShell's menu button asks for the drawer
+  useEffect(() => {
+    const open = () => setMobileOpen(true);
+    window.addEventListener("rl:open-menu", open);
+    return () => window.removeEventListener("rl:open-menu", open);
+  }, []);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMobileOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
 
   const allowed = (it: NavItem) => {
     const m = ROUTE_MODULE[it.href];
@@ -107,6 +120,7 @@ export function Sidebar({
     return (
       <Link
         href={it.href}
+        onClick={() => setMobileOpen(false)}
         aria-current={active ? "page" : undefined}
         className={cn(
           "focus-ring flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors",
@@ -189,7 +203,10 @@ export function Sidebar({
           <div className="border-b border-line px-1 py-1">
             <Link
               href="/profile"
-              onClick={close}
+              onClick={() => {
+                close();
+                setMobileOpen(false);
+              }}
               className="flex h-9 w-full items-center gap-2.5 rounded-lg px-1.5 text-sm text-ink-2 hover:bg-surface-2 hover:text-ink"
             >
               <UserRound className="text-ink-3" />
@@ -306,7 +323,18 @@ export function Sidebar({
 
   return (
     <LucideProvider size={16} strokeWidth={1.5}>
-      {/* phones and tablets use MobileShell (app bar, tab bar, menu sheet) instead */}
+      {/* phones and tablets: the app bar and tab bar are in MobileShell; its menu button opens this drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="fade-in absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
+          <aside className="drawer-in absolute inset-y-0 left-0 w-[288px] max-w-[85vw] bg-side pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+            <button type="button" onClick={() => setMobileOpen(false)} className="absolute top-[calc(env(safe-area-inset-top)+12px)] right-3 z-10 grid size-8 place-items-center rounded-lg text-side-ink-2 hover:bg-side-2" aria-label={t("c.close")}>
+              <X />
+            </button>
+            {full(true)}
+          </aside>
+        </div>
+      )}
       <aside className={cn("sticky top-[var(--bar-h,0px)] z-30 hidden h-[calc(100dvh-var(--bar-h,0px))] shrink-0 bg-side transition-[width] duration-200 lg:block", collapsed ? "w-16" : "w-[256px]")}>
         {collapsed ? rail : full()}
       </aside>

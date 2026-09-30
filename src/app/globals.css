@@ -346,3 +346,19 @@ input[type="search"]::-webkit-search-cancel-button {
     line-height: 20px;
   }
 }
+
+/* phone menu drawer (the dark sidebar, sliding in from the left) */
+@keyframes drawer-slide {
+  from {
+    transform: translateX(-24px);
+    opacity: 0.6;
+  }
+}
+.drawer-in {
+  animation: drawer-slide 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer-in {
+    animation: none;
+  }
+}

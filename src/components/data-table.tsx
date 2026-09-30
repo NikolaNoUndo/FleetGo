@@ -120,37 +120,13 @@ export function DataTable<T extends { id: string }>({
 
   const grouped = mGroup && initialSort && sort?.key === initialSort.key && sort.dir === initialSort.dir;
   const shown = visible.slice(0, limit);
-  const edge = flush ? "px-4" : ""; // inside a card the phone list keeps its own side padding
 
   return (
-    <div className={cn(!flush && "md:rounded-xl md:border md:border-line md:bg-surface md:shadow-xs")}>
+    <div className={cn(!flush && "rounded-xl border border-line bg-surface shadow-xs")}>
       {hasToolbar && (
-        <div className={cn("flex flex-col gap-3 pb-2 md:gap-2.5 md:border-b md:border-line md:px-3 md:py-2.5 lg:flex-row lg:items-center", flush && "max-md:px-4 max-md:pt-3")}>
+        <div className="flex flex-col gap-2.5 border-b border-line px-3 py-2.5 lg:flex-row lg:items-center">
           {filters && (
-            <>
-              {/* phones: chips that scroll sideways */}
-              <div role="tablist" className={cn("no-scrollbar flex gap-2 overflow-x-auto md:hidden", flush ? "-mx-4 px-4" : "-mx-5 px-5")}>
-                {filters.map((f) => {
-                  const on = f.value === filter;
-                  return (
-                    <button
-                      key={f.value}
-                      type="button"
-                      role="tab"
-                      aria-selected={on}
-                      onClick={() => setFilter(f.value)}
-                      className={cn("inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-medium whitespace-nowrap transition-colors", on ? "bg-ink text-white" : "bg-surface-2 text-ink-2 active:bg-surface-3")}
-                    >
-                      {f.label}
-                      <span className={cn("text-xs tnum", on ? "text-white/60" : "text-ink-4")}>{counts[f.value]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="hidden md:block">
-                <Segmented value={filter} onChange={setFilter} items={filters.map((f) => ({ value: f.value, label: f.label, count: counts[f.value] }))} />
-              </div>
-            </>
+            <Segmented value={filter} onChange={setFilter} items={filters.map((f) => ({ value: f.value, label: f.label, count: counts[f.value] }))} />
           )}
           {(searchText || toolbar) && (
             <div className="flex flex-1 flex-wrap items-center gap-2 lg:justify-end">
@@ -165,7 +141,7 @@ export function DataTable<T extends { id: string }>({
         </div>
       )}
 
-      {/* phones: a list — icon tile, name and details on the left, amount / expiry on the right */}
+      {/* phones: the table as a list — tile, name and details on the left, amount / expiry on the right */}
       <ul className="md:hidden">
         {shown.map((row, i) => {
           const out = (c: Column<T>) => (c.mRender ?? c.render)(row);
@@ -177,30 +153,23 @@ export function DataTable<T extends { id: string }>({
           const end2 = slots.end2.filter((c) => !isBlank(out(c)));
           const group = grouped ? mGroup!(row) : null;
           const newGroup = group !== null && (i === 0 || mGroup!(shown[i - 1]) !== group);
-          const lastInGroup = grouped && i < shown.length - 1 && mGroup!(shown[i + 1]) !== group;
           return (
             <Fragment key={row.id}>
-              {newGroup && <li className={cn("pt-5 pb-1 text-[13px] font-medium text-ink-3 first:pt-2", edge)}>{group}</li>}
+              {/* the date runs look like the table's header row */}
+              {newGroup && <li className="flex h-8 items-center border-b border-line bg-surface-2/60 px-4 text-xs font-medium text-ink-3">{group}</li>}
               <li
                 onClick={rowHref ? () => router.push(rowHref(row)) : undefined}
-                className={cn(
-                  "flex items-center gap-3.5 py-3.5",
-                  edge,
-                  i < shown.length - 1 && !lastInGroup && "border-b border-line/60",
-                  rowHref && "cursor-pointer active:bg-surface-2",
-                )}
+                className={cn("flex items-center gap-3 py-3 pr-2 pl-4", i < shown.length - 1 && "border-b border-line/60", rowHref && "cursor-pointer active:bg-surface-2")}
               >
                 {mIcon && <div className="shrink-0">{mIcon(row)}</div>}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 text-[16px] leading-[22px] font-semibold tracking-[-0.01em] text-ink [&_.font-medium]:font-semibold [&_.max-w-\[300px\]]:max-w-none [&_.text-xs]:text-[13px] [&_.text-xs]:leading-[18px] [&_.text-xs]:font-normal">
-                      {slots.title.map(cell)}
-                    </div>
-                    {end.length > 0 && <div className="flex shrink-0 flex-col items-end gap-1 text-right text-[15px] leading-[22px] font-semibold tnum [&_.font-medium]:font-semibold [&_.text-xs]:font-normal">{end.map(cell)}</div>}
+                    <div className="min-w-0 text-sm font-medium text-ink [&_.max-w-\[300px\]]:max-w-none">{slots.title.map(cell)}</div>
+                    {end.length > 0 && <div className="flex shrink-0 flex-col items-end gap-1 text-right text-sm tnum">{end.map(cell)}</div>}
                   </div>
                   {(line2.length > 0 || end2.length > 0) && (
                     <div className="mt-0.5 flex items-start justify-between gap-3">
-                      <div className="min-w-0 text-[13px] leading-[18px] text-ink-3 [&_.font-medium]:font-normal [&_.text-ink]:text-ink-3 [&_.text-ink-2]:text-ink-3 [&_.text-xs]:text-[13px]">
+                      <div className="min-w-0 text-xs text-ink-3 [&_.font-medium]:font-normal [&_.text-ink]:text-ink-2 [&_.text-sm]:text-xs">
                         {line2.map(({ c, label, node }, j) => (
                           <span key={c.key} className="mr-1.5 inline-flex max-w-full items-center gap-1 align-top">
                             {j > 0 && <span className="text-ink-4">·</span>}
@@ -209,13 +178,13 @@ export function DataTable<T extends { id: string }>({
                           </span>
                         ))}
                       </div>
-                      {end2.length > 0 && <div className="ml-auto flex shrink-0 flex-col items-end gap-1 text-right text-[13px] text-ink-3 tnum">{end2.map(cell)}</div>}
+                      {end2.length > 0 && <div className="ml-auto flex shrink-0 flex-col items-end gap-1 text-right text-xs text-ink-3 tnum">{end2.map(cell)}</div>}
                     </div>
                   )}
                 </div>
                 {actions && (
-                  <div className="-mr-2 shrink-0 self-center" onClick={(e) => e.stopPropagation()}>
-                    <Menu items={actions(row)} triggerClassName="focus-ring grid size-9 place-items-center rounded-full text-ink-4 active:bg-surface-2" />
+                  <div className="shrink-0 self-center" onClick={(e) => e.stopPropagation()}>
+                    <Menu items={actions(row)} triggerClassName="focus-ring grid size-9 place-items-center rounded-md text-ink-3 hover:bg-surface-3 hover:text-ink" />
                   </div>
                 )}
               </li>
@@ -224,11 +193,9 @@ export function DataTable<T extends { id: string }>({
         })}
       </ul>
       {footer && visible.length > 0 && (
-        <div className={cn("mt-2 overflow-hidden rounded-2xl md:hidden", flush && "mx-4")}>
-          <table className="w-full border-collapse text-sm">
-            <tbody>{footer(visible)}</tbody>
-          </table>
-        </div>
+        <table className="w-full border-collapse text-sm md:hidden">
+          <tbody>{footer(visible)}</tbody>
+        </table>
       )}
       <div className="no-scrollbar hidden overflow-x-auto overflow-y-hidden md:block">
         <table className="w-full border-collapse text-sm">
@@ -291,7 +258,7 @@ export function DataTable<T extends { id: string }>({
       </div>
       {visible.length === 0 && <Empty>{rows.length === 0 ? t("c.empty") : t("c.noResults")}</Empty>}
       {visible.length > 0 && (
-        <div className={cn("flex items-center justify-between gap-3 py-3 text-xs text-ink-3 md:border-t md:border-line md:px-4 md:py-2.5", flush && "px-4")}>
+        <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-2.5 text-xs text-ink-3">
           <span className="tnum">
             {locale === "sr" ? `Prikazano ${Math.min(limit, visible.length)} od ${visible.length}` : `Showing ${Math.min(limit, visible.length)} of ${visible.length}`}
           </span>
@@ -306,18 +273,17 @@ export function DataTable<T extends { id: string }>({
   );
 }
 
+// The app's own status colours (same as its badges); anything else stays neutral.
 const TILE_TONES = {
-  green: "bg-[#e7f6ee] text-[#047857]",
-  blue: "bg-[#e9f0fe] text-[#2563eb]",
-  orange: "bg-[#fdeee6] text-[#c2410c]",
-  violet: "bg-[#eeedfd] text-[#4f46e5]",
-  amber: "bg-[#fdf3dd] text-[#b45309]",
-  red: "bg-[#fdeaea] text-[#b91c1c]",
-  gray: "bg-surface-2 text-ink-2",
+  green: "border-good-line bg-good-soft text-good-ink",
+  amber: "border-warn-line bg-warn-soft text-warn-ink",
+  red: "border-bad-line bg-bad-soft text-bad-ink",
+  accent: "border-accent-line bg-accent-soft text-accent-ink",
+  gray: "border-line bg-surface-2 text-ink-3",
 } as const;
 export type TileTone = keyof typeof TILE_TONES;
 
 /** Rounded square with an icon (or initials) in front of a phone list row. */
 export function IconTile({ tone = "gray", children }: { tone?: TileTone; children: ReactNode }) {
-  return <span className={cn("grid size-12 place-items-center rounded-2xl text-[14px] font-semibold [&_svg]:size-[21px] [&_svg]:stroke-[1.7]", TILE_TONES[tone])}>{children}</span>;
+  return <span className={cn("grid size-9 place-items-center rounded-lg border text-xs font-semibold [&_svg]:size-[17px] [&_svg]:stroke-[1.6]", TILE_TONES[tone])}>{children}</span>;
 }

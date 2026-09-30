@@ -186,7 +186,7 @@ export function MembersManager({ members }: { members: MemberRow[] }) {
           ...(!m.isSelf ? [{ label: sr ? "Ukloni iz firme" : "Remove", icon: <Trash2 />, danger: true, onSelect: () => start(async () => { handle(await removeMember(m.id)); }) }] : []),
         ]}
         initialSort={{ key: "role", dir: "desc" }}
-        mIcon={(m) => <IconTile tone={m.role === "owner" ? "green" : "gray"}>{(m.name || m.email).slice(0, 2).toUpperCase()}</IconTile>}
+        mIcon={(m) => <IconTile tone={m.role === "owner" ? "accent" : "gray"}>{(m.name || m.email).slice(0, 2).toUpperCase()}</IconTile>}
       />
       {error && !editing && <p className="px-4 pb-3 text-sm text-bad-ink">{error}</p>}
 
@@ -235,7 +235,7 @@ export function MembersManager({ members }: { members: MemberRow[] }) {
                 <PermissionMatrix value={form.perms} onChange={(perms) => setForm({ ...form, perms })} disabled={form.role === "owner"} />
               </div>
             </div>
-            <div className="flex items-center justify-between gap-3 border-t border-line/70 bg-surface px-5 py-3 sm:bg-surface-2/60 sm:py-3.5">
+            <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-5 py-3.5">
               <span className="text-sm text-bad-ink">{error}</span>
               <div className="flex gap-2">
                 <Button onClick={() => setEditing(null)}>{sr ? "Otkaži" : "Cancel"}</Button>

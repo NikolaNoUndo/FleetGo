@@ -119,6 +119,3 @@ export function TotalRow({ colSpan, before, total, after = 0, extra }: { colSpan
 }
 
 export const today = todayISO;
-
-/** Phone list tile colour for a document's expiry state. */
-export const EXPIRY_TONE = { expired: "red", soon: "amber", ok: "green", missing: "gray" } as const;

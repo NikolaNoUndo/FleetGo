@@ -138,7 +138,7 @@ export function ExpensesTable({
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
         mIcon={() => (
-          <IconTile tone="amber">
+          <IconTile>
             <Receipt />
           </IconTile>
         )}

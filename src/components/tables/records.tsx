@@ -9,7 +9,7 @@ import { usePrefs } from "../prefs";
 import { ExpiryBadge, Select } from "../ui/client";
 import { Badge } from "../ui/primitives";
 import { RenewDialog } from "../renew-dialog";
-import { AddButton, Amount, EXPIRY_TONE, PaidBadge, PeriodSelect, Stack, TotalRow, usePeriod } from "./common";
+import { AddButton, Amount, PaidBadge, PeriodSelect, Stack, TotalRow, usePeriod } from "./common";
 import { COUNTRIES, DOC_TYPES, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
 import { expiryState } from "@/lib/format";
 import type { Refs } from "@/lib/resources";
@@ -119,7 +119,7 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
         mIcon={(r) => {
           const I = Icon[r.entityType as EntityType] ?? Truck;
           return (
-            <IconTile tone={EXPIRY_TONE[expiryState(r.expiresAt, warnDays)]}>
+            <IconTile>
               <I />
             </IconTile>
           );
@@ -203,7 +203,7 @@ export function ServicesTable({ rows, refs, names, fixed, hide, flush }: Common 
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
         mIcon={() => (
-          <IconTile tone="blue">
+          <IconTile>
             <Wrench />
           </IconTile>
         )}
@@ -288,7 +288,7 @@ export function PartsTable({ rows, refs, names, fixed, hide, flush }: Common & {
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
         mIcon={() => (
-          <IconTile tone="orange">
+          <IconTile>
             <Package />
           </IconTile>
         )}
@@ -356,7 +356,7 @@ export function FuelTable({ rows, refs, names, fixed, hide, flush }: Common & { 
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
         mIcon={() => (
-          <IconTile tone="green">
+          <IconTile>
             <Fuel />
           </IconTile>
         )}
@@ -423,7 +423,7 @@ export function PaymentsTable({ rows, refs, names, fixed, hide, flush }: Common 
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
         mIcon={() => (
-          <IconTile tone="violet">
+          <IconTile>
             <Wallet />
           </IconTile>
         )}

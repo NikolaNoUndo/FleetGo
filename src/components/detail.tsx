@@ -50,7 +50,7 @@ export function RecordActions({ resource, record, refs, listHref }: { resource: 
       </Modal>
       <Modal open={del} onClose={() => setDel(false)} title={`${t("c.delete")} ${noun}`}>
         <p className="px-4 py-4 text-sm leading-relaxed text-ink-2">{t("c.confirmDelete")}</p>
-        <div className="flex justify-end gap-2 border-t border-line/70 bg-surface px-5 py-3 sm:bg-surface-2/60 sm:px-4">
+        <div className="flex justify-end gap-2 border-t border-line bg-surface-2/60 px-4 py-3">
           <Button onClick={() => setDel(false)}>{t("c.cancel")}</Button>
           <Button
             variant="danger"
