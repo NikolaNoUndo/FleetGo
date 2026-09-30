@@ -1,12 +1,13 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { Container, ExternalLink, Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { DataTable, type Column } from "../data-table";
+import { DataTable, IconTile, type Column } from "../data-table";
 import { useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { ExpiryBadge } from "../ui/client";
-import { AddButton, AssetStatus, EmployeeStatus, Stack } from "./common";
+import { AddButton, AssetStatus, EmployeeStatus, EXPIRY_TONE, Stack } from "./common";
+import { expiryState } from "@/lib/format";
 import { DOC_TYPES, EMPLOYEE_ROLES, TRAILER_TYPES, VEHICLE_TYPES } from "@/lib/catalog";
 import type { Refs } from "@/lib/resources";
 
@@ -74,7 +75,7 @@ function NextDocCell({ doc, kind }: { doc: NextDoc; kind: "vehicle" | "trailer" 
 }
 
 export function VehiclesTable({ rows, refs }: { rows: VehicleRow[]; refs: Refs }) {
-  const { t, opt, num } = usePrefs();
+  const { t, opt, num, warnDays } = usePrefs();
   const crud = useCrud("vehicles", refs);
   const router = useRouter();
   const cols: Column<VehicleRow>[] = [
@@ -99,9 +100,14 @@ export function VehiclesTable({ rows, refs }: { rows: VehicleRow[]; refs: Refs }
           { value: "in_service", label: t("flt.inService"), predicate: (r) => r.status === "in_service" },
           { value: "inactive", label: t("flt.inactive"), predicate: (r) => r.status === "inactive" },
         ]}
-        toolbar={crud.canEdit ? <AddButton onClick={crud.create} /> : undefined}
+        toolbar={crud.canEdit ? <AddButton onClick={crud.create} quick /> : undefined}
         actions={(r) => crud.menu(r, [{ label: t("c.open"), icon: <ExternalLink />, onSelect: () => router.push(`/vehicles/${r.id}`) }])}
         initialSort={{ key: "plate", dir: "asc" }}
+        mIcon={(r) => (
+          <IconTile tone={EXPIRY_TONE[expiryState(r.nextDoc?.expiresAt, warnDays)]}>
+            <Truck />
+          </IconTile>
+        )}
       />
       {crud.node}
     </>
@@ -125,7 +131,7 @@ export type TrailerRow = {
 };
 
 export function TrailersTable({ rows, refs }: { rows: TrailerRow[]; refs: Refs }) {
-  const { t, opt, num } = usePrefs();
+  const { t, opt, num, warnDays } = usePrefs();
   const crud = useCrud("trailers", refs);
   const router = useRouter();
   const types = [...new Set(rows.map((r) => r.type))];
@@ -160,9 +166,14 @@ export function TrailersTable({ rows, refs }: { rows: TrailerRow[]; refs: Refs }
           { value: "all", label: t("c.all"), predicate: () => true },
           ...types.map((ty) => ({ value: ty, label: opt(TRAILER_TYPES, ty), predicate: (r: TrailerRow) => r.type === ty })),
         ]}
-        toolbar={crud.canEdit ? <AddButton onClick={crud.create} /> : undefined}
+        toolbar={crud.canEdit ? <AddButton onClick={crud.create} quick /> : undefined}
         actions={(r) => crud.menu(r, [{ label: t("c.open"), icon: <ExternalLink />, onSelect: () => router.push(`/trailers/${r.id}`) }])}
         initialSort={{ key: "plate", dir: "asc" }}
+        mIcon={(r) => (
+          <IconTile tone={EXPIRY_TONE[expiryState(r.nextDoc?.expiresAt, warnDays)]}>
+            <Container />
+          </IconTile>
+        )}
       />
       {crud.node}
     </>
@@ -185,7 +196,7 @@ export type EmployeeRow = {
 };
 
 export function EmployeesTable({ rows, refs }: { rows: EmployeeRow[]; refs: Refs }) {
-  const { t, opt, conv, currency, money, can } = usePrefs();
+  const { t, opt, conv, currency, money, can, warnDays } = usePrefs();
   const crud = useCrud("employees", refs);
   const showPaid = can("payments");
   const router = useRouter();
@@ -217,9 +228,10 @@ export function EmployeesTable({ rows, refs }: { rows: EmployeeRow[]; refs: Refs
           { value: "drivers", label: t("flt.drivers"), predicate: (r) => r.role === "driver" },
           { value: "staff", label: t("flt.staff"), predicate: (r) => r.role !== "driver" },
         ]}
-        toolbar={crud.canEdit ? <AddButton onClick={crud.create} /> : undefined}
+        toolbar={crud.canEdit ? <AddButton onClick={crud.create} quick /> : undefined}
         actions={(r) => crud.menu(r, [{ label: t("c.open"), icon: <ExternalLink />, onSelect: () => router.push(`/employees/${r.id}`) }])}
         initialSort={{ key: "name", dir: "asc" }}
+        mIcon={(r) => <IconTile tone={EXPIRY_TONE[expiryState(r.nextDoc?.expiresAt, warnDays)]}>{`${r.firstName[0] ?? ""}${r.lastName[0] ?? ""}`.toUpperCase()}</IconTile>}
       />
       {crud.node}
     </>

@@ -2,8 +2,8 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, FileUp, MapPin } from "lucide-react";
-import { DataTable, type Column, type Filter } from "../data-table";
+import { ExternalLink, FileUp, Fuel, MapPin, Store, Wrench } from "lucide-react";
+import { DataTable, IconTile, type Column, type Filter } from "../data-table";
 import { SupplierPicker, useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { Button, cn } from "../ui/primitives";
@@ -75,7 +75,7 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
         ),
     },
     {
-      key: "kind", m: "end2",
+      key: "kind", m: "hide",
       header: t("f.kind"),
       sortValue: (r) => r.kind,
       render: (r) => <KindBadge kind={r.kind} />,
@@ -169,6 +169,11 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
         }
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "name", dir: "asc" }}
+        mIcon={(r) => (
+          <IconTile tone={r.kind === "pump" ? "orange" : r.kind === "service" ? "blue" : "violet"}>
+            {r.kind === "pump" ? <Fuel /> : r.kind === "service" ? <Wrench /> : <Store />}
+          </IconTile>
+        )}
       />
       {crud.node}
       <Modal
@@ -289,7 +294,7 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
 
   return (
     <div>
-      <div className="grid max-h-[calc(94dvh-128px)] grid-cols-1 gap-4 overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[65vh] sm:grid-cols-2">
+      <div className="grid max-h-[calc(94dvh-128px)] grid-cols-1 gap-4 overflow-y-auto overscroll-contain px-5 py-3 sm:px-4 sm:py-4 sm:max-h-[65vh] sm:grid-cols-2">
         <p className="text-sm leading-relaxed text-ink-2 sm:col-span-2">
           {sr
             ? "Podržani su CSV/TXT (sa zaglavljem ili Garmin POI: dužina, širina, naziv, opis), KML (Google Earth) i GPX. Kolone se prepoznaju same: naziv, adresa, grad, država, lat/lng, a za pumpe i cena dizela, valuta i datum. Spisak cena bez koordinata ažurira postojeće pumpe istog naziva."
@@ -514,7 +519,7 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
           </label>
         )}
       </div>
-      <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-4 py-3">
+      <div className="flex items-center justify-between gap-3 border-t border-line/70 bg-surface px-5 py-3 sm:bg-surface-2/60 sm:px-4">
         {done ? (
           <span className="text-sm text-good-ink">{done}</span>
         ) : (

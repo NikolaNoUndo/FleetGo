@@ -47,6 +47,7 @@ export default async function EmployeePage(props: PageProps<"/employees/[id]">) 
   return (
     <>
       <PageHeader
+        detail
         title={name}
         sub={[optLabel(EMPLOYEE_ROLES, e.role, locale), e.phone].filter(Boolean).join(" · ")}
         actions={can(ctx.perms, "employees", "edit") ? <RecordActions resource="employees" record={e} refs={refs} listHref="/employees" /> : undefined}

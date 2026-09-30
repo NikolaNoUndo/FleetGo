@@ -92,7 +92,7 @@ function RenewForm({ doc, onDone }: { doc: DocRow; onDone: () => void }) {
 
   return (
     <div>
-      <div className="grid max-h-[calc(94dvh-128px)] gap-4 overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[70vh] sm:grid-cols-2">
+      <div className="grid max-h-[calc(94dvh-128px)] gap-4 overflow-y-auto overscroll-contain px-5 py-3 sm:px-4 sm:py-4 sm:max-h-[70vh] sm:grid-cols-2">
         <div className="rounded-lg bg-surface-2/70 px-3 py-2 text-sm sm:col-span-2">
           <span className="font-medium">{docLabel}</span> · {doc.ownerName}
           <span className="block text-xs text-ink-3">
@@ -223,9 +223,9 @@ function RenewForm({ doc, onDone }: { doc: DocRow; onDone: () => void }) {
           </p>
         )}
       </div>
-      <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-4 py-3">
+      <div className="flex items-center justify-between gap-3 border-t border-line/70 bg-surface px-5 py-3 sm:bg-surface-2/60 sm:px-4">
         {message && <span className="text-sm text-bad">{message}</span>}
-        <div className="ml-auto flex flex-1 gap-2 sm:flex-none [&>button]:flex-1 sm:[&>button]:flex-none">
+        <div className="ml-auto flex flex-1 gap-2.5 sm:flex-none sm:gap-2 [&>button]:flex-1 max-sm:[&>button]:h-[50px] max-sm:[&>button]:rounded-2xl max-sm:[&>button]:text-[15px] sm:[&>button]:flex-none">
           <Button onClick={onDone}>{t("c.cancel")}</Button>
           <Button variant="primary" disabled={pending} onClick={submit}>
             {pending ? t("c.saving") : sr ? "Obnovi" : "Renew"}

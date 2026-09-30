@@ -1,6 +1,7 @@
 "use client";
 
-import { DataTable, type Column } from "../data-table";
+import { Store } from "lucide-react";
+import { DataTable, IconTile, type Column } from "../data-table";
 import { useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { AddButton, Stack } from "./common";
@@ -29,6 +30,11 @@ export function SuppliersTable({ rows, refs }: { rows: SupplierRow[]; refs: Refs
         toolbar={crud.canEdit ? <AddButton onClick={crud.create} /> : undefined}
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "spent", dir: "desc" }}
+        mIcon={() => (
+          <IconTile>
+            <Store />
+          </IconTile>
+        )}
       />
       {crud.node}
     </>

@@ -37,7 +37,7 @@ export function Segmented<T extends string>({
             onClick={() => onChange(it.value)}
             className={cn(
               "focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md font-medium transition-colors",
-              size === "sm" ? "h-6 px-2 text-xs" : "h-7 px-2.5 text-sm",
+              size === "sm" ? "h-6 px-2 text-xs" : "h-9 rounded-lg px-3.5 text-sm sm:h-7 sm:rounded-md sm:px-2.5",
               dark
                 ? active
                   ? "bg-side-3 text-side-ink"
@@ -69,18 +69,22 @@ export function UnderlineTabs<T extends string>({
   return (
     // The bottom rule is an inset shadow and the active underline sits inside each tab,
     // so nothing pokes below the scroll box: no vertical scroll, underline never clipped.
-    <div role="tablist" className="no-scrollbar flex gap-6 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--line)]">
+    // below lg: a row of pills that scrolls sideways
+    <div role="tablist" className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto overflow-y-hidden px-5 sm:-mx-8 sm:px-8 lg:mx-0 lg:gap-6 lg:px-0 lg:shadow-[inset_0_-1px_0_var(--line)]">
       {items.map((it) => {
         const active = it.value === value;
         const cls = cn(
-          "focus-ring relative inline-flex h-9 shrink-0 items-center gap-1.5 text-sm whitespace-nowrap transition-colors",
-          "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:transition-colors",
-          active ? "font-medium text-ink after:bg-accent" : "text-ink-3 after:bg-transparent hover:text-ink-2",
+          "focus-ring relative inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap transition-colors",
+          "h-10 rounded-full px-4 text-[14px] font-medium lg:h-9 lg:rounded-none lg:px-0 lg:text-sm",
+          "lg:after:absolute lg:after:inset-x-0 lg:after:bottom-0 lg:after:h-0.5 lg:after:rounded-full lg:after:transition-colors",
+          active
+            ? "bg-ink text-white lg:bg-transparent lg:text-ink lg:after:bg-accent"
+            : "bg-surface-2 text-ink-2 lg:bg-transparent lg:font-normal lg:text-ink-3 lg:after:bg-transparent lg:hover:text-ink-2",
         );
         const inner = (
           <>
             {it.label}
-            {it.count !== undefined && <span className="text-xs text-ink-4 tnum">{it.count}</span>}
+            {it.count !== undefined && <span className={cn("text-xs tnum", active ? "text-white/60 lg:text-ink-4" : "text-ink-4")}>{it.count}</span>}
           </>
         );
         return it.href ? (
@@ -120,7 +124,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
       className={cn(
         "rl-sheet border-line bg-surface p-0 text-ink shadow-pop",
         // phone: bottom sheet
-        "mx-0 mt-auto mb-0 max-h-[94dvh] w-full max-w-none rounded-t-2xl border-t pb-[env(safe-area-inset-bottom)]",
+        "mx-0 mt-auto mb-0 max-h-[94dvh] w-full max-w-none rounded-t-[28px] pb-[env(safe-area-inset-bottom)]",
         // tablet / desktop: centered card
         "sm:m-auto sm:max-h-[calc(100dvh-32px)] sm:w-[calc(100%-24px)] sm:rounded-xl sm:border sm:pb-0",
         wide ? "sm:max-w-[720px]" : "sm:max-w-[540px]",
@@ -128,10 +132,15 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
     >
       {open && (
         <div className="sheet-in sm:animate-pop">
-          <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-line-strong sm:hidden" aria-hidden />
-          <div className="flex h-12 items-center justify-between border-b border-line px-4 sm:px-5">
-            <h2 className="text-[15px] font-semibold sm:text-sm">{title}</h2>
-            <button type="button" onClick={onClose} className="focus-ring -mr-1.5 grid size-[38px] place-items-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink sm:size-7" aria-label="Close">
+          <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-line-strong sm:hidden" aria-hidden />
+          <div className="flex h-14 items-center justify-between gap-3 px-5 sm:h-12 sm:border-b sm:border-line">
+            <h2 className="min-w-0 truncate text-[19px] font-bold tracking-[-0.02em] sm:text-sm sm:font-semibold sm:tracking-normal">{title}</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="focus-ring -mr-1 grid size-10 shrink-0 place-items-center rounded-full bg-surface-2 text-ink-2 hover:text-ink sm:-mr-1.5 sm:size-7 sm:rounded-md sm:bg-transparent sm:text-ink-3 sm:hover:bg-surface-2"
+              aria-label="Close"
+            >
               <X />
             </button>
           </div>
@@ -230,9 +239,9 @@ export function Menu({
           pos.sheet ? (
             <div ref={menuRef} className="fixed inset-0 z-[300]" onClick={(e) => e.stopPropagation()}>
               <div className="fade-in absolute inset-0 bg-[rgba(14,16,19,0.36)]" onClick={() => setPos(null)} />
-              <div role="menu" aria-label={label} className="sheet-in absolute inset-x-0 bottom-0 rounded-t-2xl bg-surface px-2 pt-2 pb-[max(10px,env(safe-area-inset-bottom))] shadow-pop">
-                <div className="mx-auto mb-1.5 h-1 w-9 rounded-full bg-line-strong" aria-hidden />
-                {label && <div className="px-3 pt-1 pb-2 text-xs font-medium text-ink-3">{label}</div>}
+              <div role="menu" aria-label={label} className="sheet-in absolute inset-x-0 bottom-0 rounded-t-[28px] bg-surface px-3 pt-2.5 pb-[max(14px,env(safe-area-inset-bottom))] shadow-pop">
+                <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
+                {label && <div className="px-2 pt-1 pb-2 text-[19px] font-bold tracking-[-0.02em] text-ink">{label}</div>}
                 {items.map((it) => (
                   <button
                     key={it.label}
@@ -242,12 +251,11 @@ export function Menu({
                       setPos(null);
                       it.onSelect();
                     }}
-                    className={cn(
-                      "flex h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] active:bg-surface-3",
-                      it.danger ? "text-bad-ink" : "text-ink",
-                    )}
+                    className={cn("flex h-14 w-full items-center gap-3.5 rounded-2xl px-2 text-left text-[15px] active:bg-surface-2", it.danger ? "text-bad-ink" : "text-ink")}
                   >
-                    {it.icon && <span className={cn("[&_svg]:size-[18px]", it.danger ? "" : "text-ink-3")}>{it.icon}</span>}
+                    {it.icon && (
+                      <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl [&_svg]:size-[19px]", it.danger ? "bg-bad-soft" : "bg-surface-2 text-ink-2")}>{it.icon}</span>
+                    )}
                     <span className="flex-1">{it.label}</span>
                     {it.hint && <span className="text-xs text-ink-4">{it.hint}</span>}
                   </button>
@@ -398,14 +406,17 @@ export function ExpiryBadge({ date, compact }: { date: string | null | undefined
 }
 
 /* ---------- Form controls ---------- */
-// Phones get 40px fields with 16px text (iOS zooms into anything smaller when it's focused).
-const inputBase =
-  "focus-ring h-[42px] w-full rounded-lg border border-line bg-surface px-3 text-[16px] text-ink shadow-xs placeholder:text-ink-4 transition-colors hover:border-line-strong sm:h-8 sm:px-2.5 sm:text-sm";
+// Phones: tall filled fields with 16px text (iOS zooms into anything smaller on focus).
+const inputBase = cn(
+  "focus-ring w-full border text-ink placeholder:text-ink-4 transition-colors",
+  "h-[50px] rounded-2xl border-transparent bg-surface-2 px-4 text-[16px] focus:border-accent-line focus:bg-surface",
+  "sm:h-8 sm:rounded-lg sm:border-line sm:bg-surface sm:px-2.5 sm:text-sm sm:shadow-xs sm:hover:border-line-strong",
+);
 
 export function FieldShell({ label, error, children, span, htmlFor }: { label: ReactNode; error?: string; children: ReactNode; span?: 1 | 2; htmlFor?: string }) {
   return (
     <div className={cn("flex flex-col gap-1.5", span === 2 && "sm:col-span-2")}>
-      <label htmlFor={htmlFor} className="text-xs font-medium text-ink-2">
+      <label htmlFor={htmlFor} className="text-[13px] font-medium text-ink-2 sm:text-xs">
         {label}
       </label>
       {children}
@@ -418,13 +429,13 @@ export function TextInput(props: React.ComponentProps<"input">) {
   return <input {...props} className={cn(inputBase, props.className)} />;
 }
 export function TextArea(props: React.ComponentProps<"textarea">) {
-  return <textarea rows={3} {...props} className={cn(inputBase, "h-auto py-2", props.className)} />;
+  return <textarea rows={3} {...props} className={cn(inputBase, "h-auto py-3 sm:h-auto sm:py-2", props.className)} />;
 }
 export function Select(props: React.ComponentProps<"select">) {
   return (
     <div className="relative">
-      <select {...props} className={cn(inputBase, "appearance-none pr-8", props.className)} />
-      <ChevronsUpDown className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-ink-3" />
+      <select {...props} className={cn(inputBase, "appearance-none pr-10 sm:pr-8", props.className)} />
+      <ChevronsUpDown className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-ink-3 sm:right-2.5" />
     </div>
   );
 }
@@ -432,8 +443,8 @@ export function Select(props: React.ComponentProps<"select">) {
 export function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   return (
     <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
-      <Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3 sm:left-2.5" />
-      <input type="search" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cn(inputBase, "pl-9 sm:pl-8")} />
+      <Search className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-3 max-sm:size-[18px] sm:left-2.5" />
+      <input type="search" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cn(inputBase, "h-12 rounded-full pl-11 sm:pl-8")} />
     </div>
   );
 }

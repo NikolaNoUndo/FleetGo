@@ -60,6 +60,7 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
   return (
     <>
       <PageHeader
+        detail
         title={v.plate}
         sub={[v.brand, v.model, v.year].filter(Boolean).join(" · ")}
         actions={can(ctx.perms, "vehicles", "edit") ? <RecordActions resource="vehicles" record={{ ...v, trailerIds: linked.map((tr) => tr.id).join(",") }} refs={refs} listHref="/vehicles" /> : undefined}

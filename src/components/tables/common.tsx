@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { usePrefs } from "../prefs";
-import { Button, Dot, StatusDot } from "../ui/primitives";
+import { Button, cn, Dot, StatusDot } from "../ui/primitives";
 import { Select } from "../ui/client";
 import { ASSET_STATUS, EMPLOYEE_STATUS } from "@/lib/catalog";
 import { todayISO } from "@/lib/format";
@@ -56,11 +56,14 @@ export function PeriodSelect({ value, onChange }: { value: Period; onChange: (p:
   );
 }
 
-export function AddButton({ onClick }: { onClick: () => void }) {
+/**
+ * "Dodaj" in a table toolbar. `quick`: the phone "+" pill already offers this, so below lg
+ * the button is left out (tables inside a vehicle / driver page keep it: it pre-fills them).
+ */
+export function AddButton({ onClick, quick }: { onClick: () => void; quick?: boolean }) {
   const { t } = usePrefs();
   return (
-    // phones: a square "+" that sits next to the search / filters
-    <Button variant="dark" size="md" onClick={onClick} aria-label={t("c.add")} className="max-sm:w-[40px] max-sm:px-0">
+    <Button variant="dark" size="md" onClick={onClick} aria-label={t("c.add")} className={cn("max-sm:w-[48px] max-sm:px-0", quick && "max-lg:hidden")}>
       <Plus className="max-sm:size-[18px]" />
       <span className="max-sm:sr-only">{t("c.add")}</span>
     </Button>
@@ -116,3 +119,6 @@ export function TotalRow({ colSpan, before, total, after = 0, extra }: { colSpan
 }
 
 export const today = todayISO;
+
+/** Phone list tile colour for a document's expiry state. */
+export const EXPIRY_TONE = { expired: "red", soon: "amber", ok: "green", missing: "gray" } as const;

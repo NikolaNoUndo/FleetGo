@@ -1,15 +1,15 @@
 "use client";
 
-import { RefreshCw, Truck, Container, User } from "lucide-react";
+import { RefreshCw, Truck, Container, User, Wrench, Package, Fuel, Wallet } from "lucide-react";
 import Link from "@/components/ui/link";
 import { useState } from "react";
-import { DataTable, type Column } from "../data-table";
+import { DataTable, IconTile, type Column } from "../data-table";
 import { useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { ExpiryBadge, Select } from "../ui/client";
 import { Badge } from "../ui/primitives";
 import { RenewDialog } from "../renew-dialog";
-import { AddButton, Amount, PaidBadge, PeriodSelect, Stack, TotalRow, usePeriod } from "./common";
+import { AddButton, Amount, EXPIRY_TONE, PaidBadge, PeriodSelect, Stack, TotalRow, usePeriod } from "./common";
 import { COUNTRIES, DOC_TYPES, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
 import { expiryState } from "@/lib/format";
 import type { Refs } from "@/lib/resources";
@@ -111,11 +111,19 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
                 </Select>
               </div>
             )}
-            {crud.canEdit && <AddButton onClick={crud.create} />}
+            {crud.canEdit && <AddButton onClick={crud.create} quick={!fixed} />}
           </>
         }
         actions={crud.canEdit ? (r) => crud.menu(r, [{ label: t("c.renew"), icon: <RefreshCw />, onSelect: () => renew(r) }]) : undefined}
         initialSort={{ key: "expires", dir: "asc" }}
+        mIcon={(r) => {
+          const I = Icon[r.entityType as EntityType] ?? Truck;
+          return (
+            <IconTile tone={EXPIRY_TONE[expiryState(r.expiresAt, warnDays)]}>
+              <I />
+            </IconTile>
+          );
+        }}
       />
       {crud.node}
       <RenewDialog doc={renewing} onClose={() => setRenewing(null)} />
@@ -149,7 +157,7 @@ export function ServicesTable({ rows, refs, names, fixed, hide, flush }: Common 
   const supplierIds = [...new Set(rows.map((r) => r.supplierId).filter(Boolean))] as string[];
   const cols = keep<ServiceRow>(
     [
-      { key: "date", m: "sub", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
+      { key: "date", m: "hide", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
       { key: "for", m: "sub", header: t("f.for"), sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}</span> },
       { key: "kind", m: "title", header: t("f.kind"), sortValue: (r) => r.kind, render: (r) => <Stack main={opt(SERVICE_KINDS, r.kind)} sub={r.description} /> },
       { key: "workshop", m: "sub", header: t("f.workshop"), sortValue: (r) => names[r.supplierId ?? ""] ?? "", hide: "lg", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
@@ -189,11 +197,17 @@ export function ServicesTable({ rows, refs, names, fixed, hide, flush }: Common 
               </div>
             )}
             <PeriodSelect value={period} onChange={setPeriod} />
-            {crud.canEdit && <AddButton onClick={crud.create} />}
+            {crud.canEdit && <AddButton onClick={crud.create} quick={!fixed} />}
           </>
         }
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
+        mIcon={() => (
+          <IconTile tone="blue">
+            <Wrench />
+          </IconTile>
+        )}
+        mGroup={(r) => date(r.date)}
         footer={(v) => <TotalRow colSpan={cols.length} before={amountIdx} total={v.reduce((s, r) => s + conv(r.amount, r.currency), 0)} after={cols.length - amountIdx} />}
       />
       {crud.node}
@@ -227,7 +241,7 @@ export function PartsTable({ rows, refs, names, fixed, hide, flush }: Common & {
   const supplierIds = [...new Set(rows.map((r) => r.supplierId).filter(Boolean))] as string[];
   const cols = keep<PartRow>(
     [
-      { key: "date", m: "sub", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
+      { key: "date", m: "hide", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
       { key: "name", m: "title", header: t("f.partName"), sortValue: (r) => r.name, render: (r) => <Stack main={r.name} sub={r.partNumber} /> },
       { key: "qty", m: "hide", header: t("f.quantity"), align: "right", sortValue: (r) => r.quantity, hide: "sm", render: (r) => <span className="text-ink-2">{num(r.quantity)}</span> },
       { key: "for", m: "sub", header: t("f.for"), sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}</span> },
@@ -268,11 +282,17 @@ export function PartsTable({ rows, refs, names, fixed, hide, flush }: Common & {
               </div>
             )}
             <PeriodSelect value={period} onChange={setPeriod} />
-            {crud.canEdit && <AddButton onClick={crud.create} />}
+            {crud.canEdit && <AddButton onClick={crud.create} quick={!fixed} />}
           </>
         }
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
+        mIcon={() => (
+          <IconTile tone="orange">
+            <Package />
+          </IconTile>
+        )}
+        mGroup={(r) => date(r.date)}
         footer={(v) => <TotalRow colSpan={cols.length} before={amountIdx} total={v.reduce((s, r) => s + conv(r.amount, r.currency), 0)} after={cols.length - amountIdx} />}
       />
       {crud.node}
@@ -302,7 +322,7 @@ export function FuelTable({ rows, refs, names, fixed, hide, flush }: Common & { 
   const { period, setPeriod, filtered } = usePeriod(rows);
   const cols = keep<FuelRow>(
     [
-      { key: "date", m: "sub", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
+      { key: "date", m: "hide", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
       { key: "vehicle", m: "title", header: t("f.vehicle"), sortValue: (r) => names[r.vehicleId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? ""] ?? "—"}</span> },
       { key: "driver", m: "sub", header: t("f.driver"), sortValue: (r) => names[r.employeeId ?? ""] ?? "", hide: "md", render: (r) => <span className="text-ink-2">{names[r.employeeId ?? ""] ?? "—"}</span> },
       { key: "station", m: "hide", header: t("f.station"), sortValue: (r) => r.country, hide: "lg", render: (r) => <Stack main={<span className="font-normal text-ink-2">{r.station ?? "—"}</span>} sub={opt(COUNTRIES, r.country)} /> },
@@ -330,11 +350,17 @@ export function FuelTable({ rows, refs, names, fixed, hide, flush }: Common & { 
         toolbar={
           <>
             <PeriodSelect value={period} onChange={setPeriod} />
-            {crud.canEdit && <AddButton onClick={crud.create} />}
+            {crud.canEdit && <AddButton onClick={crud.create} quick={!fixed} />}
           </>
         }
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
+        mIcon={() => (
+          <IconTile tone="green">
+            <Fuel />
+          </IconTile>
+        )}
+        mGroup={(r) => date(r.date)}
         footer={(v) => (
           <TotalRow
             colSpan={cols.length}
@@ -368,7 +394,7 @@ export function PaymentsTable({ rows, refs, names, fixed, hide, flush }: Common 
   const { period, setPeriod, filtered } = usePeriod(rows);
   const cols = keep<PaymentRow>(
     [
-      { key: "date", m: "sub", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
+      { key: "date", m: "hide", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
       { key: "employee", m: "title", header: t("f.employee"), sortValue: (r) => names[r.employeeId] ?? "", render: (r) => <span className="font-medium">{names[r.employeeId] ?? "—"}</span> },
       { key: "kind", m: "sub", header: t("f.kind"), sortValue: (r) => r.kind, render: (r) => <Stack main={<span className="font-normal text-ink-2">{opt(PAYMENT_KINDS, r.kind)}</span>} sub={r.note} /> },
       { key: "method", m: "hide", header: t("f.method"), sortValue: (r) => r.method, hide: "md", render: (r) => <span className="text-ink-2">{opt(PAYMENT_METHODS, r.method)}</span> },
@@ -391,11 +417,17 @@ export function PaymentsTable({ rows, refs, names, fixed, hide, flush }: Common 
         toolbar={
           <>
             <PeriodSelect value={period} onChange={setPeriod} />
-            {crud.canEdit && <AddButton onClick={crud.create} />}
+            {crud.canEdit && <AddButton onClick={crud.create} quick={!fixed} />}
           </>
         }
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
+        mIcon={() => (
+          <IconTile tone="violet">
+            <Wallet />
+          </IconTile>
+        )}
+        mGroup={(r) => date(r.date)}
         footer={(v) => <TotalRow colSpan={cols.length} before={amountIdx} total={v.reduce((s, r) => s + conv(r.amount, r.currency), 0)} after={cols.length - amountIdx} />}
       />
       {crud.node}

@@ -45,6 +45,7 @@ export default async function TrailerPage(props: PageProps<"/trailers/[id]">) {
   return (
     <>
       <PageHeader
+        detail
         title={tr.plate}
         sub={[optLabel(TRAILER_TYPES, tr.type, locale), tr.brand, tr.year].filter(Boolean).join(" · ")}
         actions={can(ctx.perms, "trailers", "edit") ? <RecordActions resource="trailers" record={{ ...tr, vehicleIds: vehicleIds.join(",") }} refs={refs} listHref="/trailers" /> : undefined}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Repeat } from "lucide-react";
-import { DataTable, type Column } from "../data-table";
+import { Receipt, Repeat } from "lucide-react";
+import { DataTable, IconTile, type Column } from "../data-table";
 import { useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { Select } from "../ui/client";
@@ -56,7 +56,7 @@ export function ExpensesTable({
   const company = sr ? "Firma" : "Company";
 
   const all: Column<ExpenseRow>[] = [
-    { key: "date", m: "sub", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
+    { key: "date", m: "hide", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
     {
       key: "category", m: "title",
       header: t("f.expenseCategory"),
@@ -132,11 +132,17 @@ export function ExpensesTable({
               </div>
             )}
             <PeriodSelect value={period} onChange={setPeriod} />
-            {crud.canEdit && <AddButton onClick={crud.create} />}
+            {crud.canEdit && <AddButton onClick={crud.create} quick={!fixed} />}
           </>
         }
         actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
+        mIcon={() => (
+          <IconTile tone="amber">
+            <Receipt />
+          </IconTile>
+        )}
+        mGroup={(r) => date(r.date)}
         footer={(v) => <TotalRow colSpan={cols.length} before={amountIdx} total={v.reduce((s, r) => s + conv(r.amount, r.currency), 0)} after={cols.length - amountIdx} />}
       />
       {crud.node}

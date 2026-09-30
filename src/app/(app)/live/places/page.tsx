@@ -17,6 +17,7 @@ export default async function PlacesPage() {
   return (
     <>
       <PageHeader
+        detail
         title={sr ? "Lokacije na mapi" : "Places on the map"}
         sub={
           sr

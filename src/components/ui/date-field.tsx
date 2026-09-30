@@ -209,8 +209,8 @@ export function DateField({
           }
         }}
         className={cn(
-          "focus-ring h-[42px] w-full rounded-lg border bg-surface pr-10 pl-3 text-sm sm:h-8 sm:pr-9 sm:pl-2.5 text-ink shadow-xs tnum transition-colors placeholder:text-ink-4 hover:border-line-strong",
-          bad ? "border-bad-line" : "border-line",
+          "focus-ring h-[50px] w-full rounded-2xl border bg-surface-2 pr-11 pl-4 text-sm focus:bg-surface sm:h-8 sm:rounded-lg sm:bg-surface sm:pr-9 sm:pl-2.5 text-ink tnum transition-colors placeholder:text-ink-4 sm:shadow-xs sm:hover:border-line-strong",
+          bad ? "border-bad-line" : "border-transparent focus:border-accent-line sm:border-line",
         )}
       />
       <button
@@ -218,7 +218,7 @@ export function DateField({
         onClick={openCalendar}
         aria-label={sr ? "Otvori kalendar" : "Open calendar"}
         aria-expanded={open}
-        className="absolute top-1/2 right-1 grid size-9 -translate-y-1/2 sm:size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
+        className="absolute top-1/2 right-1.5 grid size-10 -translate-y-1/2 sm:right-1 sm:size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
       >
         <CalendarDays size={15} />
       </button>
@@ -390,7 +390,7 @@ export function MonthField({ id, value, onChange }: { id?: string; value: string
           setYear(valid ? +value.slice(0, 4) : nowY);
           setOpen((o) => !o);
         }}
-        className="focus-ring flex h-[42px] w-full items-center justify-between rounded-lg border border-line bg-surface pr-3 pl-3 sm:h-8 sm:pr-2 sm:pl-2.5 text-left text-sm text-ink shadow-xs transition-colors hover:border-line-strong"
+        className="focus-ring flex h-[50px] w-full items-center justify-between rounded-2xl border border-transparent bg-surface-2 pr-4 pl-4 sm:h-8 sm:rounded-lg sm:border-line sm:bg-surface sm:pr-2 sm:pl-2.5 text-left text-sm text-ink shadow-xs transition-colors hover:border-line-strong"
       >
         <span className={cn("capitalize", !label && "text-ink-4 normal-case")}>{label || (sr ? "Izaberi mesec" : "Pick a month")}</span>
         <CalendarDays size={15} className="text-ink-3" />
