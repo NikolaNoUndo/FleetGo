@@ -98,6 +98,10 @@ export function UnderlineTabs<T extends string>({
 }
 
 /* ---------- Modal (native <dialog>) ---------- */
+/**
+ * Centered dialog on larger screens; on phones a bottom sheet (full width, anchored to
+ * the bottom edge, rounded top, clear of the home indicator), like native apps.
+ */
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -113,13 +117,21 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}
-      className={cn("m-auto w-[calc(100%-24px)] rounded-xl border border-line bg-surface p-0 text-ink shadow-pop", wide ? "max-w-[720px]" : "max-w-[540px]")}
+      className={cn(
+        "rl-sheet border-line bg-surface p-0 text-ink shadow-pop",
+        // phone: bottom sheet
+        "mx-0 mt-auto mb-0 max-h-[94dvh] w-full max-w-none rounded-t-2xl border-t pb-[env(safe-area-inset-bottom)]",
+        // tablet / desktop: centered card
+        "sm:m-auto sm:max-h-[calc(100dvh-32px)] sm:w-[calc(100%-24px)] sm:rounded-xl sm:border sm:pb-0",
+        wide ? "sm:max-w-[720px]" : "sm:max-w-[540px]",
+      )}
     >
       {open && (
-        <div className="animate-pop">
-          <div className="flex h-12 items-center justify-between border-b border-line px-5">
-            <h2 className="text-sm font-semibold">{title}</h2>
-            <button type="button" onClick={onClose} className="focus-ring -mr-1.5 grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Close">
+        <div className="sheet-in sm:animate-pop">
+          <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-line-strong sm:hidden" aria-hidden />
+          <div className="flex h-12 items-center justify-between border-b border-line px-4 sm:px-5">
+            <h2 className="text-[15px] font-semibold sm:text-sm">{title}</h2>
+            <button type="button" onClick={onClose} className="focus-ring -mr-1.5 grid size-[38px] place-items-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink sm:size-7" aria-label="Close">
               <X />
             </button>
           </div>
@@ -145,7 +157,7 @@ export function Menu({
   triggerClassName?: string;
   label?: string;
 }) {
-  const [pos, setPos] = useState<{ style: React.CSSProperties; layer: Element } | null>(null);
+  const [pos, setPos] = useState<{ style: React.CSSProperties; layer: Element; sheet: boolean } | null>(null);
   const open = pos !== null;
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -158,6 +170,8 @@ export function Menu({
   const place = () => {
     const r = btnRef.current?.getBoundingClientRect();
     if (!r) return null;
+    // phones: an action sheet from the bottom edge instead of a small dropdown
+    if (window.innerWidth < 640) return { style: {}, layer: layerFor(btnRef.current), sheet: true };
     const h = items.length * 32 + 12;
     const below = window.innerHeight - r.bottom;
     const up = below < h + 12 && r.top > below;
@@ -166,17 +180,23 @@ export function Menu({
     else s.top = r.bottom + 6;
     if (align === "right") s.right = Math.max(8, window.innerWidth - r.right);
     else s.left = Math.max(8, r.left);
-    return { style: s, layer: layerFor(btnRef.current) };
+    return { style: s, layer: layerFor(btnRef.current), sheet: false };
   };
 
+  const sheet = pos?.sheet ?? false;
   useEffect(() => {
     if (!open) return;
     const close = () => setPos(null);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    // the action sheet has its own backdrop; the browser bar showing or hiding must not close it
+    if (sheet) {
+      document.addEventListener("keydown", onKey);
+      return () => document.removeEventListener("keydown", onKey);
+    }
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (!btnRef.current?.contains(t) && !menuRef.current?.contains(t)) close();
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     const onScroll = (e: Event) => {
       if (!menuRef.current?.contains(e.target as Node)) close();
     };
@@ -190,7 +210,7 @@ export function Menu({
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", close);
     };
-  }, [open]);
+  }, [open, sheet]);
 
   return (
     <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
@@ -207,27 +227,56 @@ export function Menu({
       </button>
       {open &&
         createPortal(
-          <div ref={menuRef} role="menu" style={pos.style} className="animate-pop z-[300] rounded-xl border border-line bg-surface p-1 shadow-pop" onClick={(e) => e.stopPropagation()}>
-            {items.map((it) => (
-              <button
-                key={it.label}
-                role="menuitem"
-                type="button"
-                onClick={() => {
-                  setPos(null);
-                  it.onSelect();
-                }}
-                className={cn(
-                  "flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm whitespace-nowrap hover:bg-surface-2",
-                  it.danger ? "text-bad-ink" : "text-ink-2 hover:text-ink",
-                )}
-              >
-                {it.icon && <span className={it.danger ? "" : "text-ink-3"}>{it.icon}</span>}
-                <span className="flex-1">{it.label}</span>
-                {it.hint && <span className="text-xs text-ink-4">{it.hint}</span>}
-              </button>
-            ))}
-          </div>,
+          pos.sheet ? (
+            <div ref={menuRef} className="fixed inset-0 z-[300]" onClick={(e) => e.stopPropagation()}>
+              <div className="fade-in absolute inset-0 bg-[rgba(14,16,19,0.36)]" onClick={() => setPos(null)} />
+              <div role="menu" aria-label={label} className="sheet-in absolute inset-x-0 bottom-0 rounded-t-2xl bg-surface px-2 pt-2 pb-[max(10px,env(safe-area-inset-bottom))] shadow-pop">
+                <div className="mx-auto mb-1.5 h-1 w-9 rounded-full bg-line-strong" aria-hidden />
+                {label && <div className="px-3 pt-1 pb-2 text-xs font-medium text-ink-3">{label}</div>}
+                {items.map((it) => (
+                  <button
+                    key={it.label}
+                    role="menuitem"
+                    type="button"
+                    onClick={() => {
+                      setPos(null);
+                      it.onSelect();
+                    }}
+                    className={cn(
+                      "flex h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] active:bg-surface-3",
+                      it.danger ? "text-bad-ink" : "text-ink",
+                    )}
+                  >
+                    {it.icon && <span className={cn("[&_svg]:size-[18px]", it.danger ? "" : "text-ink-3")}>{it.icon}</span>}
+                    <span className="flex-1">{it.label}</span>
+                    {it.hint && <span className="text-xs text-ink-4">{it.hint}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div ref={menuRef} role="menu" style={pos.style} className="animate-pop z-[300] rounded-xl border border-line bg-surface p-1 shadow-pop" onClick={(e) => e.stopPropagation()}>
+              {items.map((it) => (
+                <button
+                  key={it.label}
+                  role="menuitem"
+                  type="button"
+                  onClick={() => {
+                    setPos(null);
+                    it.onSelect();
+                  }}
+                  className={cn(
+                    "flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm whitespace-nowrap hover:bg-surface-2",
+                    it.danger ? "text-bad-ink" : "text-ink-2 hover:text-ink",
+                  )}
+                >
+                  {it.icon && <span className={it.danger ? "" : "text-ink-3"}>{it.icon}</span>}
+                  <span className="flex-1">{it.label}</span>
+                  {it.hint && <span className="text-xs text-ink-4">{it.hint}</span>}
+                </button>
+              ))}
+            </div>
+          ),
           pos.layer,
         )}
     </div>
@@ -311,16 +360,16 @@ export function InfoTip({ children, className }: { children: ReactNode; classNam
       <button type="button" aria-describedby={id} onFocus={() => setShow(true)} onBlur={() => setShow(false)} className="focus-ring grid size-4 place-items-center rounded-full text-ink-4 hover:text-ink-2">
         <Info />
       </button>
-      <span
-        id={id}
-        role="tooltip"
-        className={cn(
-          "pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 w-60 -translate-x-1/2 rounded-lg border border-line bg-surface px-3 py-2 text-xs leading-relaxed font-normal text-ink-2 shadow-pop transition-opacity",
-          show ? "opacity-100" : "opacity-0",
-        )}
-      >
-        {children}
-      </span>
+      {/* rendered only while shown: a hidden one would still widen the page on phones */}
+      {show && (
+        <span
+          id={id}
+          role="tooltip"
+          className="animate-pop pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 w-60 max-w-[calc(100vw-24px)] -translate-x-1/2 rounded-lg border border-line bg-surface px-3 py-2 text-xs leading-relaxed font-normal text-ink-2 shadow-pop"
+        >
+          {children}
+        </span>
+      )}
     </span>
   );
 }
@@ -349,8 +398,9 @@ export function ExpiryBadge({ date, compact }: { date: string | null | undefined
 }
 
 /* ---------- Form controls ---------- */
+// Phones get 40px fields with 16px text (iOS zooms into anything smaller when it's focused).
 const inputBase =
-  "focus-ring h-8 w-full rounded-lg border border-line bg-surface px-2.5 text-sm text-ink shadow-xs placeholder:text-ink-4 transition-colors hover:border-line-strong";
+  "focus-ring h-[42px] w-full rounded-lg border border-line bg-surface px-3 text-[16px] text-ink shadow-xs placeholder:text-ink-4 transition-colors hover:border-line-strong sm:h-8 sm:px-2.5 sm:text-sm";
 
 export function FieldShell({ label, error, children, span, htmlFor }: { label: ReactNode; error?: string; children: ReactNode; span?: 1 | 2; htmlFor?: string }) {
   return (
@@ -381,9 +431,9 @@ export function Select(props: React.ComponentProps<"select">) {
 
 export function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   return (
-    <div className="relative w-full sm:w-56">
-      <Search className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-3" />
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cn(inputBase, "pl-8")} />
+    <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+      <Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3 sm:left-2.5" />
+      <input type="search" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cn(inputBase, "pl-9 sm:pl-8")} />
     </div>
   );
 }

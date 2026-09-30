@@ -42,7 +42,7 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
 
   const cols: Column<PlaceRow>[] = [
     {
-      key: "name",
+      key: "name", m: "title",
       header: sr ? "Naziv" : "Name",
       sortValue: (r) => r.name,
       render: (r) => (
@@ -57,7 +57,7 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
       ),
     },
     {
-      key: "phone",
+      key: "phone", m: "sub",
       header: t("f.phone"),
       hide: "lg",
       sortValue: (r) => r.displayPhone,
@@ -75,13 +75,13 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
         ),
     },
     {
-      key: "kind",
+      key: "kind", m: "end2",
       header: t("f.kind"),
       sortValue: (r) => r.kind,
       render: (r) => <KindBadge kind={r.kind} />,
     },
     {
-      key: "price",
+      key: "price", m: "end",
       header: sr ? "Dizel" : "Diesel",
       align: "right",
       sortValue: (r) => r.dieselPrice,
@@ -106,14 +106,14 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
         ),
     },
     {
-      key: "address",
+      key: "address", m: "sub",
       header: t("f.address"),
       hide: "md",
       sortValue: (r) => r.address,
       render: (r) => <span className="text-ink-2">{r.address ?? "—"}</span>,
     },
     {
-      key: "coords",
+      key: "coords", m: "hide",
       header: sr ? "Na mapi" : "On map",
       hide: "sm",
       render: (r) => (
@@ -160,8 +160,8 @@ export function PlacesTable({ rows, refs }: { rows: PlaceRow[]; refs: Refs }) {
         toolbar={
           crud.canEdit ? (
             <div className="flex gap-2">
-              <Button onClick={() => setImporting(true)}>
-                <FileUp /> {sr ? "Uvezi fajl" : "Import file"}
+              <Button onClick={() => setImporting(true)} aria-label={sr ? "Uvezi fajl" : "Import file"} className="max-sm:w-[40px] max-sm:px-0">
+                <FileUp /> <span className="max-sm:sr-only">{sr ? "Uvezi fajl" : "Import file"}</span>
               </Button>
               <AddButton onClick={crud.create} />
             </div>
@@ -289,7 +289,7 @@ function ImportForm({ refs, onDone }: { refs: Refs; onDone: () => void }) {
 
   return (
     <div>
-      <div className="grid max-h-[65vh] grid-cols-1 gap-4 overflow-y-auto px-4 py-4 sm:grid-cols-2">
+      <div className="grid max-h-[calc(94dvh-128px)] grid-cols-1 gap-4 overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[65vh] sm:grid-cols-2">
         <p className="text-sm leading-relaxed text-ink-2 sm:col-span-2">
           {sr
             ? "Podržani su CSV/TXT (sa zaglavljem ili Garmin POI: dužina, širina, naziv, opis), KML (Google Earth) i GPX. Kolone se prepoznaju same: naziv, adresa, grad, država, lat/lng, a za pumpe i cena dizela, valuta i datum. Spisak cena bez koordinata ažurira postojeće pumpe istog naziva."

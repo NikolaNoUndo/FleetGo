@@ -43,7 +43,8 @@ export function PeriodSelect({ value, onChange }: { value: Period; onChange: (p:
       ? { month: "Ovaj mesec", prev: "Prošli mesec", "3m": "Poslednja 3 meseca", year: "Ova godina", all: "Ceo period" }
       : { month: "This month", prev: "Last month", "3m": "Last 3 months", year: "This year", all: "All time" };
   return (
-    <div className="w-full sm:w-44">
+    // phones: shares the row under the search with the Add button
+    <div className="min-w-[40%] flex-1 sm:w-44 sm:min-w-0 sm:flex-none">
       <Select value={value} onChange={(e) => onChange(e.target.value as Period)}>
         {(Object.keys(L) as Period[]).map((k) => (
           <option key={k} value={k}>
@@ -58,9 +59,10 @@ export function PeriodSelect({ value, onChange }: { value: Period; onChange: (p:
 export function AddButton({ onClick }: { onClick: () => void }) {
   const { t } = usePrefs();
   return (
-    <Button variant="dark" size="md" onClick={onClick}>
-      <Plus />
-      {t("c.add")}
+    // phones: a square "+" that sits next to the search / filters
+    <Button variant="dark" size="md" onClick={onClick} aria-label={t("c.add")} className="max-sm:w-[40px] max-sm:px-0">
+      <Plus className="max-sm:size-[18px]" />
+      <span className="max-sm:sr-only">{t("c.add")}</span>
     </Button>
   );
 }

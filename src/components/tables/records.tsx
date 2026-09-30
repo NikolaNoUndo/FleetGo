@@ -55,13 +55,13 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
 
   const cols: Column<DocRow>[] = [
     {
-      key: "doc",
+      key: "doc", m: "title",
       header: t("f.docType"),
       sortValue: (r) => opt(DOC_TYPES[r.entityType as EntityType] ?? [], r.docType),
       render: (r) => <Stack main={opt(DOC_TYPES[r.entityType as EntityType] ?? [], r.docType)} sub={r.number} />,
     },
     {
-      key: "owner",
+      key: "owner", m: "sub",
       header: t("f.entityType"),
       sortValue: (r) => r.ownerName,
       render: (r) => {
@@ -74,10 +74,10 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
         );
       },
     },
-    { key: "issued", header: t("f.issuedAt"), sortValue: (r) => r.issuedAt, hide: "lg", render: (r) => <span className="text-ink-2 tnum">{date(r.issuedAt)}</span> },
-    { key: "expires", header: t("f.expiresAt"), sortValue: (r) => r.expiresAt, render: (r) => <span className="font-medium tnum">{date(r.expiresAt)}</span> },
-    { key: "state", header: t("f.status"), sortValue: (r) => r.expiresAt, render: (r) => <ExpiryBadge date={r.expiresAt} compact /> },
-    { key: "amount", header: t("f.amount"), align: "right", hide: "md", sortValue: (r) => r.amount, render: (r) => (r.amount ? <Amount amount={r.amount} currency={r.currency} /> : <span className="text-ink-4">—</span>) },
+    { key: "issued", m: "hide", header: t("f.issuedAt"), sortValue: (r) => r.issuedAt, hide: "lg", render: (r) => <span className="text-ink-2 tnum">{date(r.issuedAt)}</span> },
+    { key: "expires", m: "sub", header: t("f.expiresAt"), sortValue: (r) => r.expiresAt, render: (r) => <span className="font-medium tnum">{date(r.expiresAt)}</span> },
+    { key: "state", m: "end", header: t("f.status"), sortValue: (r) => r.expiresAt, render: (r) => <ExpiryBadge date={r.expiresAt} compact /> },
+    { key: "amount", m: "end2", header: t("f.amount"), align: "right", hide: "md", sortValue: (r) => r.amount, render: (r) => (r.amount ? <Amount amount={r.amount} currency={r.currency} /> : <span className="text-ink-4">—</span>) },
   ];
 
   return (
@@ -100,8 +100,8 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
         toolbar={
           <>
             {!fixed && (
-              <div className="w-full sm:w-40">
-                <Select value={entity} onChange={(e) => setEntity(e.target.value as typeof entity)} className="h-9 text-sm">
+              <div className="min-w-[40%] flex-1 sm:w-40 sm:min-w-0 sm:flex-none">
+                <Select value={entity} onChange={(e) => setEntity(e.target.value as typeof entity)} className="sm:h-9">
                   <option value="all">{t("c.all")}</option>
                   {ENTITY_TYPES.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -149,12 +149,12 @@ export function ServicesTable({ rows, refs, names, fixed, hide, flush }: Common 
   const supplierIds = [...new Set(rows.map((r) => r.supplierId).filter(Boolean))] as string[];
   const cols = keep<ServiceRow>(
     [
-      { key: "date", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
-      { key: "for", header: t("f.for"), sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}</span> },
-      { key: "kind", header: t("f.kind"), sortValue: (r) => r.kind, render: (r) => <Stack main={opt(SERVICE_KINDS, r.kind)} sub={r.description} /> },
-      { key: "workshop", header: t("f.workshop"), sortValue: (r) => names[r.supplierId ?? ""] ?? "", hide: "lg", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
-      { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => (r.amount === null ? -1 : conv(r.amount, r.currency)), render: (r) => <OptionalAmount amount={r.amount} currency={r.currency} /> },
-      { key: "paid", header: t("f.paid"), sortValue: (r) => Number(r.paid), hide: "sm", render: (r) => <PaidBadge paid={r.paid} /> },
+      { key: "date", m: "sub", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
+      { key: "for", m: "sub", header: t("f.for"), sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}</span> },
+      { key: "kind", m: "title", header: t("f.kind"), sortValue: (r) => r.kind, render: (r) => <Stack main={opt(SERVICE_KINDS, r.kind)} sub={r.description} /> },
+      { key: "workshop", m: "sub", header: t("f.workshop"), sortValue: (r) => names[r.supplierId ?? ""] ?? "", hide: "lg", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
+      { key: "amount", m: "end", header: t("f.amount"), align: "right", sortValue: (r) => (r.amount === null ? -1 : conv(r.amount, r.currency)), render: (r) => <OptionalAmount amount={r.amount} currency={r.currency} /> },
+      { key: "paid", m: "end2", header: t("f.paid"), sortValue: (r) => Number(r.paid), hide: "sm", render: (r) => <PaidBadge paid={r.paid} /> },
     ],
     hide,
   );
@@ -227,13 +227,13 @@ export function PartsTable({ rows, refs, names, fixed, hide, flush }: Common & {
   const supplierIds = [...new Set(rows.map((r) => r.supplierId).filter(Boolean))] as string[];
   const cols = keep<PartRow>(
     [
-      { key: "date", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
-      { key: "name", header: t("f.partName"), sortValue: (r) => r.name, render: (r) => <Stack main={r.name} sub={r.partNumber} /> },
-      { key: "qty", header: t("f.quantity"), align: "right", sortValue: (r) => r.quantity, hide: "sm", render: (r) => <span className="text-ink-2">{num(r.quantity)}</span> },
-      { key: "for", header: t("f.for"), sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}</span> },
-      { key: "supplier", header: t("f.supplier"), sortValue: (r) => names[r.supplierId ?? ""] ?? "", hide: "lg", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
-      { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => (r.amount === null ? -1 : conv(r.amount, r.currency)), render: (r) => <OptionalAmount amount={r.amount} currency={r.currency} /> },
-      { key: "paid", header: t("f.paid"), sortValue: (r) => Number(r.paid), hide: "sm", render: (r) => <PaidBadge paid={r.paid} /> },
+      { key: "date", m: "sub", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
+      { key: "name", m: "title", header: t("f.partName"), sortValue: (r) => r.name, render: (r) => <Stack main={r.name} sub={r.partNumber} /> },
+      { key: "qty", m: "hide", header: t("f.quantity"), align: "right", sortValue: (r) => r.quantity, hide: "sm", render: (r) => <span className="text-ink-2">{num(r.quantity)}</span> },
+      { key: "for", m: "sub", header: t("f.for"), sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}</span> },
+      { key: "supplier", m: "hide", header: t("f.supplier"), sortValue: (r) => names[r.supplierId ?? ""] ?? "", hide: "lg", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
+      { key: "amount", m: "end", header: t("f.amount"), align: "right", sortValue: (r) => (r.amount === null ? -1 : conv(r.amount, r.currency)), render: (r) => <OptionalAmount amount={r.amount} currency={r.currency} /> },
+      { key: "paid", m: "end2", header: t("f.paid"), sortValue: (r) => Number(r.paid), hide: "sm", render: (r) => <PaidBadge paid={r.paid} /> },
     ],
     hide,
   );
@@ -302,14 +302,14 @@ export function FuelTable({ rows, refs, names, fixed, hide, flush }: Common & { 
   const { period, setPeriod, filtered } = usePeriod(rows);
   const cols = keep<FuelRow>(
     [
-      { key: "date", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
-      { key: "vehicle", header: t("f.vehicle"), sortValue: (r) => names[r.vehicleId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? ""] ?? "—"}</span> },
-      { key: "driver", header: t("f.driver"), sortValue: (r) => names[r.employeeId ?? ""] ?? "", hide: "md", render: (r) => <span className="text-ink-2">{names[r.employeeId ?? ""] ?? "—"}</span> },
-      { key: "station", header: t("f.station"), sortValue: (r) => r.country, hide: "lg", render: (r) => <Stack main={<span className="font-normal text-ink-2">{r.station ?? "—"}</span>} sub={opt(COUNTRIES, r.country)} /> },
-      { key: "liters", header: t("f.liters"), align: "right", sortValue: (r) => r.liters, render: (r) => <span className="text-ink-2">{num(r.liters, 1)} l</span> },
-      { key: "ppl", header: t("f.pricePerL"), align: "right", hide: "sm", sortValue: (r) => (r.amount ? conv(r.amount / r.liters, r.currency) : null), render: (r) => <span className="text-ink-3">{r.amount ? money(r.amount / r.liters, r.currency === "RSD" ? "RSD" : "EUR") : "—"}</span> },
-      { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => conv(r.amount, r.currency), render: (r) => <Amount amount={r.amount} currency={r.currency} /> },
-      { key: "km", header: t("f.odometerKm"), align: "right", hide: "lg", sortValue: (r) => r.odometerKm, render: (r) => <span className="text-ink-3">{r.odometerKm ? num(r.odometerKm) : "—"}</span> },
+      { key: "date", m: "sub", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
+      { key: "vehicle", m: "title", header: t("f.vehicle"), sortValue: (r) => names[r.vehicleId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? ""] ?? "—"}</span> },
+      { key: "driver", m: "sub", header: t("f.driver"), sortValue: (r) => names[r.employeeId ?? ""] ?? "", hide: "md", render: (r) => <span className="text-ink-2">{names[r.employeeId ?? ""] ?? "—"}</span> },
+      { key: "station", m: "hide", header: t("f.station"), sortValue: (r) => r.country, hide: "lg", render: (r) => <Stack main={<span className="font-normal text-ink-2">{r.station ?? "—"}</span>} sub={opt(COUNTRIES, r.country)} /> },
+      { key: "liters", m: "sub", header: t("f.liters"), align: "right", sortValue: (r) => r.liters, render: (r) => <span className="text-ink-2">{num(r.liters, 1)} l</span> },
+      { key: "ppl", m: "end2", header: t("f.pricePerL"), align: "right", hide: "sm", sortValue: (r) => (r.amount ? conv(r.amount / r.liters, r.currency) : null), render: (r) => <span className="text-ink-3">{r.amount ? money(r.amount / r.liters, r.currency === "RSD" ? "RSD" : "EUR") : "—"}</span> },
+      { key: "amount", m: "end", header: t("f.amount"), align: "right", sortValue: (r) => conv(r.amount, r.currency), render: (r) => <Amount amount={r.amount} currency={r.currency} /> },
+      { key: "km", m: "hide", header: t("f.odometerKm"), align: "right", hide: "lg", sortValue: (r) => r.odometerKm, render: (r) => <span className="text-ink-3">{r.odometerKm ? num(r.odometerKm) : "—"}</span> },
     ],
     hide,
   );
@@ -368,11 +368,11 @@ export function PaymentsTable({ rows, refs, names, fixed, hide, flush }: Common 
   const { period, setPeriod, filtered } = usePeriod(rows);
   const cols = keep<PaymentRow>(
     [
-      { key: "date", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
-      { key: "employee", header: t("f.employee"), sortValue: (r) => names[r.employeeId] ?? "", render: (r) => <span className="font-medium">{names[r.employeeId] ?? "—"}</span> },
-      { key: "kind", header: t("f.kind"), sortValue: (r) => r.kind, render: (r) => <Stack main={<span className="font-normal text-ink-2">{opt(PAYMENT_KINDS, r.kind)}</span>} sub={r.note} /> },
-      { key: "method", header: t("f.method"), sortValue: (r) => r.method, hide: "md", render: (r) => <span className="text-ink-2">{opt(PAYMENT_METHODS, r.method)}</span> },
-      { key: "amount", header: t("f.amount"), align: "right", sortValue: (r) => conv(r.amount, r.currency), render: (r) => <Amount amount={r.amount} currency={r.currency} /> },
+      { key: "date", m: "sub", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
+      { key: "employee", m: "title", header: t("f.employee"), sortValue: (r) => names[r.employeeId] ?? "", render: (r) => <span className="font-medium">{names[r.employeeId] ?? "—"}</span> },
+      { key: "kind", m: "sub", header: t("f.kind"), sortValue: (r) => r.kind, render: (r) => <Stack main={<span className="font-normal text-ink-2">{opt(PAYMENT_KINDS, r.kind)}</span>} sub={r.note} /> },
+      { key: "method", m: "hide", header: t("f.method"), sortValue: (r) => r.method, hide: "md", render: (r) => <span className="text-ink-2">{opt(PAYMENT_METHODS, r.method)}</span> },
+      { key: "amount", m: "end", header: t("f.amount"), align: "right", sortValue: (r) => conv(r.amount, r.currency), render: (r) => <Amount amount={r.amount} currency={r.currency} /> },
     ],
     hide,
   );

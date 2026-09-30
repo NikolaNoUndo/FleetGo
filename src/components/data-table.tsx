@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { Fragment, isValidElement, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight } from "lucide-react";
 import { usePrefs } from "./prefs";
 import { cn, Empty } from "./ui/primitives";
 import { Menu, SearchInput, Segmented, type MenuItem } from "./ui/client";
@@ -15,7 +15,34 @@ export type Column<T> = {
   align?: "left" | "right";
   className?: string;
   hide?: "sm" | "md" | "lg";
+  /**
+   * Place on the phone card (below md the table becomes a list of cards):
+   * title (first line), sub (second line, joined with ·), meta (like sub, with the header
+   * as a label), end / end2 (right side, top and under it), hide. When no column says,
+   * the first column is the title, the first right-aligned one the end, the rest sub.
+   */
+  m?: "title" | "sub" | "meta" | "end" | "end2" | "hide";
+  /** What the phone card shows for this column, when it differs from the table cell. */
+  mRender?: (row: T) => ReactNode;
 };
+
+/** A cell that only says "nothing here" ("—"): the phone card leaves it out. */
+function isBlank(n: ReactNode): boolean {
+  if (n === null || n === undefined || n === false || n === "" || n === "—") return true;
+  return isValidElement(n) && (n.props as { children?: unknown }).children === "—";
+}
+
+type Slot = NonNullable<Column<never>["m"]>;
+function mobileSlots<T>(columns: Column<T>[]): Record<Slot, Column<T>[]> {
+  const out: Record<Slot, Column<T>[]> = { title: [], sub: [], meta: [], end: [], end2: [], hide: [] };
+  const explicit = columns.some((c) => c.m);
+  const endIdx = columns.findIndex((c, i) => i > 0 && c.align === "right");
+  columns.forEach((c, i) => {
+    const slot: Slot = explicit ? (c.m ?? "hide") : i === 0 ? "title" : i === endIdx ? "end" : c.hide === "lg" ? "hide" : "sub";
+    out[slot].push(c);
+  });
+  return out;
+}
 
 export type Filter<T> = { value: string; label: ReactNode; predicate: (row: T) => boolean };
 
@@ -83,11 +110,12 @@ export function DataTable<T extends { id: string }>({
     setSort((s) => (s?.key === key ? (s.dir === "asc" ? { key, dir: "desc" } : null) : { key, dir: "asc" }));
 
   const hasToolbar = filters || searchText || toolbar;
+  const slots = useMemo(() => mobileSlots(columns), [columns]);
 
   return (
     <div className={cn(!flush && "rounded-xl border border-line bg-surface shadow-xs")}>
       {hasToolbar && (
-        <div className="flex flex-col gap-2.5 border-b border-line px-3 py-2.5 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-2.5 border-b border-line px-3 py-3 sm:py-2.5 lg:flex-row lg:items-center">
           {filters && (
             <Segmented
               value={filter}
@@ -96,12 +124,68 @@ export function DataTable<T extends { id: string }>({
             />
           )}
           <div className="flex flex-1 flex-wrap items-center gap-2 lg:justify-end">
+            {searchText && (
+              <div className="flex min-w-[60%] flex-1 sm:order-last sm:min-w-0 sm:flex-none">
+                <SearchInput value={q} onChange={setQ} placeholder={t("c.search")} />
+              </div>
+            )}
             {toolbar}
-            {searchText && <SearchInput value={q} onChange={setQ} placeholder={t("c.search")} />}
           </div>
         </div>
       )}
-      <div className="no-scrollbar overflow-x-auto overflow-y-hidden">
+      {/* phones: a list of cards */}
+      <ul className="divide-y divide-line/70 md:hidden">
+        {visible.slice(0, limit).map((row) => {
+          const out = (c: Column<T>) => (c.mRender ?? c.render)(row);
+          const cell = (c: Column<T>) => <Fragment key={c.key}>{out(c)}</Fragment>;
+          const line2 = [...slots.sub.map((c) => ({ c, label: false })), ...slots.meta.map((c) => ({ c, label: true }))]
+            .map((x) => ({ ...x, node: out(x.c) }))
+            .filter((x) => !isBlank(x.node));
+          const end = slots.end.filter((c) => !isBlank(out(c)));
+          const end2 = slots.end2.filter((c) => !isBlank(out(c)));
+          return (
+            <li
+              key={row.id}
+              onClick={rowHref ? () => router.push(rowHref(row)) : undefined}
+              className={cn("flex items-center gap-1 py-3 pr-1.5 pl-4", rowHref && "cursor-pointer active:bg-surface-2")}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 text-[15px] leading-5 font-medium text-ink [&_.max-w-\[300px\]]:max-w-none [&_.text-xs]:text-[13px] [&_.text-xs]:leading-[18px]">{slots.title.map(cell)}</div>
+                  {end.length > 0 && <div className="flex shrink-0 flex-col items-end gap-1 text-right text-sm tnum">{end.map(cell)}</div>}
+                </div>
+                {(line2.length > 0 || end2.length > 0) && (
+                  <div className="mt-1 flex items-start justify-between gap-3">
+                    <div className="min-w-0 text-[13px] leading-[18px] text-ink-3 [&_.font-medium]:font-normal [&_.text-ink]:text-ink-2 [&_.text-xs]:text-[13px]">
+                      {line2.map(({ c, label, node }, i) => (
+                        <span key={c.key} className="mr-1.5 inline-flex max-w-full items-center gap-1 align-top">
+                          {i > 0 && <span className="text-ink-4">·</span>}
+                          {label && <span className="text-ink-4">{c.header}</span>}
+                          <span className="min-w-0 truncate">{node}</span>
+                        </span>
+                      ))}
+                    </div>
+                    {end2.length > 0 && <div className="ml-auto flex shrink-0 flex-col items-end gap-1 text-right text-[13px] text-ink-3 tnum">{end2.map(cell)}</div>}
+                  </div>
+                )}
+              </div>
+              {actions ? (
+                <div className="shrink-0 self-start" onClick={(e) => e.stopPropagation()}>
+                  <Menu items={actions(row)} triggerClassName="focus-ring -mt-2 grid size-[38px] place-items-center rounded-lg text-ink-3 active:bg-surface-3" />
+                </div>
+              ) : (
+                rowHref && <ChevronRight size={18} className="shrink-0 text-ink-4" />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {footer && visible.length > 0 && (
+        <table className="w-full border-collapse text-sm md:hidden">
+          <tbody>{footer(visible)}</tbody>
+        </table>
+      )}
+      <div className="no-scrollbar hidden overflow-x-auto overflow-y-hidden md:block">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-line">

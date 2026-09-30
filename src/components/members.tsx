@@ -152,15 +152,15 @@ export function MembersManager({ members }: { members: MemberRow[] }) {
 
   const cols: Column<MemberRow>[] = [
     {
-      key: "who",
+      key: "who", m: "title",
       header: sr ? "Član" : "Member",
       sortValue: (m) => m.email,
       render: (m) => <Stack main={<>{m.name || m.email}{m.isSelf && <span className="ml-1.5 text-xs font-normal text-ink-3">({sr ? "ti" : "you"})</span>}</>} sub={m.name ? m.email : undefined} />,
     },
-    { key: "role", header: sr ? "Uloga" : "Role", sortValue: (m) => m.role, render: (m) => <Badge tone={m.role === "owner" ? "accent" : "neutral"}>{ROLES.find((r) => r.value === m.role)?.label[locale] ?? m.role}</Badge> },
-    { key: "access", header: sr ? "Pristup" : "Access", hide: "md", render: (m) => <span className="text-ink-2">{summary(m)}</span> },
+    { key: "role", m: "end", header: sr ? "Uloga" : "Role", sortValue: (m) => m.role, render: (m) => <Badge tone={m.role === "owner" ? "accent" : "neutral"}>{ROLES.find((r) => r.value === m.role)?.label[locale] ?? m.role}</Badge> },
+    { key: "access", m: "sub", header: sr ? "Pristup" : "Access", hide: "md", render: (m) => <span className="text-ink-2">{summary(m)}</span> },
     {
-      key: "status",
+      key: "status", m: "end2",
       header: "Status",
       render: (m) => (m.hasPassword ? <span className="text-ink-2">{m.lastLoginAt ? `${sr ? "Prijava" : "Signed in"} ${date(m.lastLoginAt.slice(0, 10))}` : sr ? "Aktivan" : "Active"}</span> : <Badge tone="warn">{sr ? "Čeka lozinku" : "Awaiting password"}</Badge>),
     },
@@ -207,7 +207,7 @@ export function MembersManager({ members }: { members: MemberRow[] }) {
               });
             }}
           >
-            <div className="max-h-[68vh] space-y-5 overflow-y-auto px-5 py-5">
+            <div className="max-h-[calc(94dvh-128px)] space-y-5 overflow-y-auto overscroll-contain px-4 py-5 sm:max-h-[68vh] sm:px-5">
               {isNew && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FieldShell label="Email *" htmlFor="m-email">

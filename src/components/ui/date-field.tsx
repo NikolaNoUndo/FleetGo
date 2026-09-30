@@ -209,7 +209,7 @@ export function DateField({
           }
         }}
         className={cn(
-          "focus-ring h-8 w-full rounded-lg border bg-surface pr-9 pl-2.5 text-sm text-ink shadow-xs tnum transition-colors placeholder:text-ink-4 hover:border-line-strong",
+          "focus-ring h-[42px] w-full rounded-lg border bg-surface pr-10 pl-3 text-sm sm:h-8 sm:pr-9 sm:pl-2.5 text-ink shadow-xs tnum transition-colors placeholder:text-ink-4 hover:border-line-strong",
           bad ? "border-bad-line" : "border-line",
         )}
       />
@@ -218,7 +218,7 @@ export function DateField({
         onClick={openCalendar}
         aria-label={sr ? "Otvori kalendar" : "Open calendar"}
         aria-expanded={open}
-        className="absolute top-1/2 right-1 grid size-7 -translate-y-1/2 place-items-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
+        className="absolute top-1/2 right-1 grid size-9 -translate-y-1/2 sm:size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
       >
         <CalendarDays size={15} />
       </button>
@@ -390,7 +390,7 @@ export function MonthField({ id, value, onChange }: { id?: string; value: string
           setYear(valid ? +value.slice(0, 4) : nowY);
           setOpen((o) => !o);
         }}
-        className="focus-ring flex h-8 w-full items-center justify-between rounded-lg border border-line bg-surface pr-2 pl-2.5 text-left text-sm text-ink shadow-xs transition-colors hover:border-line-strong"
+        className="focus-ring flex h-[42px] w-full items-center justify-between rounded-lg border border-line bg-surface pr-3 pl-3 sm:h-8 sm:pr-2 sm:pl-2.5 text-left text-sm text-ink shadow-xs transition-colors hover:border-line-strong"
       >
         <span className={cn("capitalize", !label && "text-ink-4 normal-case")}>{label || (sr ? "Izaberi mesec" : "Pick a month")}</span>
         <CalendarDays size={15} className="text-ink-3" />

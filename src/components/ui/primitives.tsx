@@ -18,8 +18,9 @@ const btnVariants: Record<BtnVariant, string> = {
 };
 const btnSizes: Record<BtnSize, string> = {
   sm: "h-7 px-2.5 rounded-md",
-  md: "h-8 px-3 rounded-lg",
-  icon: "size-8 rounded-lg",
+  // 40px touch targets on phones
+  md: "h-[40px] px-3.5 rounded-lg sm:h-8 sm:px-3",
+  icon: "size-[40px] rounded-lg sm:size-8",
 };
 
 export function btnClass(variant: BtnVariant = "secondary", size: BtnSize = "md", extra?: string) {
@@ -78,15 +79,15 @@ export function Shell({
 
 export function PageHeader({ title, sub, actions, tabs }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; tabs?: ReactNode }) {
   return (
-    <div className="mb-6">
+    <div className="mb-4 sm:mb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-[-0.015em] text-ink">{title}</h1>
+          <h1 className="text-[22px] leading-7 font-semibold tracking-[-0.02em] text-ink sm:text-xl sm:tracking-[-0.015em]">{title}</h1>
           {sub && <p className="mt-0.5 text-sm text-ink-3">{sub}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      {tabs && <div className="mt-4">{tabs}</div>}
+      {tabs && <div className="mt-3 sm:mt-4">{tabs}</div>}
     </div>
   );
 }

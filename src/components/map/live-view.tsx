@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "@/components/ui/link";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowUpRight, Info, Navigation, RefreshCw } from "lucide-react";
 import { usePrefs } from "../prefs";
 import { Badge, cn } from "../ui/primitives";
@@ -174,6 +174,13 @@ export function LiveView({ places = [], hq = null }: { places?: MapPlace[]; hq?:
     setSelected(unitId);
     setFocus((f) => ({ type: "unit", id: unitId, n: (f?.n ?? 0) + 1 }));
   };
+  // phones and tablets have the list under the map: picking a truck brings the map back into view
+  const mapBox = useRef<HTMLDivElement>(null);
+  const selectFromList = (unitId: string) => {
+    select(unitId);
+    const box = mapBox.current?.getBoundingClientRect();
+    if (box && window.innerWidth < 1024 && box.top < 56) mapBox.current!.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   // switching a group on (e.g. one supplier) also moves the map to show its places
   const setLayers = (next: Layers) => {
     const before = new Set(shown.map((p) => p.id));
@@ -263,7 +270,7 @@ export function LiveView({ places = [], hq = null }: { places?: MapPlace[]; hq?:
               <li key={p.unitId}>
                 <button
                   type="button"
-                  onClick={() => select(p.unitId)}
+                  onClick={() => selectFromList(p.unitId)}
                   className={cn(
                     "flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
                     active
@@ -382,7 +389,7 @@ export function LiveView({ places = [], hq = null }: { places?: MapPlace[]; hq?:
             </span>
           </div>
         )}
-        <div className="relative isolate h-[52vh] overflow-hidden rounded-xl border border-line bg-surface shadow-xs lg:h-[calc(100dvh-236px)] lg:flex-1">
+        <div ref={mapBox} className="relative isolate h-[58dvh] scroll-mt-16 overflow-hidden rounded-xl border border-line bg-surface shadow-xs lg:h-[calc(100dvh-236px)] lg:flex-1">
           <FleetMap
             points={points}
             selected={selected}

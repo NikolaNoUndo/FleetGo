@@ -13,27 +13,48 @@ import { crumbsFor, GROUPS, isActive } from "@/lib/nav";
 import { RESOURCES, type Refs, type ResourceKey } from "@/lib/resources";
 import { RESOURCE_MODULE, ROUTE_MODULE } from "@/lib/auth/permissions";
 
-export function Topbar({ refs }: { refs: Refs }) {
+export const QUICK_ADD: { r: Exclude<ResourceKey, "suppliers" | "places">; icon: React.ReactNode }[] = [
+  { r: "fuel", icon: <Fuel /> },
+  { r: "services", icon: <Wrench /> },
+  { r: "parts", icon: <Package /> },
+  { r: "payments", icon: <Wallet /> },
+  { r: "expenses", icon: <Building2 /> },
+  { r: "documents", icon: <CalendarClock /> },
+  { r: "vehicles", icon: <Truck /> },
+  { r: "trailers", icon: <Container /> },
+  { r: "employees", icon: <UserPlus /> },
+];
+
+/** "Novi unos": a menu of everything the member may add, each opening its form. */
+export function QuickAdd({ refs, triggerClassName, trigger }: { refs: Refs; triggerClassName: string; trigger: React.ReactNode }) {
   const { t, can } = usePrefs();
+  const [adding, setAdding] = useState<ResourceKey | null>(null);
+  const items = QUICK_ADD.filter((x) => can(RESOURCE_MODULE[x.r], "edit"));
+  if (!items.length) return null;
+  return (
+    <>
+      <Menu
+        label={t("q.new")}
+        triggerClassName={triggerClassName}
+        trigger={trigger}
+        items={items.map(({ r, icon }) => ({ label: t(`q.${r}` as TKey), icon, onSelect: () => setAdding(r) }))}
+      />
+      <Modal open={!!adding} onClose={() => setAdding(null)} title={adding ? `${t("c.add")} ${t(RESOURCES[adding].title)}` : ""}>
+        {adding && <RecordForm key={adding} resource={adding} record={null} refs={refs} onDone={() => setAdding(null)} onCancel={() => setAdding(null)} />}
+      </Modal>
+    </>
+  );
+}
+
+/** Breadcrumbs and "Novi unos" above the page (desktop; phones use the app bar and tab bar). */
+export function Topbar({ refs }: { refs: Refs }) {
+  const { t } = usePrefs();
   const pathname = usePathname();
   const crumbs = crumbsFor(pathname);
-  const [adding, setAdding] = useState<ResourceKey | null>(null);
   const isDetail = /^\/(vehicles|trailers|employees)\/[^/]+$/.test(pathname);
 
-  const items = ([
-    { r: "fuel", icon: <Fuel /> },
-    { r: "services", icon: <Wrench /> },
-    { r: "parts", icon: <Package /> },
-    { r: "payments", icon: <Wallet /> },
-    { r: "expenses", icon: <Building2 /> },
-    { r: "documents", icon: <CalendarClock /> },
-    { r: "vehicles", icon: <Truck /> },
-    { r: "trailers", icon: <Container /> },
-    { r: "employees", icon: <UserPlus /> },
-  ] as { r: Exclude<ResourceKey, "suppliers" | "places">; icon: React.ReactNode }[]).filter((x) => can(RESOURCE_MODULE[x.r], "edit"));
-
   return (
-    <div className="flex h-12 items-center gap-3 px-4 sm:px-6 lg:pl-8">
+    <div className="hidden h-12 items-center gap-3 px-4 sm:px-6 lg:flex lg:pl-8">
       <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
         {crumbs.map((c, i) => (
           <Fragment key={c.label}>
@@ -55,21 +76,17 @@ export function Topbar({ refs }: { refs: Refs }) {
         )}
       </nav>
       <div className="ml-auto">
-        {items.length > 0 && <Menu
-          label={t("q.new")}
+        <QuickAdd
+          refs={refs}
           triggerClassName={btnClass("primary", "md")}
           trigger={
             <>
               <Plus size={14} />
-              <span className="hidden sm:inline">{t("q.new")}</span>
+              <span>{t("q.new")}</span>
             </>
           }
-          items={items.map(({ r, icon }) => ({ label: t(`q.${r}` as TKey), icon, onSelect: () => setAdding(r) }))}
-        />}
+        />
       </div>
-      <Modal open={!!adding} onClose={() => setAdding(null)} title={adding ? `${t("c.add")} ${t(RESOURCES[adding].title)}` : ""}>
-        {adding && <RecordForm key={adding} resource={adding} record={null} refs={refs} onDone={() => setAdding(null)} onCancel={() => setAdding(null)} />}
-      </Modal>
     </div>
   );
 }

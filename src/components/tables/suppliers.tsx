@@ -13,12 +13,12 @@ export function SuppliersTable({ rows, refs }: { rows: SupplierRow[]; refs: Refs
   const crud = useCrud("suppliers", refs);
   const sr = locale === "sr";
   const cols: Column<SupplierRow>[] = [
-    { key: "name", header: t("f.name"), sortValue: (r) => r.name, render: (r) => <Stack main={r.name} sub={r.note ?? undefined} /> },
-    { key: "phone", header: t("f.phone"), hide: "md", sortValue: (r) => r.phone, render: (r) => <span className="text-ink-2">{r.phone ?? "—"}</span> },
-    { key: "parts", header: sr ? "Nabavki delova" : "Part purchases", align: "right", sortValue: (r) => r.parts, render: (r) => <span className="text-ink-2">{r.parts}</span> },
-    { key: "services", header: sr ? "Servisa" : "Services", align: "right", sortValue: (r) => r.services, render: (r) => <span className="text-ink-2">{r.services}</span> },
-    { key: "last", header: sr ? "Poslednja" : "Last", hide: "sm", sortValue: (r) => r.lastDate, render: (r) => <span className="text-ink-2 tnum">{date(r.lastDate)}</span> },
-    { key: "spent", header: sr ? "Ukupno potrošeno" : "Total spent", align: "right", sortValue: (r) => r.spent, render: (r) => <span className="font-medium">{r.spent ? money(r.spent, currency) : "—"}</span> },
+    { key: "name", m: "title", header: t("f.name"), sortValue: (r) => r.name, render: (r) => <Stack main={r.name} sub={r.note ?? undefined} /> },
+    { key: "phone", m: "sub", header: t("f.phone"), hide: "md", sortValue: (r) => r.phone, render: (r) => <span className="text-ink-2">{r.phone ?? "—"}</span> },
+    { key: "parts", m: "meta", header: sr ? "Nabavki delova" : "Part purchases", align: "right", sortValue: (r) => r.parts, render: (r) => <span className="text-ink-2">{r.parts}</span> },
+    { key: "services", m: "meta", header: sr ? "Servisa" : "Services", align: "right", sortValue: (r) => r.services, render: (r) => <span className="text-ink-2">{r.services}</span> },
+    { key: "last", m: "hide", header: sr ? "Poslednja" : "Last", hide: "sm", sortValue: (r) => r.lastDate, render: (r) => <span className="text-ink-2 tnum">{date(r.lastDate)}</span> },
+    { key: "spent", m: "end", header: sr ? "Ukupno potrošeno" : "Total spent", align: "right", sortValue: (r) => r.spent, render: (r) => <span className="font-medium">{r.spent ? money(r.spent, currency) : "—"}</span> },
   ];
   return (
     <>

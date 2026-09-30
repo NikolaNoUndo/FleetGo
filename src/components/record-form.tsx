@@ -779,12 +779,12 @@ export function RecordForm({
 
   return (
     <form onSubmit={submit} noValidate>
-      <div className="grid max-h-[65vh] grid-cols-1 gap-4 overflow-y-auto px-4 py-4 sm:grid-cols-2">
+      <div className="grid max-h-[calc(94dvh-128px)] grid-cols-1 gap-4 overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[65vh] sm:grid-cols-2">
         {fields.map(renderField)}
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-4 py-3">
-        <span className="text-sm text-bad">{message}</span>
-        <div className="flex gap-2">
+        {message && <span className="text-sm text-bad">{message}</span>}
+        <div className="ml-auto flex flex-1 gap-2 sm:flex-none [&>button]:flex-1 sm:[&>button]:flex-none">
           <Button onClick={onCancel}>{t("c.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={pending}>
             {pending ? t("c.saving") : t("c.save")}

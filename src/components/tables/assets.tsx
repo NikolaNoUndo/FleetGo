@@ -50,6 +50,18 @@ function ListCell({ items: all }: { items: string[] }) {
   );
 }
 
+/** Phone card: the badge, and which document under it. */
+function NextDocCard({ doc, kind }: { doc: NextDoc; kind: "vehicle" | "trailer" | "employee" }) {
+  const { opt } = usePrefs();
+  if (!doc) return <span className="text-ink-4">—</span>;
+  return (
+    <span className="flex flex-col items-end gap-1">
+      <ExpiryBadge date={doc.expiresAt} compact />
+      <span className="max-w-[128px] truncate text-xs text-ink-3">{opt(DOC_TYPES[kind], doc.docType)}</span>
+    </span>
+  );
+}
+
 function NextDocCell({ doc, kind }: { doc: NextDoc; kind: "vehicle" | "trailer" | "employee" }) {
   const { opt } = usePrefs();
   if (!doc) return <span className="text-ink-4">—</span>;
@@ -66,13 +78,13 @@ export function VehiclesTable({ rows, refs }: { rows: VehicleRow[]; refs: Refs }
   const crud = useCrud("vehicles", refs);
   const router = useRouter();
   const cols: Column<VehicleRow>[] = [
-    { key: "plate", header: t("f.vehicle"), sortValue: (r) => r.plate, render: (r) => <Stack main={r.plate} sub={[r.brand, r.model, r.year].filter(Boolean).join(" · ")} /> },
-    { key: "type", header: t("f.type"), sortValue: (r) => r.type, hide: "md", render: (r) => <span className="text-ink-2">{opt(VEHICLE_TYPES, r.type)}</span> },
-    { key: "driver", header: t("f.driver"), sortValue: (r) => r.driverName, hide: "sm", render: (r) => <DriversCell main={r.driverName} extra={r.extraDriverNames} /> },
-    { key: "trailer", header: t("f.trailer"), sortValue: (r) => r.trailerPlates[0] ?? null, hide: "lg", render: (r) => <ListCell items={r.trailerPlates} /> },
-    { key: "km", header: t("f.odometerKm"), align: "right", hide: "sm", sortValue: (r) => r.odometerKm, render: (r) => <span className="text-ink-2">{r.odometerKm ? `${num(r.odometerKm)} km` : "—"}</span> },
-    { key: "next", header: t("f.nextExpiry"), sortValue: (r) => r.nextDoc?.expiresAt ?? "9999", render: (r) => <NextDocCell doc={r.nextDoc} kind="vehicle" /> },
-    { key: "status", header: t("f.status"), sortValue: (r) => r.status, hide: "sm", render: (r) => <AssetStatus status={r.status} /> },
+    { key: "plate", m: "title", header: t("f.vehicle"), sortValue: (r) => r.plate, render: (r) => <Stack main={r.plate} sub={[r.brand, r.model, r.year].filter(Boolean).join(" · ")} /> },
+    { key: "type", m: "hide", header: t("f.type"), sortValue: (r) => r.type, hide: "md", render: (r) => <span className="text-ink-2">{opt(VEHICLE_TYPES, r.type)}</span> },
+    { key: "driver", m: "sub", header: t("f.driver"), sortValue: (r) => r.driverName, hide: "sm", render: (r) => <DriversCell main={r.driverName} extra={r.extraDriverNames} />, mRender: (r) => (r.driverName || r.extraDriverNames.length ? <DriversCell main={r.driverName} extra={r.extraDriverNames} /> : null) },
+    { key: "trailer", m: "sub", header: t("f.trailer"), sortValue: (r) => r.trailerPlates[0] ?? null, hide: "lg", render: (r) => <ListCell items={r.trailerPlates} />, mRender: (r) => (r.trailerPlates.length ? <ListCell items={r.trailerPlates} /> : null) },
+    { key: "km", m: "hide", header: t("f.odometerKm"), align: "right", hide: "sm", sortValue: (r) => r.odometerKm, render: (r) => <span className="text-ink-2">{r.odometerKm ? `${num(r.odometerKm)} km` : "—"}</span> },
+    { key: "next", m: "end", header: t("f.nextExpiry"), sortValue: (r) => r.nextDoc?.expiresAt ?? "9999", render: (r) => <NextDocCell doc={r.nextDoc} kind="vehicle" />, mRender: (r) => <NextDocCard doc={r.nextDoc} kind="vehicle" /> },
+    { key: "status", m: "hide", header: t("f.status"), sortValue: (r) => r.status, hide: "sm", render: (r) => <AssetStatus status={r.status} /> },
   ];
   return (
     <>
@@ -118,10 +130,10 @@ export function TrailersTable({ rows, refs }: { rows: TrailerRow[]; refs: Refs }
   const router = useRouter();
   const types = [...new Set(rows.map((r) => r.type))];
   const cols: Column<TrailerRow>[] = [
-    { key: "plate", header: t("f.trailer"), sortValue: (r) => r.plate, render: (r) => <Stack main={r.plate} sub={[r.brand, r.year].filter(Boolean).join(" · ")} /> },
-    { key: "type", header: t("f.type"), sortValue: (r) => r.type, render: (r) => <span className="text-ink-2">{opt(TRAILER_TYPES, r.type)}</span> },
+    { key: "plate", m: "title", header: t("f.trailer"), sortValue: (r) => r.plate, render: (r) => <Stack main={r.plate} sub={[r.brand, r.year].filter(Boolean).join(" · ")} /> },
+    { key: "type", m: "sub", header: t("f.type"), sortValue: (r) => r.type, render: (r) => <span className="text-ink-2">{opt(TRAILER_TYPES, r.type)}</span> },
     {
-      key: "cap",
+      key: "cap", m: "hide",
       header: t("f.capacityKg"),
       align: "right",
       hide: "md",
@@ -133,9 +145,9 @@ export function TrailersTable({ rows, refs }: { rows: TrailerRow[]; refs: Refs }
         </span>
       ),
     },
-    { key: "veh", header: t("x.coupledTo"), sortValue: (r) => r.vehiclePlates[0] ?? null, hide: "sm", render: (r) => <ListCell items={r.vehiclePlates} /> },
-    { key: "next", header: t("f.nextExpiry"), sortValue: (r) => r.nextDoc?.expiresAt ?? "9999", render: (r) => <NextDocCell doc={r.nextDoc} kind="trailer" /> },
-    { key: "status", header: t("f.status"), sortValue: (r) => r.status, hide: "sm", render: (r) => <AssetStatus status={r.status} /> },
+    { key: "veh", m: "sub", header: t("x.coupledTo"), sortValue: (r) => r.vehiclePlates[0] ?? null, hide: "sm", render: (r) => <ListCell items={r.vehiclePlates} />, mRender: (r) => (r.vehiclePlates.length ? <ListCell items={r.vehiclePlates} /> : null) },
+    { key: "next", m: "end", header: t("f.nextExpiry"), sortValue: (r) => r.nextDoc?.expiresAt ?? "9999", render: (r) => <NextDocCell doc={r.nextDoc} kind="trailer" />, mRender: (r) => <NextDocCard doc={r.nextDoc} kind="trailer" /> },
+    { key: "status", m: "hide", header: t("f.status"), sortValue: (r) => r.status, hide: "sm", render: (r) => <AssetStatus status={r.status} /> },
   ];
   return (
     <>
@@ -179,19 +191,19 @@ export function EmployeesTable({ rows, refs }: { rows: EmployeeRow[]; refs: Refs
   const router = useRouter();
   const paid = (r: EmployeeRow) => r.paidThisMonth.reduce((s, p) => s + conv(p.amount, p.currency), 0);
   const cols = ([
-    { key: "name", header: t("f.name"), sortValue: (r) => `${r.lastName} ${r.firstName}`, render: (r) => <Stack main={`${r.firstName} ${r.lastName}`} sub={r.phone} /> },
-    { key: "role", header: t("f.role"), sortValue: (r) => r.role, hide: "sm", render: (r) => <span className="text-ink-2">{opt(EMPLOYEE_ROLES, r.role)}</span> },
-    { key: "veh", header: t("x.assignedVehicle"), sortValue: (r) => r.vehiclePlate, hide: "md", render: (r) => <span className="text-ink-2">{r.vehiclePlate ?? "—"}</span> },
-    { key: "next", header: t("f.nextExpiry"), sortValue: (r) => r.nextDoc?.expiresAt ?? "9999", render: (r) => <NextDocCell doc={r.nextDoc} kind="employee" /> },
+    { key: "name", m: "title", header: t("f.name"), sortValue: (r) => `${r.lastName} ${r.firstName}`, render: (r) => <Stack main={`${r.firstName} ${r.lastName}`} sub={r.phone} /> },
+    { key: "role", m: "sub", header: t("f.role"), sortValue: (r) => r.role, hide: "sm", render: (r) => <span className="text-ink-2">{opt(EMPLOYEE_ROLES, r.role)}</span> },
+    { key: "veh", m: "sub", header: t("x.assignedVehicle"), sortValue: (r) => r.vehiclePlate, hide: "md", render: (r) => <span className="text-ink-2">{r.vehiclePlate ?? "—"}</span> },
+    { key: "next", m: "end", header: t("f.nextExpiry"), sortValue: (r) => r.nextDoc?.expiresAt ?? "9999", render: (r) => <NextDocCell doc={r.nextDoc} kind="employee" />, mRender: (r) => <NextDocCard doc={r.nextDoc} kind="employee" /> },
     showPaid && {
-      key: "paid",
+      key: "paid", m: "hide",
       header: `${t("x.payments")} · ${t("c.thisMonth").toLowerCase()}`,
       align: "right",
       hide: "lg",
       sortValue: paid,
       render: (r) => <span className="font-medium">{r.paidThisMonth.length ? money(paid(r), currency) : "—"}</span>,
     },
-    { key: "status", header: t("f.status"), sortValue: (r) => r.status, hide: "sm", render: (r) => <EmployeeStatus status={r.status} /> },
+    { key: "status", m: "hide", header: t("f.status"), sortValue: (r) => r.status, hide: "sm", render: (r) => <EmployeeStatus status={r.status} /> },
   ] as (Column<EmployeeRow> | false)[]).filter(Boolean) as Column<EmployeeRow>[];
   return (
     <>

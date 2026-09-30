@@ -56,9 +56,9 @@ export function ExpensesTable({
   const company = sr ? "Firma" : "Company";
 
   const all: Column<ExpenseRow>[] = [
-    { key: "date", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
+    { key: "date", m: "sub", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
     {
-      key: "category",
+      key: "category", m: "title",
       header: t("f.expenseCategory"),
       sortValue: (r) => opt(EXPENSE_CATEGORIES, r.category),
       render: (r) => (
@@ -74,7 +74,7 @@ export function ExpensesTable({
       ),
     },
     {
-      key: "for",
+      key: "for", m: "sub",
       header: t("f.for"),
       sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "",
       render: (r) => {
@@ -82,9 +82,9 @@ export function ExpensesTable({
         return n ? <span className="font-medium">{n}</span> : <span className="text-ink-3">{company}</span>;
       },
     },
-    { key: "supplier", header: t("f.supplier"), hide: "lg", sortValue: (r) => names[r.supplierId ?? ""] ?? "", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
+    { key: "supplier", m: "hide", header: t("f.supplier"), hide: "lg", sortValue: (r) => names[r.supplierId ?? ""] ?? "", render: (r) => <span className="text-ink-2">{names[r.supplierId ?? ""] ?? "—"}</span> },
     {
-      key: "amount",
+      key: "amount", m: "end",
       header: t("f.amount"),
       align: "right",
       sortValue: (r) => (r.amount === null ? -1 : conv(r.amount, r.currency)),
@@ -98,7 +98,7 @@ export function ExpensesTable({
         );
       },
     },
-    { key: "paid", header: t("f.paid"), sortValue: (r) => Number(r.paid), hide: "sm", render: (r) => <PaidBadge paid={r.paid} /> },
+    { key: "paid", m: "end2", header: t("f.paid"), sortValue: (r) => Number(r.paid), hide: "sm", render: (r) => <PaidBadge paid={r.paid} /> },
   ];
   const cols = hide?.length ? all.filter((c) => !hide.includes(c.key)) : all;
   const amountIdx = cols.findIndex((c) => c.key === "amount");
@@ -120,7 +120,7 @@ export function ExpensesTable({
         toolbar={
           <>
             {cats.length > 1 && (
-              <div className="w-full sm:w-52">
+              <div className="min-w-[40%] flex-1 sm:w-52 sm:min-w-0 sm:flex-none">
                 <Select value={cat} onChange={(e) => setCat(e.target.value)} aria-label={t("f.expenseCategory")}>
                   <option value="all">{sr ? "Sve vrste" : "All types"}</option>
                   {cats.map((c) => (

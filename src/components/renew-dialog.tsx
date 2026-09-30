@@ -92,7 +92,7 @@ function RenewForm({ doc, onDone }: { doc: DocRow; onDone: () => void }) {
 
   return (
     <div>
-      <div className="grid max-h-[70vh] gap-4 overflow-y-auto px-4 py-4 sm:grid-cols-2">
+      <div className="grid max-h-[calc(94dvh-128px)] gap-4 overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[70vh] sm:grid-cols-2">
         <div className="rounded-lg bg-surface-2/70 px-3 py-2 text-sm sm:col-span-2">
           <span className="font-medium">{docLabel}</span> · {doc.ownerName}
           <span className="block text-xs text-ink-3">
@@ -224,8 +224,8 @@ function RenewForm({ doc, onDone }: { doc: DocRow; onDone: () => void }) {
         )}
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-4 py-3">
-        <span className="text-sm text-bad">{message}</span>
-        <div className="flex gap-2">
+        {message && <span className="text-sm text-bad">{message}</span>}
+        <div className="ml-auto flex flex-1 gap-2 sm:flex-none [&>button]:flex-1 sm:[&>button]:flex-none">
           <Button onClick={onDone}>{t("c.cancel")}</Button>
           <Button variant="primary" disabled={pending} onClick={submit}>
             {pending ? t("c.saving") : sr ? "Obnovi" : "Renew"}
