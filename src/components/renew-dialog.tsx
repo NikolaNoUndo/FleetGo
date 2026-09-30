@@ -120,20 +120,44 @@ function RenewForm({ doc, onDone }: { doc: DocRow; onDone: () => void }) {
         </FieldShell>
 
         {oldExp && (
-          <FieldShell label={sr ? "Računa se od" : "Counted from"} span={2}>
-            <Segmented
-              size="sm"
-              value={from}
-              onChange={(v) => {
-                setFrom(v);
-                if (period !== "other") setManual(null);
-              }}
-              items={[
-                { value: "renewal", label: sr ? `datuma obnove${issued ? ` (${toDisplay(issued)})` : ""}` : `renewal date${issued ? ` (${toDisplay(issued)})` : ""}` },
-                { value: "old", label: sr ? `isteka starog (${toDisplay(oldExp)})` : `old expiry (${toDisplay(oldExp)})` },
-              ]}
-            />
-          </FieldShell>
+          <div className="sm:col-span-2">
+            <div className="mb-1.5 text-xs font-medium text-ink-2">{sr ? "Novi rok se računa od" : "New term counted from"}</div>
+            <div role="radiogroup" className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { v: "renewal", label: sr ? "Datuma obnove" : "Renewal date", date: /^\d{4}-\d{2}-\d{2}$/.test(issued) ? issued : today, hint: sr ? "od dana kad je urađeno" : "from the day it was done" },
+                  { v: "old", label: sr ? "Isteka starog" : "Old expiry", date: oldExp, hint: sr ? "nastavlja se, ne gube se dani" : "continues, no days lost" },
+                ] as const
+              ).map((o) => {
+                const on = from === o.v;
+                return (
+                  <button
+                    key={o.v}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => {
+                      setFrom(o.v);
+                      if (period !== "other") setManual(null);
+                    }}
+                    className={cn(
+                      "flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors",
+                      on ? "border-accent bg-accent-soft/60 ring-1 ring-accent" : "border-line hover:border-line-strong hover:bg-surface-2",
+                    )}
+                  >
+                    <span className={cn("mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border", on ? "border-accent" : "border-line-strong")}>
+                      {on && <span className="size-2 rounded-full bg-accent" />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-xs text-ink-3">{o.label}</span>
+                      <span className="block text-sm font-semibold text-ink tnum">{toDisplay(o.date)}</span>
+                      <span className="block text-[11px] leading-snug text-ink-3">{o.hint}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         <FieldShell label={sr ? "Novi rok isteka" : "New expiry"} error={err("expiresAt")} span={2} htmlFor="rn-expires">
