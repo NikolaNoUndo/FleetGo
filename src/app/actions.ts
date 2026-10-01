@@ -152,9 +152,18 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
         break;
       }
       case "docType": {
+        // a listed kind, or one the company named itself ("Drugo" — e.g. "Dozvola za Švajcarsku")
         const et = String(raw.entityType) as EntityType;
-        if (!DOC_TYPES[et]?.some((o) => o.value === s)) errors[f.name] = "option";
-        else out[f.name] = s;
+        const name = s.replace(/\s+/g, " ").trim();
+        if (!DOC_TYPES[et]) errors[f.name] = "option";
+        else if (DOC_TYPES[et].some((o) => o.value === name)) out[f.name] = name;
+        else if (name.length < 2 || name.length > 80) errors[f.name] = "option";
+        else {
+          // typed the name of a listed kind ("cmr osiguranje"): use the listed one
+          const fold = (x: string) => x.toLowerCase().replace(/đ/g, "d").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const hit = DOC_TYPES[et].find((o) => fold(o.label.sr) === fold(name) || fold(o.label.en) === fold(name));
+          out[f.name] = hit ? hit.value : name;
+        }
         break;
       }
       case "supplier":

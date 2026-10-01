@@ -40,6 +40,7 @@ import {
   type MenuItem,
 } from "./ui/client";
 import { DateField, MonthField, expiryPresets } from "./ui/date-field";
+import { SearchSelect } from "./ui/search-select";
 import type { TKey } from "@/lib/i18n";
 
 type Values = Record<string, string | boolean>;
@@ -260,29 +261,21 @@ function LinksField({
         ))}
         {rest.length > 0 && (
           <div className="min-w-[180px] flex-1">
-            <Select
+            <SearchSelect
               id={id}
               value=""
-              onChange={(e) =>
-                e.target.value && onChange([...ids, e.target.value].join(","))
-              }
-            >
-              <option value="">
-                {ids.length
+              onChange={(v) => v && onChange([...ids, v].join(","))}
+              placeholder={
+                ids.length
                   ? sr
                     ? "+ Dodaj još…"
                     : "+ Add another…"
                   : sr
                     ? "Nema – izaberi da dodaš"
-                    : "None – pick to add"}
-              </option>
-              {rest.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                  {o.sub ? ` · ${o.sub}` : ""}
-                </option>
-              ))}
-            </Select>
+                    : "None – pick to add"
+              }
+              options={rest.map((o) => ({ value: o.id, label: o.label, sub: o.sub }))}
+            />
           </div>
         )}
       </div>
@@ -341,16 +334,14 @@ function DriversField({
     onPick: (v: string) => void,
     required?: boolean,
   ) => (
-    <Select id={sid} value={value} onChange={(e) => onPick(e.target.value)}>
-      <option value="">{required ? t("c.select") : t("c.none")}</option>
-      {options
-        .filter((o) => o.id === value || !chosen(value).has(o.id))
-        .map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.label}
-          </option>
-        ))}
-    </Select>
+    <SearchSelect
+      id={sid}
+      value={value}
+      onChange={onPick}
+      placeholder={required ? t("c.select") : t("c.none")}
+      emptyLabel={t("c.none")}
+      options={options.filter((o) => o.id === value || !chosen(value).has(o.id)).map((o) => ({ value: o.id, label: o.label }))}
+    />
   );
   const canAdd =
     !!main &&
@@ -601,25 +592,23 @@ export function RecordForm({
       case "select": {
         const opts = OPTION_SETS[f.options!];
         control = (
-          <Select
+          <SearchSelect
             id={id}
             value={String(val ?? "")}
-            onChange={(e) => set(f.name, e.target.value)}
-            required={f.required}
-          >
-            <option value="">{t("c.select")}</option>
-            {opts.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label[locale]}
-              </option>
-            ))}
-          </Select>
+            onChange={(v) => set(f.name, v)}
+            placeholder={t("c.select")}
+            emptyLabel={f.required ? undefined : t("c.none")}
+            invalid={!!err}
+            options={opts.map((o) => ({ value: o.value, label: o.label[locale] }))}
+          />
         );
         break;
       }
       case "docType": {
-        const opts =
-          DOC_TYPES[(values.entityType as EntityType) || "vehicle"] ?? [];
+        const et = (values.entityType as EntityType) || "vehicle";
+        const builtIn = (DOC_TYPES[et] ?? []).map((o) => ({ value: o.value, label: o.label[locale] }));
+        // kinds this company added itself ("Drugo"), kept for next time
+        const own = (refs.docTypes ?? []).filter((o) => o.sub === et && !builtIn.some((b) => b.value === o.id)).map((o) => ({ value: o.id, label: o.label }));
         const regNote =
           values.docType === "registration" && values.entityType !== "employee"
             ? locale === "sr"
@@ -628,20 +617,24 @@ export function RecordForm({
             : null;
         control = (
           <>
-            <Select
+            <SearchSelect
               id={id}
               value={String(val ?? "")}
-              onChange={(e) => set(f.name, e.target.value)}
-              required
-            >
-              <option value="">{t("c.select")}</option>
-              {opts.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label[locale]}
-                </option>
-              ))}
-            </Select>
-            {regNote && <span className="text-xs text-ink-3">{regNote}</span>}
+              onChange={(v) => set(f.name, v)}
+              invalid={!!err}
+              placeholder={locale === "sr" ? "Izaberi ili upiši vrstu…" : "Pick or type a kind…"}
+              options={[...builtIn, ...own].sort((a, b) => a.label.localeCompare(b.label, locale === "sr" ? "sr-Latn" : "en"))}
+              create={{ label: (x) => (locale === "sr" ? `Dodaj „${x}“ kao novu vrstu` : `Add “${x}” as a new kind`) }}
+            />
+            {regNote ? (
+              <span className="text-xs text-ink-3">{regNote}</span>
+            ) : (
+              <span className="text-xs text-ink-3">
+                {locale === "sr"
+                  ? "Nema na spisku? Upiši naziv i izaberi „Dodaj“ — ostaje na spisku i za sledeći put."
+                  : "Not on the list? Type its name and pick “Add” — it stays on the list for next time."}
+              </span>
+            )}
           </>
         );
         break;
@@ -660,20 +653,15 @@ export function RecordForm({
             : f.ref!;
         const opts = refs[key] ?? [];
         control = (
-          <Select
+          <SearchSelect
             id={id}
             value={String(val ?? "")}
-            onChange={(e) => set(f.name, e.target.value)}
-            required={f.required}
-          >
-            <option value="">{f.required ? t("c.select") : t("c.none")}</option>
-            {opts.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-                {o.sub ? ` · ${o.sub}` : ""}
-              </option>
-            ))}
-          </Select>
+            onChange={(v) => set(f.name, v)}
+            placeholder={t("c.select")}
+            emptyLabel={f.required ? undefined : t("c.none")}
+            invalid={!!err}
+            options={opts.map((o) => ({ value: o.id, label: o.label, sub: o.sub }))}
+          />
         );
         break;
       }

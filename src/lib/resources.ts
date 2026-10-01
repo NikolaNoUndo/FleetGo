@@ -2,7 +2,7 @@ import type { OptionSetKey } from "./catalog";
 import type { TKey } from "./i18n";
 
 export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers" | "places" | "expenses";
-export type RefKey = "vehicles" | "trailers" | "employees" | "drivers" | "suppliers";
+export type RefKey = "vehicles" | "trailers" | "employees" | "drivers" | "suppliers" | "docTypes";
 
 export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers" | "links" | "coords" | "month";
 

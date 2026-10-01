@@ -7,6 +7,7 @@ import type { Refs } from "./resources";
 import { asPlaceKind, type MapPlace } from "./places";
 import { daysUntil, todayISO } from "./format";
 import { addMonthsDate } from "./expenses";
+import { DOC_TYPES, type EntityType } from "./catalog";
 
 const S = schema;
 
@@ -149,8 +150,15 @@ export const fullName = (e: { firstName: string; lastName: string }) => `${e.fir
 
 /** Options for every <select> that points at another record, plus id → label lookups for tables. */
 export const getRefs = cache(async () => {
-  const [vehicles, trailers, employees, suppliers] = await Promise.all([listVehicles(), listTrailers(), listEmployees(), listSuppliers()]);
+  const [vehicles, trailers, employees, suppliers, docs] = await Promise.all([listVehicles(), listTrailers(), listEmployees(), listSuppliers(), listDocuments()]);
+  // kinds of documents the company typed in itself ("Drugo"): id = the name, sub = what it is for
+  const ownDocTypes = new Map<string, { id: string; label: string; sub: string }>();
+  for (const d of docs) {
+    const builtIn = DOC_TYPES[d.entityType as EntityType]?.some((o) => o.value === d.docType);
+    if (!builtIn) ownDocTypes.set(`${d.entityType}|${d.docType}`, { id: d.docType, label: d.docType, sub: d.entityType });
+  }
   const refs: Refs = {
+    docTypes: [...ownDocTypes.values()],
     vehicles: vehicles.map((v) => ({ id: v.id, label: v.plate, sub: [v.brand, v.model].filter(Boolean).join(" ") })),
     trailers: trailers.map((t) => ({ id: t.id, label: t.plate, sub: t.brand ?? undefined })),
     employees: employees.map((e) => ({ id: e.id, label: fullName(e) })),

@@ -114,7 +114,7 @@ export const DOC_TYPES: Record<EntityType, Option[]> = {
     o("six_month", "Šestomesečni pregled", "6-month inspection"),
     o("green_card", "Zeleni karton", "Green card"),
     o("white_cert", "Bela potvrda", "Roadworthiness cert. (white)"),
-    o("tachograph", "Baždarenje tahografa", "Tachograph calibration"),
+    o("tachograph", "Sertifikat tahografa (baždarenje)", "Tachograph certificate (calibration)"),
     o("cemt", "CEMT dozvola", "CEMT permit"),
     o("license", "Licenca (izvod) za prevoz", "Transport licence copy"),
     o("atp", "ATP sertifikat", "ATP certificate"),
