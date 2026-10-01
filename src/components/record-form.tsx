@@ -400,6 +400,7 @@ const ERR: Record<string, TKey> = {
   ref: "err.ref",
   duplicate: "err.duplicate",
   coords: "err.coords",
+  fuelTarget: "err.fuelTarget",
 };
 
 export function RecordForm({

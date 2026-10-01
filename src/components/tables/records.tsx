@@ -304,6 +304,8 @@ export function PartsTable({ rows, refs, names, fixed, hide, flush }: Common & {
 export type FuelRow = {
   id: string;
   vehicleId: string | null;
+  /** a reefer trailer's own tank */
+  trailerId: string | null;
   employeeId: string | null;
   date: string;
   liters: number;
@@ -323,7 +325,18 @@ export function FuelTable({ rows, refs, names, fixed, hide, flush }: Common & { 
   const cols = keep<FuelRow>(
     [
       { key: "date", m: "hide", header: t("f.date"), sortValue: (r) => r.date, render: (r) => <span className="whitespace-nowrap text-ink-2 tnum">{date(r.date)}</span> },
-      { key: "vehicle", m: "title", header: t("f.vehicle"), sortValue: (r) => names[r.vehicleId ?? ""] ?? "", render: (r) => <span className="font-medium">{names[r.vehicleId ?? ""] ?? "—"}</span> },
+      {
+        key: "vehicle",
+        m: "title",
+        header: t("f.vehicle"),
+        sortValue: (r) => names[r.vehicleId ?? r.trailerId ?? ""] ?? "",
+        render: (r) => (
+          <span className="inline-flex items-center gap-1.5 font-medium">
+            {names[r.vehicleId ?? r.trailerId ?? ""] ?? "—"}
+            {!r.vehicleId && r.trailerId && <span className="rounded-md border border-line bg-surface-2 px-1.5 text-xs font-normal text-ink-3">{t("trl.reefer")}</span>}
+          </span>
+        ),
+      },
       { key: "driver", m: "sub", header: t("f.driver"), sortValue: (r) => names[r.employeeId ?? ""] ?? "", hide: "md", render: (r) => <span className="text-ink-2">{names[r.employeeId ?? ""] ?? "—"}</span> },
       { key: "station", m: "hide", header: t("f.station"), sortValue: (r) => r.country, hide: "lg", render: (r) => <Stack main={<span className="font-normal text-ink-2">{r.station ?? "—"}</span>} sub={opt(COUNTRIES, r.country)} /> },
       { key: "liters", m: "sub", header: t("f.liters"), align: "right", sortValue: (r) => r.liters, render: (r) => <span className="text-ink-2">{num(r.liters, 1)} l</span> },
@@ -341,7 +354,7 @@ export function FuelTable({ rows, refs, names, fixed, hide, flush }: Common & { 
         flush={flush}
         rows={filtered}
         columns={cols}
-        searchText={(r) => [names[r.vehicleId ?? ""], names[r.employeeId ?? ""], r.station, opt(COUNTRIES, r.country), pay(r)].join(" ")}
+        searchText={(r) => [names[r.vehicleId ?? r.trailerId ?? ""], names[r.employeeId ?? ""], r.station, opt(COUNTRIES, r.country), pay(r)].join(" ")}
         filters={[
           { value: "all", label: t("c.all"), predicate: () => true },
           { value: "rs", label: t("flt.domestic"), predicate: (r) => r.country === "RS" },

@@ -113,6 +113,13 @@
       "when": 1790700436248,
       "tag": "0015_v031_reset_admin_visits",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790877076068,
+      "tag": "0016_v032_fuel_trailer",
+      "breakpoints": true
     }
   ]
 }

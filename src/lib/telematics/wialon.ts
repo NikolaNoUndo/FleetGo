@@ -13,6 +13,8 @@ type WialonUnit = {
   /** hardware unique ID (IMEI etc.) – "Unique ID" on the unit's Hardware tab */
   uid?: string;
   pos?: { t: number; y: number; x: number; s: number; c: number } | null;
+  /** mileage counter, km (needs the "counters" flag) */
+  cnm?: number;
 };
 
 export const DEFAULT_WIALON_HOST = "https://hst-api.wialon.com";
@@ -55,7 +57,7 @@ async function searchUnits(host: string, token: string, retry = true): Promise<W
       {
         spec: { itemsType: "avl_unit", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
         force: 1,
-        flags: 1 | 256 | 1024, // base info + hardware unique ID + last position
+        flags: 1 | 256 | 1024 | 8192, // base info + hardware unique ID + last position + counters (mileage)
         from: 0,
         to: 0,
       },
@@ -71,6 +73,9 @@ async function searchUnits(host: string, token: string, retry = true): Promise<W
     throw e;
   }
 }
+
+/** Wialon's mileage counter (what the unit's odometer shows in Wialon), whole km; null when not set up. */
+const mileage = (u: WialonUnit): number | null => (typeof u.cnm === "number" && u.cnm > 0 ? Math.round(u.cnm) : null);
 
 const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9ČĆŠŽĐ]/g, "");
 
@@ -102,7 +107,7 @@ export async function wialonPositions(cfg: { token: string; host: string }, vehi
     const match = byUnitId.get(String(u.id)) ?? (u.uid ? byUnitId.get(u.uid.trim()) : undefined) ?? byPlate.find((x) => norm(u.nm).includes(x.key))?.v ?? null;
     const p = u.pos;
     if (!p) {
-      return { unitId: String(u.id), uid: u.uid ?? null, unitName: u.nm, vehicleId: match?.id ?? null, lat: 0, lng: 0, speed: 0, course: 0, ts: 0, state: "offline" } satisfies Position;
+      return { unitId: String(u.id), uid: u.uid ?? null, unitName: u.nm, vehicleId: match?.id ?? null, lat: 0, lng: 0, speed: 0, course: 0, ts: 0, state: "offline", mileageKm: mileage(u) } satisfies Position;
     }
     const ts = p.t * 1000;
     const stale = now - ts > 60 * 60 * 1000;
@@ -117,6 +122,7 @@ export async function wialonPositions(cfg: { token: string; host: string }, vehi
       course: p.c ?? 0,
       ts,
       state: stale ? "offline" : (p.s ?? 0) > 3 ? "moving" : "stopped",
+      mileageKm: mileage(u),
     } satisfies Position;
   });
 }

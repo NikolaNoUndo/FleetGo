@@ -152,7 +152,7 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
   /* ------------------------------ fuel ------------------------------ */
   if (p.kind === "fuel") {
     const rows = (await listFuel())
-      .filter((f) => inRange(f.date) && (!p.vehicle || f.vehicleId === p.vehicle) && (!p.driver || f.employeeId === p.driver))
+      .filter((f) => inRange(f.date) && (!p.vehicle || f.vehicleId === p.vehicle || f.trailerId === p.vehicle) && (!p.driver || f.employeeId === p.driver))
       .sort((a, b) => a.date.localeCompare(b.date));
     const liters = rows.reduce((s, r) => s + r.liters, 0);
     const priced = rows.filter((r) => r.amount != null);
@@ -183,7 +183,7 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
           ],
           rows: rows.map((r) => ({
             date: date(r.date),
-            vehicle: r.vehicleId ? (plate.get(r.vehicleId) ?? "—") : "—",
+            vehicle: plate.get(r.vehicleId ?? r.trailerId ?? "") ?? "—",
             driver: r.employeeId ? (person.get(r.employeeId) ?? "—") : "—",
             liters: num(r.liters, 2),
             ppl: r.amount != null && r.liters ? money(r.amount / r.liters, r.currency) : "—",
@@ -422,7 +422,7 @@ export async function buildReport(ctx: AppContext, p: ReportParams, locale: Loca
   ].filter((a) => !p.vehicle || a.id === p.vehicle);
   const lines = assets
     .map((a) => {
-      const f = fuel.filter((x) => x.vehicleId === a.id);
+      const f = fuel.filter((x) => x.vehicleId === a.id || x.trailerId === a.id);
       const s = svc.filter((x) => x.vehicleId === a.id || x.trailerId === a.id);
       const pr = prt.filter((x) => x.vehicleId === a.id || x.trailerId === a.id);
       const odo = f.map((x) => x.odometerKm).filter((x): x is number => !!x);

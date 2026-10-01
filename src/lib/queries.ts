@@ -161,6 +161,7 @@ export const getRefs = cache(async () => {
     docTypes: [...ownDocTypes.values()],
     vehicles: vehicles.map((v) => ({ id: v.id, label: v.plate, sub: [v.brand, v.model].filter(Boolean).join(" ") })),
     trailers: trailers.map((t) => ({ id: t.id, label: t.plate, sub: t.brand ?? undefined })),
+    reefers: trailers.filter((t) => t.type === "reefer").map((t) => ({ id: t.id, label: t.plate, sub: t.brand ?? undefined })),
     employees: employees.map((e) => ({ id: e.id, label: fullName(e) })),
     drivers: employees.filter((e) => e.role === "driver").map((e) => ({ id: e.id, label: fullName(e) })),
     suppliers: suppliers.map((x) => ({ id: x.id, label: x.name })),

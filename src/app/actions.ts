@@ -181,7 +181,9 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
             ? ({ vehicle: "vehicles", trailer: "trailers", employee: "employees" } as const)[String(raw.entityType) as EntityType]
             : f.ref === "drivers"
               ? "employees"
-              : (f.ref as "vehicles" | "trailers" | "employees");
+              : f.ref === "reefers"
+                ? "trailers"
+                : (f.ref as "vehicles" | "trailers" | "employees");
         if (!table) errors[f.name] = "ref";
         else refChecks.push({ table, id: s, field: f.name });
         break;
@@ -279,6 +281,12 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
     if (!out.name && !supplierFields.some((f) => f.value)) return { ok: false, errors: { name: "required" } };
   }
   for (const sf of supplierFields) out[sf.field] = await resolveSupplier(companyId, sf.value);
+
+  if (resourceName === "fuel") {
+    // fuel goes into a vehicle, or into a reefer trailer's own tank — exactly one of them
+    if (!out.vehicleId && !out.trailerId) return { ok: false, errors: { vehicleId: "required" } };
+    if (out.vehicleId && out.trailerId) return { ok: false, errors: { trailerId: "fuelTarget" } };
+  }
 
   if (resourceName === "expenses") {
     // a monthly cost is counted month by month, so it is never spread or shifted

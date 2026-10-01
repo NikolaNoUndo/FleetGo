@@ -19,6 +19,8 @@ export type Position = {
   ts: number; // ms epoch of the last fix
   state: "moving" | "stopped" | "offline";
   place?: string;
+  /** odometer from tracking (Wialon mileage counter), km */
+  mileageKm?: number | null;
 };
 
 export type WialonConfig = { token: string | null; host: string | null };

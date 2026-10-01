@@ -5,7 +5,7 @@ import { fmtNum } from "@/lib/format";
 
 type Row = { date: string; amount: number | null; currency: string; paid?: boolean; liters?: number; employeeId?: string | null };
 
-/** Inline KPI row for cost pages: this month vs. the same days last month, plus two page-specific figures. */
+/** Inline KPI row for cost pages: this month vs. the whole of last month, plus two page-specific figures. */
 export async function CostStats({ rows, fuel, payments, names }: { rows: Row[]; fuel?: boolean; payments?: boolean; names?: Record<string, string> }) {
   const [m, t] = await Promise.all([getMoney(), getT()]);
   const sr = m.locale === "sr";
@@ -13,9 +13,8 @@ export async function CostStats({ rows, fuel, payments, names }: { rows: Row[]; 
   const prev = rows.filter((r) => inMonth(r.date, -1));
   const curSum = m.sum(cur);
   const prevSum = m.sum(prev);
-  const day = new Date().getDate();
-  const prevSame = m.sum(prev.filter((r) => Number(r.date.slice(8, 10)) <= day));
-  const d = pctDelta(curSum, prevSame);
+  // this month so far vs. the whole of last month
+  const d = pctDelta(curSum, prevSum);
 
   let third: React.ReactNode;
   let fourth: React.ReactNode;
@@ -53,8 +52,8 @@ export async function CostStats({ rows, fuel, payments, names }: { rows: Row[]; 
         label={t("c.thisMonth")}
         value={m.fmt(curSum)}
         delta={d?.text}
-        info={sr ? `Poređenje sa istim periodom prošlog meseca (1–${day}.).` : `Compared with the same days last month (1–${day}).`}
-        sub={d ? `${t("d.vsLast")} (1–${day}.)` : undefined}
+        info={sr ? "Poređenje sa celim prošlim mesecom." : "Compared with the whole of last month."}
+        sub={d ? t("d.vsLast") : undefined}
       />
       <Stat label={sr ? "Prošli mesec" : "Last month"} value={m.fmt(prevSum)} sub={`${prev.length} ${sr ? "unosa" : "entries"}`} />
       {third}

@@ -7,9 +7,9 @@ import { Kv, PageHeader, Shell } from "@/components/ui/primitives";
 import { DocsMeter } from "@/components/entity-parts";
 import { DetailTabs, RecordActions } from "@/components/detail";
 import { AssetStatus } from "@/components/tables/common";
-import { DocumentsTable, PartsTable, ServicesTable } from "@/components/tables/records";
+import { DocumentsTable, FuelTable, PartsTable, ServicesTable } from "@/components/tables/records";
 import { getPrefs, getT } from "@/lib/prefs";
-import { documentsWithOwner, getRefs, getTrailer, listParts, listServices, listVehicleTrailers } from "@/lib/queries";
+import { documentsWithOwner, getRefs, getTrailer, listFuel, listParts, listServices, listVehicleTrailers } from "@/lib/queries";
 import { getMoney } from "@/lib/money-server";
 import { TRAILER_TYPES, optLabel } from "@/lib/catalog";
 import { fmtNum } from "@/lib/format";
@@ -28,7 +28,7 @@ export default async function TrailerPage(props: PageProps<"/trailers/[id]">) {
   const tr = await getTrailer(id);
   if (!tr) notFound();
 
-  const [t, { locale }, m, { refs, names }, docs, services, parts, links] = await Promise.all([
+  const [t, { locale }, m, { refs, names }, docs, services, parts, links, fuel] = await Promise.all([
     getT(),
     getPrefs(),
     getMoney(),
@@ -37,10 +37,14 @@ export default async function TrailerPage(props: PageProps<"/trailers/[id]">) {
     listServices(),
     listParts(),
     listVehicleTrailers(),
+    allow("fuel") ? listFuel() : Promise.resolve([]),
   ]);
   const vehicleIds = links.filter((l) => l.trailerId === id).map((l) => l.vehicleId).sort((a, b) => (names[a] ?? "").localeCompare(names[b] ?? ""));
   const tServices = services.filter((s) => s.trailerId === id);
   const tParts = parts.filter((p) => p.trailerId === id);
+  // a reefer's cooling unit has its own tank
+  const tFuel = fuel.filter((f) => f.trailerId === id);
+  const showFuel = allow("fuel") && (tr.type === "reefer" || tFuel.length > 0);
 
   return (
     <>
@@ -87,6 +91,7 @@ export default async function TrailerPage(props: PageProps<"/trailers/[id]">) {
             <div className="divide-y divide-line/70 px-4 pb-1.5">
               {allow("services") && <Kv label={t("cat.services")}>{m.fmt(m.sum(tServices))}</Kv>}
               {allow("parts") && <Kv label={t("cat.parts")}>{m.fmt(m.sum(tParts))}</Kv>}
+              {showFuel && <Kv label={t("cat.fuel")}>{m.fmt(m.sum(tFuel))}</Kv>}
             </div>
           </Shell>
         </div>
@@ -94,6 +99,7 @@ export default async function TrailerPage(props: PageProps<"/trailers/[id]">) {
           tabs={[
             allow("documents") && { key: "docs", label: t("x.documents"), count: docs.length, content: <DocumentsTable rows={docs} refs={refs} fixed={{ entityType: "trailer", entityId: id }} hide={["owner", "issued"]} /> },
             allow("services") && { key: "services", label: t("x.services"), count: tServices.length, content: <ServicesTable rows={tServices} refs={refs} names={names} fixed={{ trailerId: id, vehicleId: "" }} hide={["for"]} /> },
+            showFuel && { key: "fuel", label: t("cat.fuel"), count: tFuel.length, content: <FuelTable rows={tFuel} refs={refs} names={names} fixed={{ trailerId: id, vehicleId: "" }} hide={["vehicle"]} /> },
             allow("parts") && { key: "parts", label: t("x.parts"), count: tParts.length, content: <PartsTable rows={tParts} refs={refs} names={names} fixed={{ trailerId: id, vehicleId: "" }} hide={["for"]} /> },
           ]}
         />

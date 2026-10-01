@@ -204,6 +204,8 @@ export const fuelEntries = pgTable(
     id: id(),
     companyId: companyId(),
     vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
+    /** a reefer trailer's own tank (the cooling unit), instead of a vehicle */
+    trailerId: uuid("trailer_id").references(() => trailers.id, { onDelete: "set null" }),
     employeeId: uuid("employee_id").references(() => employees.id, { onDelete: "set null" }),
     date: date("date").notNull(),
     liters: numeric("liters", { precision: 10, scale: 2, mode: "number" }).notNull(),

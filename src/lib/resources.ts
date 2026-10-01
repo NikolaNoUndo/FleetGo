@@ -2,7 +2,7 @@ import type { OptionSetKey } from "./catalog";
 import type { TKey } from "./i18n";
 
 export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers" | "places" | "expenses";
-export type RefKey = "vehicles" | "trailers" | "employees" | "drivers" | "suppliers" | "docTypes";
+export type RefKey = "vehicles" | "trailers" | "reefers" | "employees" | "drivers" | "suppliers" | "docTypes";
 
 export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers" | "links" | "coords" | "month";
 
@@ -119,7 +119,14 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
     title: "r.fuel",
     fields: [
       { name: "date", label: "f.date", type: "date", required: true },
-      { name: "vehicleId", label: "f.vehicle", type: "ref", ref: "vehicles", required: true },
+      { name: "vehicleId", label: "f.vehicle", type: "ref", ref: "vehicles" },
+      {
+        name: "trailerId",
+        label: "f.reefer",
+        type: "ref",
+        ref: "reefers",
+        hint: { sr: "Samo kad je sipano u agregat hladnjače — tada vozilo ostaje prazno.", en: "Only for the reefer unit's own tank — leave the vehicle empty then." },
+      },
       { name: "employeeId", label: "f.driver", type: "ref", ref: "drivers" },
       { name: "liters", label: "f.liters", type: "decimal", required: true },
       { name: "amount", label: "f.amount", type: "money", defaultValue: "EUR" },

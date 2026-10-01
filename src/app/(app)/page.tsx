@@ -59,17 +59,13 @@ export default async function OverviewPage() {
     return { key: b.key, fuel: m.sum(fuel.filter(inB)), services: m.sum(services.filter(inB)), parts: m.sum(parts.filter(inB)), payments: m.sum(payments.filter(inB)), expenses: m.sum(expenses.filter(inB)) };
   });
   const total = (x: MonthCosts) => x.fuel + x.services + x.parts + x.payments + x.expenses;
-  const day = new Date().getDate();
-  const b1 = monthBounds(-1);
-  const cutoff = `${b1.key}-${String(day).padStart(2, "0")}`;
-  const sameDays = (rows: { date: string; amount: number | null; currency: string }[]) => m.sum(rows.filter((r) => r.date >= b1.from && r.date <= cutoff));
+  // this month so far vs. the whole of last month (e.g. October vs. all of September)
   const thisMonth = total(months[11]);
-  // other costs are monthly amounts, so last month's share is prorated to the same number of days
-  const prevDays = new Date(new Date().getFullYear(), new Date().getMonth(), 0).getDate();
-  const expSame = months[10].expenses * Math.min(1, day / prevDays);
-  const costDelta = pctDelta(thisMonth, sameDays(fuel) + sameDays(services) + sameDays(parts) + sameDays(payments) + expSame);
+  const lastMonth = total(months[10]);
+  const costDelta = pctDelta(thisMonth, lastMonth);
   const litres = (off: number) => fuel.filter((f) => inMonth(f.date, off)).reduce((s, f) => s + f.liters, 0);
-  const litresDelta = pctDelta(litres(0), fuel.filter((f) => f.date >= b1.from && f.date <= cutoff).reduce((s, f) => s + f.liters, 0));
+  const litresDelta = pctDelta(litres(0), litres(-1));
+  const lastMonthName = new Intl.DateTimeFormat(locale === "sr" ? "sr-Latn" : "en-GB", { month: "long" }).format(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1));
 
   const states = docs.map((d) => expiryState(d.expiresAt, m.warnDays));
   const nExpired = states.filter((s) => s === "expired").length;
@@ -114,7 +110,7 @@ export default async function OverviewPage() {
 
   const kpis = [
     anyCost && (
-      <KpiCard key="cost" label={t("d.costsMonth")} value={m.fmt(thisMonth)} trend={costDelta} trendLabel={vsLast} flatLabel={flat} trendUpIsGood={false} spark={months.slice(-6).map(total)} sub={sr ? `poređenje sa 1–${day}. prošlog meseca` : `vs days 1–${day} last month`} />
+      <KpiCard key="cost" label={t("d.costsMonth")} value={m.fmt(thisMonth)} trend={costDelta} trendLabel={vsLast} flatLabel={flat} trendUpIsGood={false} spark={months.slice(-6).map(total)} sub={sr ? `ceo ${lastMonthName}: ${m.fmt(lastMonth)}` : `all of ${lastMonthName}: ${m.fmt(lastMonth)}`} />
     ),
     A.fuel && (
       <KpiCard key="fuel" label={sr ? "Gorivo ovog meseca" : "Fuel this month"} value={`${fmtNum(litres(0), locale)} l`} trend={litresDelta} trendLabel={vsLast} flatLabel={flat} trendUpIsGood={false} spark={[-5, -4, -3, -2, -1, 0].map(litres)} sub={m.fmt(m.sum(fuel.filter((f) => inMonth(f.date, 0))))} href="/fuel" />
