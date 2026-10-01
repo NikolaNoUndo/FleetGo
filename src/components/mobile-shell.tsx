@@ -2,22 +2,21 @@
 
 import Link from "@/components/ui/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, CalendarClock, House, Map as MapIcon, Menu as MenuIcon, Plus, Receipt, Truck } from "lucide-react";
+import { House, Map as MapIcon, Menu as MenuIcon, Plus, Receipt, Truck } from "lucide-react";
 import { usePrefs } from "./prefs";
-import { RoadlineMark } from "./brand";
+import { RoadlineLogo } from "./brand";
 import { QuickAdd } from "./topbar";
 import { cn } from "./ui/primitives";
-import { GROUPS, TOP, crumbsFor, isActive, type NavItem } from "@/lib/nav";
+import { GROUPS, TOP, isActive, type NavItem } from "@/lib/nav";
 import type { Refs } from "@/lib/resources";
 import { ROUTE_MODULE } from "@/lib/auth/permissions";
 
-const DETAIL = /^\/(vehicles|trailers|employees)\/[^/]+$/;
-const barBtn = "focus-ring relative grid size-10 shrink-0 place-items-center rounded-lg text-side-ink-2 transition-colors hover:bg-side-2 active:bg-side-3";
+const barBtn = "focus-ring relative grid size-11 shrink-0 place-items-center rounded-lg text-side-ink-2 transition-colors hover:bg-side-2 active:bg-side-3";
 
 /**
  * Phones and tablets (below lg), in the app's own look: the sidebar's dark bar on top
- * (menu or back, page title, expiries), a light tab bar at the bottom and the green
- * "Novi unos" button in its middle. The menu button opens the sidebar as a drawer.
+ * with the logo and the menu button (it opens the sidebar as a drawer), and a light
+ * icon-only tab bar at the bottom with the green "Novi unos" button in its middle.
  */
 export function MobileShell({ alerts, refs }: { alerts: { expired: number; soon: number }; refs: Refs }) {
   const { t, can, locale } = usePrefs();
@@ -30,13 +29,6 @@ export function MobileShell({ alerts, refs }: { alerts: { expired: number; soon:
     return !m || can(m);
   };
   const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length);
-
-  // title: the page's own name; detail pages go back to their list
-  const crumbs = crumbsFor(pathname);
-  const last = crumbs.at(-1);
-  const detail = DETAIL.test(pathname) || pathname.startsWith("/live/places");
-  const back = detail && last?.href ? { href: last.href, label: last.label } : null;
-  const title = last ? t(last.label) : "Roadline";
 
   const fleet = groups.find((g) => g.key === "fleet");
   const costs = groups.find((g) => g.key === "costs");
@@ -54,46 +46,28 @@ export function MobileShell({ alerts, refs }: { alerts: { expired: number; soon:
       <Link
         key={tab.key}
         href={tab.href}
+        aria-label={tab.label}
         aria-current={tab.active ? "page" : undefined}
-        className={cn("flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors", tab.active ? "text-accent-ink" : "text-ink-3")}
+        className={cn("relative flex flex-1 items-center justify-center transition-colors", tab.active ? "text-accent-ink" : "text-ink-3")}
       >
-        <Icon size={21} strokeWidth={tab.active ? 2 : 1.6} />
-        {tab.label}
+        <Icon size={23} strokeWidth={tab.active ? 2 : 1.6} />
+        <span className={cn("absolute bottom-2 size-1 rounded-full bg-accent transition-opacity", tab.active ? "opacity-100" : "opacity-0")} />
       </Link>
     );
   };
 
   return (
     <>
-      {/* app bar in the sidebar's dark colour */}
+      {/* app bar in the sidebar's dark colour: logo and name, menu */}
       <header className="sticky top-[var(--bar-h,0px)] z-40 bg-side pt-[env(safe-area-inset-top)] lg:hidden">
-        <div className="flex h-14 items-center gap-1.5 px-2.5">
-          {back ? (
-            <Link href={back.href} className={barBtn} aria-label={t(back.label)}>
-              <ArrowLeft size={19} strokeWidth={1.75} />
-            </Link>
-          ) : (
-            <button type="button" onClick={() => window.dispatchEvent(new Event("rl:open-menu"))} className={barBtn} aria-label={t("nav.menu")}>
-              <MenuIcon size={19} strokeWidth={1.75} />
-            </button>
-          )}
-          {!back && <RoadlineMark size={15} className="mr-1 ml-0.5" />}
-          <div className="min-w-0 flex-1 truncate text-[16px] font-semibold tracking-[-0.01em] text-side-ink">{back ? t(back.label) : title}</div>
-          {can("documents") && (
-            <Link href="/documents" className={barBtn} aria-label={t("nav.documents")}>
-              <CalendarClock size={19} strokeWidth={1.75} />
-              {alertCount > 0 && (
-                <span
-                  className={cn(
-                    "absolute top-0.5 right-0 grid h-4 min-w-4 place-items-center rounded-md px-1 text-[10px] font-semibold tnum",
-                    alerts.expired ? "bg-bad text-white" : "bg-warn text-[#231500]",
-                  )}
-                >
-                  {alertCount > 99 ? "99+" : alertCount}
-                </span>
-              )}
-            </Link>
-          )}
+        <div className="flex h-16 items-center justify-between pr-3 pl-4">
+          <Link href="/" aria-label="Roadline" className="focus-ring -ml-1 rounded-md p-1">
+            <RoadlineLogo height={20} />
+          </Link>
+          <button type="button" onClick={() => window.dispatchEvent(new Event("rl:open-menu"))} className={barBtn} aria-label={t("nav.menu")}>
+            <MenuIcon size={21} strokeWidth={1.75} />
+            {alertCount > 0 && <span className={cn("absolute top-2 right-2 size-2 rounded-full ring-2 ring-side", alerts.expired ? "bg-bad" : "bg-warn")} />}
+          </button>
         </div>
       </header>
 

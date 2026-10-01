@@ -78,21 +78,18 @@ export function Shell({
   );
 }
 
-/**
- * Page title, subtitle, actions and section tabs. Below lg the app bar already names the
- * page, so the title and subtitle show there only on detail pages (`detail`).
- */
-export function PageHeader({ title, sub, actions, tabs, detail }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; tabs?: ReactNode; detail?: boolean }) {
+/** Page title, subtitle, actions and section tabs. `detail`: a record's own page (kept for callers). */
+export function PageHeader({ title, sub, actions, tabs }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; tabs?: ReactNode; detail?: boolean }) {
   return (
-    <div className={cn("mb-4 sm:mb-6", !detail && !actions && !tabs && "max-lg:hidden")}>
-      <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between", !detail && !actions && "max-lg:hidden")}>
-        <div className={cn("min-w-0", !detail && "max-lg:hidden")}>
+    <div className="mb-4 sm:mb-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-[-0.015em] text-ink">{title}</h1>
           {sub && <p className="mt-0.5 text-sm text-ink-3">{sub}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      {tabs && <div className={cn(!detail && !actions ? "lg:mt-4" : "mt-4")}>{tabs}</div>}
+      {tabs && <div className="mt-3 sm:mt-4">{tabs}</div>}
     </div>
   );
 }

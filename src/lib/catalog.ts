@@ -53,7 +53,7 @@ export const SERVICE_KINDS: Option[] = [
   o("brakes", "Kočnice", "Brakes"),
   o("bodywork", "Limarija", "Bodywork"),
   o("electrical", "Elektrika", "Electrical"),
-  o("other", "Ostalo", "Other"),
+  o("other", "Ostali troškovi", "Other costs"),
 ];
 
 export const FUEL_PAYMENT: Option[] = [
@@ -68,7 +68,7 @@ export const PAYMENT_KINDS: Option[] = [
   o("salary", "Plata", "Salary"),
   o("bonus", "Bonus", "Bonus"),
   o("expenses", "Troškovi puta", "Trip expenses"),
-  o("other", "Ostalo", "Other"),
+  o("other", "Ostali troškovi", "Other costs"),
 ];
 
 export const PAYMENT_METHODS: Option[] = [
@@ -168,13 +168,14 @@ export const EXPENSE_CATEGORIES: Option[] = [
   o("insurance", "Osiguranje", "Insurance"),
   o("tolls", "Putarine i vinjete", "Tolls & vignettes"),
   o("documents", "Registracija i dokumenta", "Registration & documents"),
+  o("announcements", "Najave", "Pre-notifications"),
   o("fines", "Kazne", "Fines"),
   o("office", "Knjigovodstvo i administracija", "Accounting & admin"),
   o("phone", "Telefoni i internet", "Phones & internet"),
   o("washing", "Pranje vozila", "Vehicle washing"),
   o("equipment", "Oprema i alat", "Equipment & tools"),
   o("supplies", "Potrošni materijal", "Supplies"),
-  o("other", "Ostalo", "Other"),
+  o("other", "Ostali troškovi", "Other costs"),
 ];
 
 /** Currencies fuel is priced in along the usual routes. */
