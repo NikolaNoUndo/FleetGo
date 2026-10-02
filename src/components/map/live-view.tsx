@@ -12,6 +12,7 @@ import type { MapPoint } from "./fleet-map";
 import { relTime } from "@/lib/format";
 import type { MapPlace } from "@/lib/places";
 import { MapOverlay, type MapHit } from "./map-overlay";
+import { VehicleCard } from "./vehicle-card";
 import { isShown, parseLayers, type Layers } from "./layers";
 import type { MapFocus } from "./fleet-map";
 
@@ -213,6 +214,7 @@ export function LiveView({ places = [], hq = null }: { places?: MapPlace[]; hq?:
     () => new Map(data?.vehicles.map((v) => [v.id, v.driverName]) ?? []),
     [data],
   );
+  const selectedPoint = selected ? (points.find((p) => p.unitId === selected) ?? null) : null;
   const count = (s: string) => points.filter((p) => p.state === s).length;
   const list = points
     .filter((p) => filter === "all" || p.state === filter)
@@ -405,6 +407,7 @@ export function LiveView({ places = [], hq = null }: { places?: MapPlace[]; hq?:
             setLayers={setLayers}
             onPick={onPick}
           />
+          {selectedPoint && <VehicleCard key={selectedPoint.unitId} p={selectedPoint} driver={selectedPoint.vehicleId ? (drivers.get(selectedPoint.vehicleId) ?? null) : null} onClose={() => setSelected(null)} />}
         </div>
       </div>
     </div>

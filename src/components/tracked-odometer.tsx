@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Satellite } from "lucide-react";
 import { usePrefs } from "./prefs";
-import { fmtNum, relTime } from "@/lib/format";
+import { fmtNum } from "@/lib/format";
 import type { PositionsResult } from "@/lib/telematics/types";
 
-type State = { kind: "loading" } | { kind: "hidden" } | { kind: "error" } | { kind: "unlinked" } | { kind: "nodata" } | { kind: "ok"; km: number; ts: number; src: "can" | "counter" | null };
+type State = { kind: "loading" } | { kind: "hidden" } | { kind: "error" } | { kind: "unlinked" } | { kind: "nodata" } | { kind: "ok"; km: number };
 
 /**
  * "Kilometraža (praćenje)": the odometer Wialon keeps for this vehicle's unit, next to
@@ -30,7 +29,7 @@ export function TrackedOdometer({ vehicleId }: { vehicleId: string }) {
         const p = d.positions.find((x) => x.vehicleId === vehicleId);
         if (!p) return setS({ kind: "unlinked" });
         if (!p.mileageKm) return setS({ kind: "nodata" });
-        setS({ kind: "ok", km: p.mileageKm, ts: p.ts, src: p.mileageSrc ?? null });
+        setS({ kind: "ok", km: p.mileageKm });
       })
       .catch(() => !off && setS({ kind: "error" }));
     return () => {
@@ -42,10 +41,7 @@ export function TrackedOdometer({ vehicleId }: { vehicleId: string }) {
   const muted = (text: string) => <span className="font-normal text-ink-3">{text}</span>;
   return (
     <div className="flex items-baseline justify-between gap-4 py-2.5">
-      <span className="inline-flex items-center gap-1.5 text-ink-3">
-        {sr ? "Kilometraža (praćenje)" : "Odometer (tracking)"}
-        <Satellite size={12} className="text-ink-4" />
-      </span>
+      <span className="text-ink-3">{sr ? "Kilometraža (praćenje)" : "Odometer (tracking)"}</span>
       <span className="text-right font-medium text-ink tnum">
         {s.kind === "loading" && muted("…")}
         {s.kind === "error" && muted(sr ? "Wialon ne odgovara" : "Wialon not answering")}
@@ -61,16 +57,7 @@ export function TrackedOdometer({ vehicleId }: { vehicleId: string }) {
             <span className="block text-xs font-normal text-ink-3">{sr ? "Nema CAN kilometraže ni brojača u Wialonu" : "No CAN odometer or mileage counter in Wialon"}</span>
           </>
         )}
-        {s.kind === "ok" && (
-          <>
-            {fmtNum(s.km, locale)} km
-            <span className="block text-xs font-normal text-ink-3">
-              {[s.src === "can" ? (sr ? "sa kamiona (CAN)" : "from the truck (CAN)") : s.src === "counter" ? (sr ? "Wialon brojač" : "Wialon counter") : null, s.ts > 0 ? relTime(s.ts, locale) : null]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-          </>
-        )}
+        {s.kind === "ok" && `${fmtNum(s.km, locale)} km`}
       </span>
     </div>
   );

@@ -16,7 +16,7 @@ type WialonUnit = {
   /** last message; `p` holds the device's raw parameters (CAN odometer among them) */
   lmsg?: { t?: number; p?: Record<string, unknown> } | null;
   /** sensors (needs the "sensors" flag): `t` type, `p` the parameter it reads */
-  sens?: Record<string, { n?: string; t?: string; p?: string }> | null;
+  sens?: Record<string, { id?: number; n?: string; t?: string; p?: string; m?: string }> | null;
   /** mileage counter, km (needs the "counters" flag) */
   cnm?: number;
 };
@@ -164,6 +164,60 @@ export async function wialonPositions(cfg: { token: string; host: string }, vehi
       mileageSrc: odo?.src ?? null,
     } satisfies Position;
   });
+}
+
+/** Wialon's "no value" for a sensor */
+const INVALID = -348201.3876;
+
+/** Known fuel parameters in the last message when the unit has no fuel sensor set up (Teltonika CAN). */
+const FUEL_PARAMS: { key: string; unit: "l" | "%"; scale: number }[] = [
+  { key: "can_fuel_litres", unit: "l", scale: 1 },
+  { key: "io_84", unit: "l", scale: 0.1 }, // CAN fuel level, 0.1 l
+  { key: "io_89", unit: "%", scale: 1 }, // CAN fuel level, %
+  { key: "can_fuel_level", unit: "%", scale: 1 },
+];
+
+export type FuelLevel = { value: number; unit: string; tanks: number } | null;
+
+/**
+ * Fuel in the tank(s) of one unit, as Wialon computes it from the unit's fuel level
+ * sensors (with their calibration), for the last message. Tanks with the same unit are
+ * added up. Asked only when someone opens a truck on the map.
+ */
+export async function wialonFuel(cfg: { token: string; host: string }, unitId: string, retry = true): Promise<FuelLevel> {
+  const host = cfg.host.replace(/\/$/, "");
+  const u = (await cachedUnits(host, cfg.token)).find((x) => String(x.id) === unitId);
+  if (!u) throw new Error("unit");
+  const sensors = Object.entries(u.sens ?? {})
+    .map(([k, v]) => ({ id: v.id ?? Number(k), name: v.n ?? "", type: v.t ?? "", unit: (v.m ?? "").trim() }))
+    .filter((x) => /fuel level|nivo goriva|gorivo/i.test(`${x.type} ${x.name}`) && !/impulse|consumption|potrosnja|potrošnja/i.test(x.type));
+  if (sensors.length) {
+    const sid = sessions.get(cfg.token) ?? (await login(host, cfg.token));
+    try {
+      const res = await call<Record<string, number>>(host, "unit/calc_last_message", { unitId: u.id, sensors: sensors.map((x) => x.id), flags: 1 }, sid);
+      const vals = sensors
+        .map((x) => ({ ...x, v: Number(res?.[String(x.id)]) }))
+        .filter((x) => Number.isFinite(x.v) && x.v !== INVALID && x.v >= 0);
+      if (vals.length) {
+        const unit = vals[0].unit || "l";
+        const same = vals.filter((x) => (x.unit || "l") === unit);
+        return { value: Math.round(same.reduce((s, x) => s + x.v, 0) * 10) / 10, unit: unit === "lt" ? "l" : unit, tanks: same.length };
+      }
+    } catch (e) {
+      const code = (e as { code?: number }).code;
+      if (retry && (code === 1 || code === 4 || code === 7)) {
+        sessions.delete(cfg.token);
+        return wialonFuel(cfg, unitId, false);
+      }
+      throw e;
+    }
+  }
+  const p = u.lmsg?.p ?? {};
+  for (const f of FUEL_PARAMS) {
+    const n = Number(p[f.key]);
+    if (p[f.key] !== undefined && Number.isFinite(n) && n > 0) return { value: Math.round(n * f.scale * 10) / 10, unit: f.unit, tanks: 1 };
+  }
+  return null;
 }
 
 /**
