@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { and, desc, eq } from "drizzle-orm";
-import { Building2, LifeBuoy, SatelliteDish, Users } from "lucide-react";
+import { Building2, FileSpreadsheet, LifeBuoy, SatelliteDish, Users } from "lucide-react";
 import { Badge, PageHeader, Shell } from "@/components/ui/primitives";
 import { CompanyForm, SupportAccess, TelematicsSettings } from "@/components/settings-forms";
 import { MembersManager } from "@/components/members";
+import { FleetImportPanel } from "@/components/fleet-import";
 import { getPrefs, getT } from "@/lib/prefs";
 import { requireAccess } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
@@ -55,6 +56,12 @@ export default async function SettingsPage() {
             }}
           />
         </Shell>
+
+        {(["vehicles", "trailers", "employees"] as const).some((m) => can(ctx.perms, m, "edit")) && (
+          <Shell icon={<FileSpreadsheet />} title={sr ? "Uvoz iz Excela" : "Import from Excel"}>
+            <FleetImportPanel />
+          </Shell>
+        )}
 
         {ctx.isOwner && (
           <Shell icon={<Users />} title={sr ? "Članovi" : "Members"} action={<span>{sr ? "Samo vlasnik vidi ovaj deo" : "Only owners see this"}</span>}>

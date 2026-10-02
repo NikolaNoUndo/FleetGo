@@ -8,6 +8,7 @@ import { CostChart, type MonthCosts } from "@/components/charts/cost-chart";
 import { Distribution, StatusColumns } from "@/components/distribution";
 import { HBars } from "@/components/hbars";
 import { LiveMini } from "@/components/map/live-view";
+import { FleetOnboarding } from "@/components/fleet-import";
 import { getPrefs, getT } from "@/lib/prefs";
 import { requireContext } from "@/lib/auth/context";
 import { can, ROUTE_MODULE, type ModuleKey } from "@/lib/auth/permissions";
@@ -140,6 +141,8 @@ export default async function OverviewPage() {
           </span>
         }
       />
+
+      {A.vehicles && can(ctx.perms, "vehicles", "edit") && !vehicles.length && !trailers.length && !employees.length && <FleetOnboarding />}
 
       {kpis.length > 0 && <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{kpis}</div>}
 

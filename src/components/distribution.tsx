@@ -5,7 +5,8 @@ type Seg = { key: string; label: string; count: number; color: string; href?: st
 
 /** Segmented bar + category table (Response Distribution style). */
 export function Distribution({ segments, labels, className }: { segments: Seg[]; labels: { category: string; count: string; total: string }; className?: string }) {
-  const total = segments.reduce((s, x) => s + x.count, 0) || 1;
+  const sum = segments.reduce((s, x) => s + x.count, 0);
+  const total = sum || 1; // divisor only
   const pct = (n: number) => `${Math.round((n / total) * 100)}%`;
   return (
     <div className={className}>
@@ -46,8 +47,8 @@ export function Distribution({ segments, labels, className }: { segments: Seg[];
           ))}
           <tr className={cn("font-semibold")}>
             <td className="h-9 text-xs tracking-[0.04em] uppercase">{labels.total}</td>
-            <td className="text-right tnum">{total}</td>
-            <td className="text-right tnum">100%</td>
+            <td className="text-right tnum">{sum}</td>
+            <td className="text-right tnum">{sum ? "100%" : "0%"}</td>
           </tr>
         </tbody>
       </table>
