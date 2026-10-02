@@ -37,7 +37,10 @@ function PermissionMatrix({ value, onChange, disabled }: { value: Perms; onChang
     <div className={cn("divide-y divide-line rounded-xl border border-line", disabled && "opacity-60")}>
       {MODULES.map((m) => (
         <div key={m.key} className="flex items-center justify-between gap-3 px-3 py-2">
-          <span className="text-sm">{m.label[locale]}</span>
+          <span className="min-w-0 text-sm">
+            {m.label[locale]}
+            {"hint" in m && m.hint && <span className="block text-xs text-ink-3">{m.hint[locale]}</span>}
+          </span>
           {disabled ? (
             <Badge tone="good">{L.edit}</Badge>
           ) : (
@@ -45,11 +48,9 @@ function PermissionMatrix({ value, onChange, disabled }: { value: Perms; onChang
               size="sm"
               value={value[m.key]}
               onChange={(a) => onChange({ ...value, [m.key]: a })}
-              items={[
-                { value: "none", label: L.none },
-                { value: "view", label: L.view },
-                { value: "edit", label: L.edit },
-              ]}
+              items={(["none", "view", "edit"] as const)
+                .filter((a) => !("levels" in m) || (m.levels as readonly string[]).includes(a))
+                .map((a) => ({ value: a, label: L[a] }))}
             />
           )}
         </div>

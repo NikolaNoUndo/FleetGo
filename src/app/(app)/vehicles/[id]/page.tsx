@@ -12,6 +12,8 @@ import { DocumentsTable, FuelTable, PartsTable, ServicesTable } from "@/componen
 import { getPrefs, getT } from "@/lib/prefs";
 import { consumptionByVehicle, documentsWithOwner, getRefs, getVehicle, listEmployees, listExpenses, listFuel, listParts, listServices, listTrailers, listVehicleTrailers } from "@/lib/queries";
 import { ExpensesTable } from "@/components/tables/expenses";
+import { ToursTable } from "@/components/tables/tours";
+import { listTours, toursFor } from "@/lib/tours";
 import { getMoney } from "@/lib/money-server";
 import { EURO_NORMS, VEHICLE_TYPES, optLabel } from "@/lib/catalog";
 import { fmtNum } from "@/lib/format";
@@ -45,6 +47,7 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
     allow("expenses") ? listExpenses() : Promise.resolve([]),
   ]);
   const vExpenses = expenses.filter((e) => e.vehicleId === id);
+  const vTours = allow("tours") ? await toursFor(ctx.perms, m.conv, (await listTours()).filter((x) => x.vehicleId === id)) : [];
   const vServices = services.filter((s) => s.vehicleId === id);
   const vFuel = fuel.filter((f) => f.vehicleId === id);
   const vParts = parts.filter((p) => p.vehicleId === id);
@@ -124,6 +127,7 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
         <DetailTabs
           tabs={[
             allow("documents") && { key: "docs", label: t("x.documents"), count: docs.length, content: <DocumentsTable rows={docs} refs={refs} fixed={{ entityType: "vehicle", entityId: id }} hide={["owner", "issued"]} /> },
+            allow("tours") && { key: "tours", label: t("nav.tours"), count: vTours.length, content: <ToursTable rows={vTours} refs={refs} names={names} fixed={{ vehicleId: id }} hide={["vehicle"]} showPrice={allow("tourPrice")} showProfit={allow("profit")} /> },
             allow("services") && { key: "services", label: t("x.services"), count: vServices.length, content: <ServicesTable rows={vServices} refs={refs} names={names} fixed={{ vehicleId: id, trailerId: "" }} hide={["for"]} /> },
             allow("fuel") && { key: "fuel", label: t("x.fuel"), count: vFuel.length, content: <FuelTable rows={vFuel} refs={refs} names={names} fixed={{ vehicleId: id, trailerId: "" }} hide={["vehicle"]} /> },
             allow("parts") && { key: "parts", label: t("x.parts"), count: vParts.length, content: <PartsTable rows={vParts} refs={refs} names={names} fixed={{ vehicleId: id, trailerId: "" }} hide={["for"]} /> },

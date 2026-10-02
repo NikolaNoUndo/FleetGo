@@ -120,6 +120,13 @@
       "when": 1790877076068,
       "tag": "0016_v032_fuel_trailer",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790941699053,
+      "tag": "0017_v033_tours",
+      "breakpoints": true
     }
   ]
 }

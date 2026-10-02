@@ -150,7 +150,15 @@ export const fullName = (e: { firstName: string; lastName: string }) => `${e.fir
 
 /** Options for every <select> that points at another record, plus id → label lookups for tables. */
 export const getRefs = cache(async () => {
-  const [vehicles, trailers, employees, suppliers, docs] = await Promise.all([listVehicles(), listTrailers(), listEmployees(), listSuppliers(), listDocuments()]);
+  const { id: companyId } = await getCompany();
+  const [vehicles, trailers, employees, suppliers, docs, clients] = await Promise.all([
+    listVehicles(),
+    listTrailers(),
+    listEmployees(),
+    listSuppliers(),
+    listDocuments(),
+    db.select({ id: S.clients.id, name: S.clients.name }).from(S.clients).where(eq(S.clients.companyId, companyId)).orderBy(asc(S.clients.name)),
+  ]);
   // kinds of documents the company typed in itself ("Drugo"): id = the name, sub = what it is for
   const ownDocTypes = new Map<string, { id: string; label: string; sub: string }>();
   for (const d of docs) {
@@ -165,12 +173,14 @@ export const getRefs = cache(async () => {
     employees: employees.map((e) => ({ id: e.id, label: fullName(e) })),
     drivers: employees.filter((e) => e.role === "driver").map((e) => ({ id: e.id, label: fullName(e) })),
     suppliers: suppliers.map((x) => ({ id: x.id, label: x.name })),
+    clients: clients.map((x) => ({ id: x.id, label: x.name })),
   };
   const names: Record<string, string> = {};
   for (const v of vehicles) names[v.id] = v.plate;
   for (const t of trailers) names[t.id] = t.plate;
   for (const e of employees) names[e.id] = fullName(e);
   for (const x of suppliers) names[x.id] = x.name;
+  for (const x of clients) names[x.id] = x.name;
   return { refs, names };
 });
 

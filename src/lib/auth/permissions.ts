@@ -4,6 +4,9 @@ import type { L } from "../catalog";
 export const MODULES = [
   { key: "overview", label: { sr: "Pregled", en: "Overview" } },
   { key: "live", label: { sr: "Mapa uživo", en: "Live map" } },
+  { key: "tours", label: { sr: "Ture i klijenti", en: "Tours & clients" } },
+  { key: "tourPrice", label: { sr: "Cena ture", en: "Tour price" }, hint: { sr: "Dogovorena cena na turi i prihod po klijentu", en: "The agreed price of a tour and revenue per client" } },
+  { key: "profit", label: { sr: "Isplativost", en: "Profitability" }, hint: { sr: "Zarada po turi, klijentu i kamionu", en: "Profit per tour, client and truck" }, levels: ["none", "view"] },
   { key: "vehicles", label: { sr: "Vozila", en: "Vehicles" } },
   { key: "trailers", label: { sr: "Prikolice", en: "Trailers" } },
   { key: "employees", label: { sr: "Zaposleni", en: "Employees" } },
@@ -14,7 +17,7 @@ export const MODULES = [
   { key: "payments", label: { sr: "Uplate vozačima", en: "Driver payments" } },
   { key: "expenses", label: { sr: "Ostali troškovi", en: "Other costs" } },
   { key: "settings", label: { sr: "Podešavanja firme", en: "Company settings" } },
-] as const satisfies readonly { key: string; label: L }[];
+] as const satisfies readonly { key: string; label: L; hint?: L; levels?: readonly ("none" | "view" | "edit")[] }[];
 
 export type ModuleKey = (typeof MODULES)[number]["key"];
 export type Access = "none" | "view" | "edit";
@@ -24,7 +27,7 @@ export type Role = "owner" | "dispatcher" | "service" | "accounting";
 
 export const ROLES: { value: Role; label: L; hint: L }[] = [
   { value: "owner", label: { sr: "Vlasnik", en: "Owner" }, hint: { sr: "Sve, uključujući članove i podešavanja", en: "Everything, including members and settings" } },
-  { value: "dispatcher", label: { sr: "Dispečer", en: "Dispatcher" }, hint: { sr: "Vozila, rokovi, gorivo", en: "Vehicles, expiries, fuel" } },
+  { value: "dispatcher", label: { sr: "Dispečer", en: "Dispatcher" }, hint: { sr: "Ture i cene, vozila, rokovi, gorivo", en: "Tours and prices, vehicles, expiries, fuel" } },
   { value: "service", label: { sr: "Servis", en: "Service" }, hint: { sr: "Servisi, delovi, rokovi", en: "Services, parts, expiries" } },
   { value: "accounting", label: { sr: "Knjigovodstvo", en: "Accounting" }, hint: { sr: "Troškovi i uplate", en: "Costs and payments" } },
 ];
@@ -36,6 +39,9 @@ export const ROLE_PRESETS: Record<Role, Perms> = {
   dispatcher: {
     overview: "view",
     live: "view",
+    tours: "edit",
+    tourPrice: "edit",
+    profit: "none",
     vehicles: "edit",
     trailers: "edit",
     employees: "view",
@@ -50,6 +56,9 @@ export const ROLE_PRESETS: Record<Role, Perms> = {
   service: {
     overview: "view",
     live: "view",
+    tours: "none",
+    tourPrice: "none",
+    profit: "none",
     vehicles: "view",
     trailers: "view",
     employees: "none",
@@ -64,6 +73,9 @@ export const ROLE_PRESETS: Record<Role, Perms> = {
   accounting: {
     overview: "view",
     live: "view",
+    tours: "view",
+    tourPrice: "none",
+    profit: "none",
     vehicles: "view",
     trailers: "view",
     employees: "view",
@@ -116,12 +128,16 @@ export const RESOURCE_MODULE = {
   fuel: "fuel",
   payments: "payments",
   expenses: "expenses",
+  tours: "tours",
+  clients: "tours",
 } as const satisfies Record<string, ModuleKey>;
 
 /** Sidebar route → module. */
 export const ROUTE_MODULE: Record<string, ModuleKey | "suppliers" | "reports"> = {
   "/": "overview",
   "/live": "live",
+  "/tours": "tours",
+  "/clients": "tours",
   "/vehicles": "vehicles",
   "/trailers": "trailers",
   "/employees": "employees",

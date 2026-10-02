@@ -43,7 +43,7 @@ export function Sidebar({
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(initialCollapsed);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ fleet: true, costs: true });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ tours: true, fleet: true, costs: true });
   const [, start] = useTransition();
   const alertCount = alerts.expired + alerts.soon;
   // MobileShell's menu button asks for the drawer

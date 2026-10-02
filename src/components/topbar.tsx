@@ -3,7 +3,7 @@
 import Link from "@/components/ui/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useState } from "react";
-import { CalendarClock, ChevronRight, Container, Fuel, Package, Plus, Truck, UserPlus, Wallet, Wrench, Building2 } from "lucide-react";
+import { CalendarClock, ChevronRight, Container, Fuel, Package, Route, Plus, Truck, UserPlus, Wallet, Wrench, Building2 } from "lucide-react";
 import type { TKey } from "@/lib/i18n";
 import { usePrefs } from "./prefs";
 import { RecordForm } from "./record-form";
@@ -13,7 +13,8 @@ import { crumbsFor, GROUPS, isActive } from "@/lib/nav";
 import { RESOURCES, type Refs, type ResourceKey } from "@/lib/resources";
 import { RESOURCE_MODULE, ROUTE_MODULE } from "@/lib/auth/permissions";
 
-export const QUICK_ADD: { r: Exclude<ResourceKey, "suppliers" | "places">; icon: React.ReactNode }[] = [
+export const QUICK_ADD: { r: Exclude<ResourceKey, "suppliers" | "places" | "clients">; icon: React.ReactNode }[] = [
+  { r: "tours", icon: <Route /> },
   { r: "fuel", icon: <Fuel /> },
   { r: "services", icon: <Wrench /> },
   { r: "parts", icon: <Package /> },
@@ -92,7 +93,7 @@ export function Topbar({ refs }: { refs: Refs }) {
 }
 
 /** Underline tabs for a sidebar group (Flota → Vozila · Prikolice · …). */
-export function SectionTabs({ group }: { group: "fleet" | "costs" }) {
+export function SectionTabs({ group }: { group: "tours" | "fleet" | "costs" }) {
   const { t, can } = usePrefs();
   const pathname = usePathname();
   const g0 = GROUPS.find((x) => x.key === group)!;

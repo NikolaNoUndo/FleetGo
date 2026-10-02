@@ -6,8 +6,10 @@ import {
   Fuel,
   House,
   Map as MapIcon,
+  Handshake,
   Package,
   Receipt,
+  Route,
   Settings,
   Store,
   Truck,
@@ -19,7 +21,7 @@ import {
 import type { TKey } from "./i18n";
 
 export type NavItem = { href: string; label: TKey; icon: LucideIcon; badge?: "alerts" };
-export type NavGroup = { key: "fleet" | "costs"; label: TKey; icon: LucideIcon; items: NavItem[] };
+export type NavGroup = { key: "tours" | "fleet" | "costs"; label: TKey; icon: LucideIcon; items: NavItem[] };
 
 export const TOP: NavItem[] = [
   { href: "/", label: "nav.overview", icon: House },
@@ -28,6 +30,15 @@ export const TOP: NavItem[] = [
 ];
 
 export const GROUPS: NavGroup[] = [
+  {
+    key: "tours",
+    label: "nav.tours",
+    icon: Route,
+    items: [
+      { href: "/tours", label: "nav.tours", icon: Route },
+      { href: "/clients", label: "nav.clients", icon: Handshake },
+    ],
+  },
   {
     key: "fleet",
     label: "nav.fleet",
@@ -63,7 +74,7 @@ export function crumbsFor(pathname: string): { label: TKey; href?: string }[] {
   for (const it of TOP) if (isActive(pathname, it.href)) return [{ label: it.label, href: it.href }];
   for (const g of GROUPS)
     for (const it of g.items)
-      if (isActive(pathname, it.href)) return [{ label: g.label, href: g.items[0].href }, { label: it.label, href: it.href }];
+      if (isActive(pathname, it.href)) return g.label === it.label ? [{ label: it.label, href: it.href }] : [{ label: g.label, href: g.items[0].href }, { label: it.label, href: it.href }];
   for (const it of BOTTOM) if (isActive(pathname, it.href)) return [{ label: "nav.company" }, { label: it.label, href: it.href }];
   if (isActive(pathname, "/profile")) return [{ label: "nav.profile", href: "/profile" }];
   return [];

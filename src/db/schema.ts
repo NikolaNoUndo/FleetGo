@@ -254,6 +254,49 @@ export const suppliers = pgTable(
   (t) => [index("suppliers_company_idx").on(t.companyId), uniqueIndex("suppliers_company_name_uq").on(t.companyId, t.name)],
 );
 
+/** Who a tour is driven for. Typed on the tour; a new name is added here on save. */
+export const clients = pgTable(
+  "clients",
+  {
+    id: id(),
+    companyId: companyId(),
+    name: text("name").notNull(),
+    phone: text("phone"),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("clients_company_idx").on(t.companyId), uniqueIndex("clients_company_name_uq").on(t.companyId, t.name)],
+);
+
+/**
+ * A tour (tura): one truck, from one date to another. Its costs are not entered on
+ * it: they are the truck's (and its trailer's) fuel, services, parts and other costs,
+ * and the driver's payments, dated inside the tour. Price is visible only with the
+ * "tourPrice" permission; the profit only with "profit".
+ */
+export const tours = pgTable(
+  "tours",
+  {
+    id: id(),
+    companyId: companyId(),
+    dateFrom: date("date_from").notNull(),
+    /** null = still on the road */
+    dateTo: date("date_to"),
+    fromPlace: text("from_place"),
+    toPlace: text("to_place"),
+    vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
+    trailerId: uuid("trailer_id").references(() => trailers.id, { onDelete: "set null" }),
+    driverId: uuid("driver_id").references(() => employees.id, { onDelete: "set null" }),
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+    price: money("price"),
+    currency: text("currency").notNull().default("EUR"),
+    distanceKm: integer("distance_km"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("tours_company_idx").on(t.companyId), index("tours_vehicle_idx").on(t.vehicleId), index("tours_date_idx").on(t.dateFrom)],
+);
+
 /**
  * Places shown on the live map: shops/workshops (usually a supplier's branches, e.g.
  * every branch of one supplier) and fuel stations (e.g. the Eurowag network).

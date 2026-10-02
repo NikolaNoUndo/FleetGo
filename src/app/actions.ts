@@ -6,7 +6,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { RESOURCES, type ResourceKey } from "@/lib/resources";
 import { assertAccess, getContext } from "@/lib/auth/context";
-import { can, canSuppliers, RESOURCE_MODULE } from "@/lib/auth/permissions";
+import { can, canSuppliers, RESOURCE_MODULE, type Perms } from "@/lib/auth/permissions";
 import { setSessionCompany } from "@/lib/auth/session";
 import { audit } from "@/lib/auth/audit";
 import { getNbsRate } from "@/lib/fx";
@@ -28,6 +28,8 @@ const TABLES = {
   suppliers: schema.suppliers,
   places: schema.places,
   expenses: schema.expenses,
+  tours: schema.tours,
+  clients: schema.clients,
 } as const;
 
 export type ActionResult = { ok: true; id: string } | { ok: false; errors: Record<string, string>; message?: string };
@@ -46,18 +48,22 @@ function parseNumber(v: unknown): number | null {
 }
 
 /** Validate and coerce raw form values using the resource definition. */
-function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
+function coerce(resource: ResourceKey, raw: Record<string, unknown>, perms?: Perms) {
   const out: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
   const refChecks: { table: "vehicles" | "trailers" | "employees"; id: string; field: string }[] = [];
   /** supplier fields: an existing id, or "new:<name>" to create one on save */
   const supplierFields: { field: string; value: string }[] = [];
+  /** client fields: an existing id, or "new:<name>" (or a typed name) to create one on save */
+  const clientFields: { field: string; value: string }[] = [];
   /** many-to-many links (vehicle ↔ trailer), written to vehicle_trailers after save */
   let links: string[] | null = null;
   /** places: raw "Coordinates or map link" text, resolved to lat/lng on save */
   let coords: string | null = null;
 
   for (const f of RESOURCES[resource].fields) {
+    // fields behind their own permission (a tour's price) are neither read nor written without it
+    if (f.perm && !(perms && can(perms, f.perm, "edit"))) continue;
     const v = raw[f.name];
     const empty = v === undefined || v === null || (typeof v === "string" && v.trim() === "");
 
@@ -169,6 +175,9 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
       case "supplier":
         supplierFields.push({ field: f.name, value: s.slice(0, 200) });
         break;
+      case "client":
+        clientFields.push({ field: f.name, value: s.slice(0, 200) });
+        break;
       case "ref":
       case "entity": {
         if (!UUID.test(s)) {
@@ -190,7 +199,7 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>) {
       }
     }
   }
-  return { out, errors, refChecks, supplierFields, links, coords };
+  return { out, errors, refChecks, supplierFields, clientFields, links, coords };
 }
 
 /** Access check for an editable resource; returns the company id. */
@@ -223,6 +232,26 @@ async function resolveSupplier(companyId: string, value: string): Promise<string
     .where(and(eq(schema.suppliers.id, value), eq(schema.suppliers.companyId, companyId)))
     .limit(1);
   return found?.id ?? null;
+}
+
+/** Resolve a client field to an id, creating the client when the name is new. */
+async function resolveClient(companyId: string, value: string): Promise<string | null> {
+  const C = schema.clients;
+  if (UUID.test(value)) {
+    const [found] = await db.select({ id: C.id }).from(C).where(and(eq(C.id, value), eq(C.companyId, companyId))).limit(1);
+    return found?.id ?? null;
+  }
+  const name = (value.startsWith("new:") ? value.slice(4) : value).trim().replace(/\s+/g, " ").slice(0, 200);
+  if (!name) return null;
+  // same name in other letter case or without accents is the same client
+  const all = await db.select({ id: C.id, name: C.name }).from(C).where(eq(C.companyId, companyId));
+  const fold = (x: string) => x.toLowerCase().replace(/đ/g, "d").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+  const hit = all.find((c) => fold(c.name) === fold(name));
+  if (hit) return hit.id;
+  const [created] = await db.insert(C).values({ companyId, name }).onConflictDoNothing().returning({ id: C.id });
+  if (created) return created.id;
+  const [again] = await db.select({ id: C.id }).from(C).where(and(eq(C.companyId, companyId), eq(C.name, name))).limit(1);
+  return again?.id ?? null;
 }
 
 /** Replaces the vehicle ↔ trailer links of one vehicle (or one trailer). */
@@ -264,12 +293,15 @@ async function afterRegistration(companyId: string, out: Record<string, unknown>
 export async function saveRecord(resourceName: string, id: string | null, raw: Record<string, unknown>): Promise<ActionResult> {
   if (!isResource(resourceName)) return { ok: false, errors: {}, message: "Unknown resource" };
   let companyId: string;
+  let perms: Perms;
   try {
-    companyId = (await editContext(resourceName)).company.id;
+    const ctx = await editContext(resourceName);
+    companyId = ctx.company.id;
+    perms = ctx.perms;
   } catch {
     return { ok: false, errors: {}, message: "Nemaš pravo izmene za ovaj deo aplikacije." };
   }
-  const { out, errors, refChecks, supplierFields, links, coords } = coerce(resourceName, raw);
+  const { out, errors, refChecks, supplierFields, clientFields, links, coords } = coerce(resourceName, raw, perms);
   if (Object.keys(errors).length) return { ok: false, errors };
   if (resourceName === "places") {
     // coordinates come from the typed pair, a map link or the address; checked before
@@ -280,7 +312,9 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
     out.lng = loc.lng;
     if (!out.name && !supplierFields.some((f) => f.value)) return { ok: false, errors: { name: "required" } };
   }
+  if (resourceName === "tours" && out.dateTo && out.dateFrom && String(out.dateTo) < String(out.dateFrom)) return { ok: false, errors: { dateTo: "date" } };
   for (const sf of supplierFields) out[sf.field] = await resolveSupplier(companyId, sf.value);
+  for (const cf of clientFields) out[cf.field] = await resolveClient(companyId, cf.value);
 
   if (resourceName === "fuel") {
     // fuel goes into a vehicle, or into a reefer trailer's own tank — exactly one of them
@@ -374,6 +408,7 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
   } catch (e) {
     const msg = String((e as { cause?: { message?: string } })?.cause?.message ?? (e as Error).message);
     if (resourceName === "suppliers" && msg.includes("suppliers_company_name_uq")) return { ok: false, errors: { name: "duplicate" } };
+    if (resourceName === "clients" && msg.includes("clients_company_name_uq")) return { ok: false, errors: { name: "duplicate" } };
     console.error("saveRecord failed", e);
     return { ok: false, errors: {}, message: "Database error" };
   }

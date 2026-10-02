@@ -1,6 +1,18 @@
 import type { Locale } from "./catalog";
 
 const sr = {
+  "nav.tours": "Ture",
+  "nav.clients": "Klijenti",
+  "r.tours": "turu",
+  "r.clients": "klijenta",
+  "f.fromPlace": "Odakle",
+  "f.toPlace": "Dokle",
+  "f.dateFrom": "Od",
+  "f.dateTo": "Do",
+  "f.client": "Klijent",
+  "f.tourPrice": "Cena ture",
+  "f.distanceKm": "Pređeno km",
+  "q.tours": "Tura",
   // navigation
   "nav.overview": "Pregled",
   "nav.live": "Mapa uživo",
@@ -289,6 +301,18 @@ type Dict = typeof sr;
 export type TKey = keyof Dict;
 
 const en: Dict = {
+  "nav.tours": "Tours",
+  "nav.clients": "Clients",
+  "r.tours": "tour",
+  "r.clients": "client",
+  "f.fromPlace": "From",
+  "f.toPlace": "To",
+  "f.dateFrom": "From",
+  "f.dateTo": "To",
+  "f.client": "Client",
+  "f.tourPrice": "Tour price",
+  "f.distanceKm": "Distance (km)",
+  "q.tours": "Tour",
   "nav.overview": "Overview",
   "nav.live": "Live map",
   "nav.fleet": "Fleet",

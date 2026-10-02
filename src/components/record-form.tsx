@@ -418,8 +418,9 @@ export function RecordForm({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const { t, locale } = usePrefs();
-  const fields = RESOURCES[resource].fields;
+  const { t, locale, can } = usePrefs();
+  // a field behind its own permission (a tour's price) is left out for members without it
+  const fields = RESOURCES[resource].fields.filter((f) => !f.perm || can(f.perm, "edit"));
   const [values, setValues] = useState<Values>(() =>
     initialValues(fields, record, fixed),
   );
@@ -720,11 +721,12 @@ export function RecordForm({
           </FieldShell>
         );
       case "supplier":
+      case "client":
         control = (
           <SupplierPicker
             id={id}
             value={String(val ?? "")}
-            options={refs.suppliers ?? []}
+            options={(f.type === "client" ? refs.clients : refs.suppliers) ?? []}
             onChange={(v) => set(f.name, v)}
           />
         );
