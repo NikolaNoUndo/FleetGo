@@ -19,8 +19,10 @@ export type Position = {
   ts: number; // ms epoch of the last fix
   state: "moving" | "stopped" | "offline";
   place?: string;
-  /** odometer from tracking (Wialon mileage counter), km */
+  /** odometer from tracking, km: the truck's own (CAN / mileage sensor) or Wialon's mileage counter */
   mileageKm?: number | null;
+  /** where mileageKm came from: "can" = the truck's odometer in the last message, "counter" = Wialon's mileage counter */
+  mileageSrc?: "can" | "counter" | null;
 };
 
 export type WialonConfig = { token: string | null; host: string | null };

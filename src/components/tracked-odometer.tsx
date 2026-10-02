@@ -6,7 +6,7 @@ import { usePrefs } from "./prefs";
 import { fmtNum, relTime } from "@/lib/format";
 import type { PositionsResult } from "@/lib/telematics/types";
 
-type State = { kind: "loading" } | { kind: "hidden" } | { kind: "error" } | { kind: "unlinked" } | { kind: "nodata" } | { kind: "ok"; km: number; ts: number };
+type State = { kind: "loading" } | { kind: "hidden" } | { kind: "error" } | { kind: "unlinked" } | { kind: "nodata" } | { kind: "ok"; km: number; ts: number; src: "can" | "counter" | null };
 
 /**
  * "Kilometraža (praćenje)": the odometer Wialon keeps for this vehicle's unit, next to
@@ -30,7 +30,7 @@ export function TrackedOdometer({ vehicleId }: { vehicleId: string }) {
         const p = d.positions.find((x) => x.vehicleId === vehicleId);
         if (!p) return setS({ kind: "unlinked" });
         if (!p.mileageKm) return setS({ kind: "nodata" });
-        setS({ kind: "ok", km: p.mileageKm, ts: p.ts });
+        setS({ kind: "ok", km: p.mileageKm, ts: p.ts, src: p.mileageSrc ?? null });
       })
       .catch(() => !off && setS({ kind: "error" }));
     return () => {
@@ -49,12 +49,26 @@ export function TrackedOdometer({ vehicleId }: { vehicleId: string }) {
       <span className="text-right font-medium text-ink tnum">
         {s.kind === "loading" && muted("…")}
         {s.kind === "error" && muted(sr ? "Wialon ne odgovara" : "Wialon not answering")}
-        {s.kind === "unlinked" && muted(sr ? "Nije povezano" : "Not linked")}
-        {s.kind === "nodata" && muted(sr ? "Nema u Wialonu" : "Not in Wialon")}
+        {s.kind === "unlinked" && (
+          <>
+            {muted(sr ? "Nije povezano sa Wialonom" : "Not linked to Wialon")}
+            <span className="block text-xs font-normal text-ink-3">{sr ? "Upiši Wialon ID ili IMEI u vozilo" : "Add the Wialon ID or IMEI to the vehicle"}</span>
+          </>
+        )}
+        {s.kind === "nodata" && (
+          <>
+            {muted(sr ? "Uređaj ne šalje kilometražu" : "The device sends no odometer")}
+            <span className="block text-xs font-normal text-ink-3">{sr ? "Nema CAN kilometraže ni brojača u Wialonu" : "No CAN odometer or mileage counter in Wialon"}</span>
+          </>
+        )}
         {s.kind === "ok" && (
           <>
             {fmtNum(s.km, locale)} km
-            {s.ts > 0 && <span className="block text-xs font-normal text-ink-3">{relTime(s.ts, locale)}</span>}
+            <span className="block text-xs font-normal text-ink-3">
+              {[s.src === "can" ? (sr ? "sa kamiona (CAN)" : "from the truck (CAN)") : s.src === "counter" ? (sr ? "Wialon brojač" : "Wialon counter") : null, s.ts > 0 ? relTime(s.ts, locale) : null]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
           </>
         )}
       </span>
