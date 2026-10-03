@@ -6,7 +6,7 @@ import { getT } from "@/lib/prefs";
 import { requireAccess } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { getRefs } from "@/lib/queries";
-import { listClients, toursFor } from "@/lib/tours";
+import { listClients, listLegs, toursFor } from "@/lib/tours";
 import { getMoney } from "@/lib/money-server";
 
 export const metadata: Metadata = { title: "Klijenti" };
@@ -16,18 +16,27 @@ export default async function ClientsPage() {
   const [t, m, { refs }, clients] = await Promise.all([getT(), getMoney(), getRefs(), listClients()]);
   const showPrice = can(ctx.perms, "tourPrice");
   const showProfit = can(ctx.perms, "profit");
-  const tours = await toursFor(ctx.perms, m.conv);
+  const [tours, legs] = await Promise.all([toursFor(ctx.perms, m.conv), listLegs()]);
+  const tourById = new Map(tours.map((x) => [x.id, x]));
   const rows = clients.map((c) => {
-    const own = tours.filter((x) => x.clientId === c.id);
+    const own = legs.filter((l) => l.clientId === c.id);
+    const tourIds = [...new Set(own.map((l) => l.tourId))];
+    const revenue = own.reduce((s, l) => s + m.conv(l.price, l.currency), 0);
+    // a tour's profit is shared among its legs by their price
+    const profit = own.reduce((s, l) => {
+      const tr = tourById.get(l.tourId);
+      if (!tr?.price || tr.profit === null || tr.profit === undefined || l.price === null) return s;
+      return s + tr.profit * (m.conv(l.price, l.currency) / tr.price);
+    }, 0);
     return {
       id: c.id,
       name: c.name,
       phone: c.phone,
       note: c.note,
-      tours: own.length,
-      lastDate: own.map((x) => x.dateFrom).sort().at(-1) ?? null,
-      ...(showPrice ? { revenue: own.reduce((s, x) => s + m.conv(x.price ?? 0, x.currency ?? "EUR"), 0) } : {}),
-      ...(showProfit ? { profit: own.reduce((s, x) => s + (x.profit ?? 0), 0) } : {}),
+      tours: tourIds.length,
+      lastDate: tourIds.map((id) => tourById.get(id)?.dateFrom ?? "").sort().at(-1) || null,
+      ...(showPrice ? { revenue } : {}),
+      ...(showProfit ? { profit } : {}),
     };
   });
   const sr = m.locale === "sr";

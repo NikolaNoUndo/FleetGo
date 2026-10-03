@@ -29,6 +29,7 @@ const TABLES = {
   places: schema.places,
   expenses: schema.expenses,
   tours: schema.tours,
+  tourLegs: schema.tourLegs,
   clients: schema.clients,
 } as const;
 
@@ -311,6 +312,14 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
     out.lat = loc.lat;
     out.lng = loc.lng;
     if (!out.name && !supplierFields.some((f) => f.value)) return { ok: false, errors: { name: "required" } };
+  }
+  if (resourceName === "tourLegs" && !id) {
+    // a new leg belongs to the tour it was added on (never moved later)
+    const tourId = String(raw.tourId ?? "");
+    if (!UUID.test(tourId)) return { ok: false, errors: {}, message: "Bad tour" };
+    const [tour] = await db.select({ id: schema.tours.id }).from(schema.tours).where(and(eq(schema.tours.id, tourId), eq(schema.tours.companyId, companyId))).limit(1);
+    if (!tour) return { ok: false, errors: {}, message: "Bad tour" };
+    out.tourId = tour.id;
   }
   if (resourceName === "tours" && out.dateTo && out.dateFrom && String(out.dateTo) < String(out.dateFrom)) return { ok: false, errors: { dateTo: "date" } };
   for (const sf of supplierFields) out[sf.field] = await resolveSupplier(companyId, sf.value);

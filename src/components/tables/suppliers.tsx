@@ -14,7 +14,7 @@ export function SuppliersTable({ rows, refs }: { rows: SupplierRow[]; refs: Refs
   const crud = useCrud("suppliers", refs);
   const sr = locale === "sr";
   const cols: Column<SupplierRow>[] = [
-    { key: "name", m: "title", header: t("f.name"), sortValue: (r) => r.name, render: (r) => <Stack main={r.name} sub={r.note ?? undefined} /> },
+    { key: "name", m: "title", header: t("f.title"), sortValue: (r) => r.name, render: (r) => <Stack main={r.name} sub={r.note ?? undefined} /> },
     { key: "phone", m: "sub", header: t("f.phone"), hide: "md", sortValue: (r) => r.phone, render: (r) => <span className="text-ink-2">{r.phone ?? "—"}</span> },
     { key: "parts", m: "meta", header: sr ? "Nabavki delova" : "Part purchases", align: "right", sortValue: (r) => r.parts, render: (r) => <span className="text-ink-2">{r.parts}</span> },
     { key: "services", m: "meta", header: sr ? "Servisa" : "Services", align: "right", sortValue: (r) => r.services, render: (r) => <span className="text-ink-2">{r.services}</span> },

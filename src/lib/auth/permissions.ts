@@ -129,6 +129,7 @@ export const RESOURCE_MODULE = {
   payments: "payments",
   expenses: "expenses",
   tours: "tours",
+  tourLegs: "tours",
   clients: "tours",
 } as const satisfies Record<string, ModuleKey>;
 

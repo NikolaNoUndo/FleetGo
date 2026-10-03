@@ -127,6 +127,13 @@
       "when": 1790941699053,
       "tag": "0017_v033_tours",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791047381098,
+      "tag": "0018_v034_tour_legs",
+      "breakpoints": true
     }
   ]
 }

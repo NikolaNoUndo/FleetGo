@@ -2,7 +2,7 @@ import type { OptionSetKey } from "./catalog";
 import type { TKey } from "./i18n";
 import type { ModuleKey } from "./auth/permissions";
 
-export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers" | "places" | "expenses" | "tours" | "clients";
+export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers" | "places" | "expenses" | "tours" | "tourLegs" | "clients";
 export type RefKey = "vehicles" | "trailers" | "reefers" | "employees" | "drivers" | "suppliers" | "docTypes" | "clients";
 
 export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers" | "links" | "coords" | "month" | "client";
@@ -28,7 +28,7 @@ export type FieldDef = {
 export type RefOption = { id: string; label: string; sub?: string };
 export type Refs = Partial<Record<RefKey, RefOption[]>>;
 
-export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }> = {
+export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[]; /** a new record opens its own page (path prefix + id) */ openAfterCreate?: string }> = {
   vehicles: {
     title: "r.vehicles",
     fields: [
@@ -154,7 +154,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
   suppliers: {
     title: "r.suppliers",
     fields: [
-      { name: "name", label: "f.name", type: "text", required: true, span: 2 },
+      { name: "name", label: "f.title", type: "text", required: true, span: 2 },
       { name: "phone", label: "f.phone", type: "text" },
       { name: "note", label: "f.note", type: "text" },
     ],
@@ -205,21 +205,30 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
   },
   tours: {
     title: "r.tours",
+    openAfterCreate: "/tours/",
     fields: [
-      { name: "fromPlace", label: "f.fromPlace", type: "text", placeholder: "Beograd" },
-      { name: "toPlace", label: "f.toPlace", type: "text", placeholder: "München" },
       { name: "dateFrom", label: "f.dateFrom", type: "date", required: true },
       {
         name: "dateTo",
         label: "f.dateTo",
         type: "date",
-        hint: { sr: "Prazno dok je tura u toku. Troškovi kamiona i vozača u ovom periodu idu na turu.", en: "Empty while the tour is on. The truck's and driver's costs in this period count for the tour." },
+        hint: { sr: "Prazno dok je kamion na putu. Troškovi kamiona i vozača u ovom periodu idu na turu.", en: "Empty while the truck is out. The truck's and driver's costs in this period count for the tour." },
       },
       { name: "vehicleId", label: "f.vehicle", type: "ref", ref: "vehicles", required: true },
       { name: "trailerId", label: "f.trailer", type: "ref", ref: "trailers" },
-      { name: "driverId", label: "f.driver", type: "ref", ref: "drivers" },
+      { name: "driverId", label: "f.driver", type: "ref", ref: "drivers", span: 2 },
+      { name: "distanceKm", label: "f.tourKm", type: "int" },
+      { name: "notes", label: "f.notes", type: "textarea", span: 2 },
+    ],
+  },
+  tourLegs: {
+    title: "r.tourLegs",
+    fields: [
+      { name: "fromPlace", label: "f.fromPlace", type: "text", placeholder: "Čačak" },
+      { name: "toPlace", label: "f.toPlace", type: "text", placeholder: "Beograd" },
+      { name: "date", label: "f.date", type: "date" },
       { name: "clientId", label: "f.client", type: "client", hint: { sr: "Izaberi ili upiši novog, biće dodat.", en: "Pick one or type a new one; it will be added." } },
-      { name: "price", label: "f.tourPrice", type: "money", defaultValue: "EUR", perm: "tourPrice" },
+      { name: "price", label: "f.legPrice", type: "money", defaultValue: "EUR", perm: "tourPrice" },
       { name: "distanceKm", label: "f.distanceKm", type: "int" },
       { name: "notes", label: "f.notes", type: "textarea", span: 2 },
     ],
@@ -227,7 +236,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[] }>
   clients: {
     title: "r.clients",
     fields: [
-      { name: "name", label: "f.name", type: "text", required: true, span: 2 },
+      { name: "name", label: "f.title", type: "text", required: true, span: 2 },
       { name: "phone", label: "f.phone", type: "text" },
       { name: "note", label: "f.note", type: "text" },
     ],

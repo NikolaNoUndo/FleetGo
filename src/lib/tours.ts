@@ -6,6 +6,7 @@ import { getCompany } from "./tenant";
 import { todayISO } from "./format";
 import { can, type Perms } from "./auth/permissions";
 import { listExpenses, listFuel, listParts, listPayments, listServices } from "./queries";
+import { legsRoute } from "./tour-route";
 
 export const listTours = cache(async () => {
   const { id } = await getCompany();
@@ -17,7 +18,21 @@ export const listClients = cache(async () => {
   return db.select().from(schema.clients).where(eq(schema.clients.companyId, id)).orderBy(asc(schema.clients.name));
 });
 
+export const listLegs = cache(async () => {
+  const { id } = await getCompany();
+  const L = schema.tourLegs;
+  return db.select().from(L).where(eq(L.companyId, id)).orderBy(asc(L.date), asc(L.createdAt));
+});
+
 export type Tour = Awaited<ReturnType<typeof listTours>>[number];
+export type Leg = Awaited<ReturnType<typeof listLegs>>[number];
+
+/** legs grouped by tour, in driving order (by date, then as entered) */
+export function legsByTour(legs: Leg[]) {
+  const m = new Map<string, Leg[]>();
+  for (const l of legs) m.set(l.tourId, [...(m.get(l.tourId) ?? []), l]);
+  return m;
+}
 
 /** Inclusive date window of a tour; a tour still on the road runs until today. */
 export const tourWindow = (t: Pick<Tour, "dateFrom" | "dateTo">) => ({ from: t.dateFrom, to: t.dateTo ?? (todayISO() > t.dateFrom ? todayISO() : t.dateFrom) });
@@ -66,56 +81,66 @@ export type TourRow = {
   id: string;
   dateFrom: string;
   dateTo: string | null;
-  fromPlace: string | null;
-  toPlace: string | null;
+  /** "Čačak → Beograd → Kraljevo → Čačak" from the legs */
+  route: string;
+  legs: number;
   vehicleId: string | null;
   trailerId: string | null;
   driverId: string | null;
-  clientId: string | null;
+  clientIds: string[];
   distanceKm: number | null;
   notes: string | null;
   days: number;
-  /** only with the tourPrice permission */
+  /** sum of the legs' prices in the viewer's display currency; only with "tourPrice" */
   price?: number | null;
-  currency?: string;
-  /** only with the profit permission, in the viewer's display currency */
+  /** only with "profit", in the viewer's display currency */
   costs?: number;
   profit?: number | null;
 };
 
+/** A tour's price: its legs' prices added up in one currency (null when none has a price). */
+export function tourPrice(legs: Leg[], conv: (amount: number | null | undefined, from: string) => number) {
+  const priced = legs.filter((l) => l.price !== null);
+  return priced.length ? priced.reduce((s, l) => s + conv(l.price, l.currency), 0) : null;
+}
+
+export function tourCostTotal(t: Tour, src: Awaited<ReturnType<typeof allCostSources>>, conv: (amount: number | null | undefined, from: string) => number) {
+  const c = tourCosts(t, src);
+  return COST_KEYS.reduce((s, k) => s + c[k].reduce((x, r) => x + conv(r.amount, r.currency), 0), 0);
+}
+
 /**
- * Tours as a member may see them: the price is not sent without "tourPrice", costs and
+ * Tours as a member may see them: prices are not sent without "tourPrice", costs and
  * profit not without "profit". Server-side, so nothing hidden ever reaches the browser.
  */
 export async function toursFor(perms: Perms, conv: (amount: number | null | undefined, from: string) => number, tours?: Tour[]): Promise<TourRow[]> {
-  const list = tours ?? (await listTours());
+  const [list, legs] = await Promise.all([tours ? Promise.resolve(tours) : listTours(), listLegs()]);
+  const byTour = legsByTour(legs);
   const showPrice = can(perms, "tourPrice");
   const showProfit = can(perms, "profit");
   const src = showProfit ? await allCostSources() : null;
   return list.map((t) => {
+    const own = byTour.get(t.id) ?? [];
     const row: TourRow = {
       id: t.id,
       dateFrom: t.dateFrom,
       dateTo: t.dateTo,
-      fromPlace: t.fromPlace,
-      toPlace: t.toPlace,
+      route: legsRoute(own),
+      legs: own.length,
       vehicleId: t.vehicleId,
       trailerId: t.trailerId,
       driverId: t.driverId,
-      clientId: t.clientId,
-      distanceKm: t.distanceKm,
+      clientIds: [...new Set(own.map((l) => l.clientId).filter((x): x is string => !!x))],
+      distanceKm: t.distanceKm ?? (own.some((l) => l.distanceKm) ? own.reduce((s, l) => s + (l.distanceKm ?? 0), 0) : null),
       notes: t.notes,
       days: tourDays(t),
     };
-    if (showPrice) {
-      row.price = t.price;
-      row.currency = t.currency;
-    }
+    const price = tourPrice(own, conv);
+    if (showPrice) row.price = price;
     if (src) {
-      const c = tourCosts(t, src);
-      const costs = COST_KEYS.reduce((s, k) => s + c[k].reduce((x, r) => x + conv(r.amount, r.currency), 0), 0);
+      const costs = tourCostTotal(t, src, conv);
       row.costs = costs;
-      row.profit = t.price === null ? null : conv(t.price, t.currency) - costs;
+      row.profit = price === null ? null : price - costs;
     }
     return row;
   });

@@ -13,7 +13,7 @@ import { crumbsFor, GROUPS, isActive } from "@/lib/nav";
 import { RESOURCES, type Refs, type ResourceKey } from "@/lib/resources";
 import { RESOURCE_MODULE, ROUTE_MODULE } from "@/lib/auth/permissions";
 
-export const QUICK_ADD: { r: Exclude<ResourceKey, "suppliers" | "places" | "clients">; icon: React.ReactNode }[] = [
+export const QUICK_ADD: { r: Exclude<ResourceKey, "suppliers" | "places" | "clients" | "tourLegs">; icon: React.ReactNode }[] = [
   { r: "tours", icon: <Route /> },
   { r: "fuel", icon: <Fuel /> },
   { r: "services", icon: <Wrench /> },

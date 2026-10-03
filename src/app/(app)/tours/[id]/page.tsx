@@ -7,10 +7,11 @@ import { Kv, PageHeader, Shell } from "@/components/ui/primitives";
 import { DetailTabs, RecordActions } from "@/components/detail";
 import { FuelTable, PartsTable, PaymentsTable, ServicesTable } from "@/components/tables/records";
 import { ExpensesTable } from "@/components/tables/expenses";
-import { tourRoute } from "@/lib/tour-route";
+import { legsRoute } from "@/lib/tour-route";
+import { LegsTable } from "@/components/tables/tours";
 import { getPrefs, getT } from "@/lib/prefs";
 import { getRefs } from "@/lib/queries";
-import { allCostSources, COST_KEYS, getTour, listTours, overlapping, tourCosts, tourDays, type CostKey } from "@/lib/tours";
+import { allCostSources, COST_KEYS, getTour, legsByTour, listLegs, listTours, overlapping, tourCosts, tourDays, tourPrice, type CostKey } from "@/lib/tours";
 import { getMoney } from "@/lib/money-server";
 import { fmtDate, fmtNum } from "@/lib/format";
 import type { TKey } from "@/lib/i18n";
@@ -18,7 +19,8 @@ import type { TKey } from "@/lib/i18n";
 export async function generateMetadata(props: PageProps<"/tours/[id]">) {
   const { id } = await props.params;
   const tour = /^[0-9a-f-]{36}$/i.test(id) ? await getTour(id).catch(() => null) : null;
-  return { title: tour ? tourRoute(tour) : "Tura" };
+  const legs = tour ? (await listLegs()).filter((l) => l.tourId === tour.id) : [];
+  return { title: tour && legs.length ? legsRoute(legs) : "Tura" };
 }
 
 const CAT: Record<CostKey, { label: TKey; module: ModuleKey }> = {
@@ -39,14 +41,19 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
   const allow = (mod: ModuleKey) => can(ctx.perms, mod);
   const showPrice = allow("tourPrice");
   const showProfit = allow("profit");
-  const [t, { locale }, m, { refs, names }, all, src] = await Promise.all([getT(), getPrefs(), getMoney(), getRefs(), listTours(), allCostSources()]);
+  const [t, { locale }, m, { refs, names }, all, src, allLegs] = await Promise.all([getT(), getPrefs(), getMoney(), getRefs(), listTours(), allCostSources(), listLegs()]);
+  const byTour = legsByTour(allLegs);
+  const legs = byTour.get(tour.id) ?? [];
+  const routeOf = (id: string) => legsRoute(byTour.get(id) ?? []);
+  const clientIds = [...new Set(legs.map((l) => l.clientId).filter((x): x is string => !!x))];
+  const km = tour.distanceKm ?? (legs.some((l) => l.distanceKm) ? legs.reduce((s, l) => s + (l.distanceKm ?? 0), 0) : null);
   const sr = locale === "sr";
   const costs = tourCosts(tour, src);
   // a category is shown to members who may see that part of the app; profit needs them all
   const visible = COST_KEYS.filter((k) => showProfit || allow(CAT[k].module));
   const total = (k: CostKey) => costs[k].reduce((s, r) => s + m.conv(r.amount, r.currency), 0);
   const costSum = COST_KEYS.reduce((s, k) => s + total(k), 0);
-  const priceConv = tour.price === null ? null : m.conv(tour.price, tour.currency);
+  const priceConv = tourPrice(legs, m.conv);
   const profit = priceConv === null ? null : priceConv - costSum;
   const days = tourDays(tour);
   const clash = overlapping(tour, all);
@@ -58,11 +65,11 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
     <>
       <PageHeader
         detail
-        title={tourRoute(tour)}
+        title={legs.length ? legsRoute(legs) : sr ? "Nova tura" : "New tour"}
         sub={`${fmtDate(tour.dateFrom, locale)} – ${tour.dateTo ? fmtDate(tour.dateTo, locale) : sr ? "u toku" : "on the road"} · ${days} ${sr ? (days === 1 ? "dan" : "dana") : days === 1 ? "day" : "days"}`}
         actions={
           can(ctx.perms, "tours", "edit") ? (
-            <RecordActions resource="tours" record={{ ...tour, price: showPrice ? tour.price : null, currency: showPrice ? tour.currency : "EUR" }} refs={refs} listHref="/tours" />
+            <RecordActions resource="tours" record={tour} refs={refs} listHref="/tours" />
           ) : undefined
         }
       />
@@ -76,7 +83,7 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
               <span key={o.id}>
                 {i > 0 && ", "}
                 <Link href={`/tours/${o.id}`} className="font-medium underline underline-offset-2">
-                  {tourRoute(o)} ({fmtDate(o.dateFrom, locale)})
+                  {routeOf(o.id)} ({fmtDate(o.dateFrom, locale)})
                 </Link>
               </span>
             ))}
@@ -91,9 +98,11 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
               <Kv label={t("f.vehicle")}>{tour.vehicleId ? link(`/vehicles/${tour.vehicleId}`, names[tour.vehicleId]) : "—"}</Kv>
               <Kv label={t("f.trailer")}>{tour.trailerId ? link(`/trailers/${tour.trailerId}`, names[tour.trailerId]) : "—"}</Kv>
               <Kv label={t("f.driver")}>{tour.driverId ? link(`/employees/${tour.driverId}`, names[tour.driverId]) : "—"}</Kv>
-              <Kv label={t("f.client")}>{tour.clientId ? link(`/tours?client=${tour.clientId}`, names[tour.clientId]) : "—"}</Kv>
-              <Kv label={t("f.distanceKm")}>{tour.distanceKm ? `${fmtNum(tour.distanceKm, locale)} km` : "—"}</Kv>
-              {showPrice && <Kv label={t("f.tourPrice")}>{tour.price !== null ? m.fmt(priceConv!) : "—"}</Kv>}
+              <Kv label={sr ? "Klijenti" : "Clients"}>
+                {clientIds.length ? <span className="flex flex-col items-end gap-0.5">{clientIds.map((c) => <span key={c}>{link(`/tours?client=${c}`, names[c])}</span>)}</span> : "—"}
+              </Kv>
+              <Kv label={sr ? "Pređeno km" : "Distance"}>{km ? `${fmtNum(km, locale)} km` : "—"}</Kv>
+              {showPrice && <Kv label={t("f.tourPrice")}>{priceConv !== null ? m.fmt(priceConv) : "—"}</Kv>}
               {tour.notes && <Kv label={t("f.notes")}>{tour.notes}</Kv>}
             </div>
           </Shell>
@@ -121,9 +130,9 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
                     </Kv>
                   ))}
                   <Kv label={sr ? "Troškovi ukupno" : "Costs in total"}>− {m.fmt(costSum)}</Kv>
-                  {profit !== null && tour.distanceKm ? <Kv label={sr ? "Zarada po km" : "Profit per km"}>{per(profit / tour.distanceKm, "km")}</Kv> : null}
+                  {profit !== null && km ? <Kv label={sr ? "Zarada po km" : "Profit per km"}>{per(profit / km, "km")}</Kv> : null}
                   {profit !== null && <Kv label={sr ? "Zarada po danu" : "Profit per day"}>{per(profit / days, sr ? "dan" : "day")}</Kv>}
-                  {tour.distanceKm ? <Kv label={sr ? "Trošak po km" : "Cost per km"}>{per(costSum / tour.distanceKm, "km")}</Kv> : null}
+                  {km ? <Kv label={sr ? "Trošak po km" : "Cost per km"}>{per(costSum / km, "km")}</Kv> : null}
                 </div>
               </div>
             </Shell>
@@ -140,15 +149,29 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
               </Shell>
             )
           )}
-          {liters > 0 && allow("fuel") && tour.distanceKm ? (
+          {liters > 0 && allow("fuel") && km ? (
             <p className="px-1 text-xs text-ink-3">
-              {sr ? "Gorivo na turi" : "Fuel on this tour"}: {fmtNum(liters, locale)} l · {fmtNum((liters / tour.distanceKm) * 100, locale, 1)} l/100 km
+              {sr ? "Gorivo na turi" : "Fuel on this tour"}: {fmtNum(liters, locale)} l · {fmtNum((liters / km) * 100, locale, 1)} l/100 km
             </p>
           ) : null}
         </div>
 
         <DetailTabs
           tabs={[
+            {
+              key: "legs",
+              label: sr ? "Vožnje" : "Legs",
+              count: legs.length,
+              content: (
+                <LegsTable
+                  tourId={tour.id}
+                  rows={legs.map((l) => ({ id: l.id, fromPlace: l.fromPlace, toPlace: l.toPlace, date: l.date, clientId: l.clientId, distanceKm: l.distanceKm, notes: l.notes, ...(showPrice ? { price: l.price, currency: l.currency } : {}) }))}
+                  refs={refs}
+                  names={names}
+                  showPrice={showPrice}
+                />
+              ),
+            },
             allow("fuel") && { key: "fuel", label: t("x.fuel"), count: costs.fuel.length, content: <FuelTable rows={costs.fuel} refs={refs} names={names} fixed={{ vehicleId: tour.vehicleId ?? "", trailerId: "" }} /> },
             allow("payments") && { key: "payments", label: t("cat.payments"), count: costs.payments.length, content: <PaymentsTable rows={costs.payments} refs={refs} names={names} fixed={tour.driverId ? { employeeId: tour.driverId } : undefined} /> },
             allow("services") && { key: "services", label: t("x.services"), count: costs.services.length, content: <ServicesTable rows={costs.services} refs={refs} names={names} fixed={{ vehicleId: tour.vehicleId ?? "", trailerId: "" }} /> },

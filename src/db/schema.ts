@@ -269,10 +269,11 @@ export const clients = pgTable(
 );
 
 /**
- * A tour (tura): one truck, from one date to another. Its costs are not entered on
- * it: they are the truck's (and its trailer's) fuel, services, parts and other costs,
- * and the driver's payments, dated inside the tour. Price is visible only with the
- * "tourPrice" permission; the profit only with "profit".
+ * A tour (tura) is one round of a truck, e.g. Čačak → Beograd → Kraljevo → Čačak, from
+ * one date to another. What it earns is on its legs (tourLegs: each load with its own
+ * client and price). Its costs are not entered on it: they are the truck's (and its
+ * trailer's) fuel, services, parts and other costs, and the driver's payments, dated
+ * inside the tour. Prices need the "tourPrice" permission; the profit "profit".
  */
 export const tours = pgTable(
   "tours",
@@ -282,11 +283,29 @@ export const tours = pgTable(
     dateFrom: date("date_from").notNull(),
     /** null = still on the road */
     dateTo: date("date_to"),
-    fromPlace: text("from_place"),
-    toPlace: text("to_place"),
     vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
     trailerId: uuid("trailer_id").references(() => trailers.id, { onDelete: "set null" }),
     driverId: uuid("driver_id").references(() => employees.id, { onDelete: "set null" }),
+    /** kilometres of the whole round */
+    distanceKm: integer("distance_km"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("tours_company_idx").on(t.companyId), index("tours_vehicle_idx").on(t.vehicleId), index("tours_date_idx").on(t.dateFrom)],
+);
+
+/** One leg of a tour (vožnja): a load from one place to another, for a client, at a price. */
+export const tourLegs = pgTable(
+  "tour_legs",
+  {
+    id: id(),
+    companyId: companyId(),
+    tourId: uuid("tour_id")
+      .notNull()
+      .references(() => tours.id, { onDelete: "cascade" }),
+    fromPlace: text("from_place"),
+    toPlace: text("to_place"),
+    date: date("date"),
     clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
     price: money("price"),
     currency: text("currency").notNull().default("EUR"),
@@ -294,7 +313,7 @@ export const tours = pgTable(
     notes: text("notes"),
     createdAt: createdAt(),
   },
-  (t) => [index("tours_company_idx").on(t.companyId), index("tours_vehicle_idx").on(t.vehicleId), index("tours_date_idx").on(t.dateFrom)],
+  (t) => [index("tour_legs_company_idx").on(t.companyId), index("tour_legs_tour_idx").on(t.tourId), index("tour_legs_client_idx").on(t.clientId)],
 );
 
 /**

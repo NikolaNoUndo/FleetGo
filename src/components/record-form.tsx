@@ -456,7 +456,9 @@ export function RecordForm({
     start(async () => {
       const res = await saveRecord(resource, record?.id ?? null, values);
       if (res.ok) {
-        router.refresh();
+        const open = RESOURCES[resource].openAfterCreate;
+        if (!record && open) router.push(open + res.id);
+        else router.refresh();
         onDone();
       } else {
         setErrors(res.errors);
