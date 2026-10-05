@@ -1,0 +1,1 @@
+ALTER TABLE "tour_legs" ADD COLUMN "position" integer DEFAULT 0 NOT NULL;

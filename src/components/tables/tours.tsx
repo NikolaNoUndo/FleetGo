@@ -17,6 +17,7 @@ export type TourRowView = {
   dateTo: string | null;
   route: string;
   legs: number;
+  legList: LegRowView[];
   vehicleId: string | null;
   trailerId: string | null;
   driverId: string | null;
@@ -114,7 +115,7 @@ export function ToursTable({
             {crud.canEdit && <AddButton onClick={crud.create} quick={!fixed} />}
           </>
         }
-        actions={crud.canEdit ? (r) => crud.menu(r) : undefined}
+        actions={crud.canEdit ? (r) => crud.menu({ ...r, legs: r.legList }) : undefined}
         initialSort={{ key: "date", dir: "desc" }}
         mIcon={() => (
           <IconTile>

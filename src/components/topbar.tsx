@@ -40,7 +40,7 @@ export function QuickAdd({ refs, triggerClassName, trigger }: { refs: Refs; trig
         trigger={trigger}
         items={items.map(({ r, icon }) => ({ label: t(`q.${r}` as TKey), icon, onSelect: () => setAdding(r) }))}
       />
-      <Modal open={!!adding} onClose={() => setAdding(null)} title={adding ? `${t("c.add")} ${t(RESOURCES[adding].title)}` : ""}>
+      <Modal open={!!adding} wide={adding === "tours"} onClose={() => setAdding(null)} title={adding ? `${t("c.add")} ${t(RESOURCES[adding].title)}` : ""}>
         {adding && <RecordForm key={adding} resource={adding} record={null} refs={refs} onDone={() => setAdding(null)} onCancel={() => setAdding(null)} />}
       </Modal>
     </>

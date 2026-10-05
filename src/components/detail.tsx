@@ -45,7 +45,7 @@ export function RecordActions({ resource, record, refs, listHref }: { resource: 
         <Pencil />
         {t("c.edit")}
       </Button>
-      <Modal open={edit} onClose={() => setEdit(false)} title={`${t("c.edit")} ${noun}`}>
+      <Modal open={edit} wide={resource === "tours"} onClose={() => setEdit(false)} title={`${t("c.edit")} ${noun}`}>
         {edit && <RecordForm resource={resource} record={record} refs={refs} onDone={() => setEdit(false)} onCancel={() => setEdit(false)} />}
       </Modal>
       <Modal open={del} onClose={() => setDel(false)} title={`${t("c.delete")} ${noun}`}>

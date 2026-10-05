@@ -11,7 +11,8 @@ import {
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
-import { saveRecord, deleteRecord } from "@/app/actions";
+import { saveRecord, saveTour, deleteRecord } from "@/app/actions";
+import { LegsEditor, legDrafts, newLeg, type LegDraft } from "./legs-editor";
 import {
   RESOURCES,
   type FieldDef,
@@ -428,6 +429,13 @@ export function RecordForm({
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
+  // a tour is entered together with its legs (Čačak → Beograd, Beograd → Kraljevo, …)
+  const isTour = resource === "tours";
+  const [legs, setLegs] = useState<LegDraft[]>(() => {
+    if (!isTour) return [];
+    const existing = legDrafts(record?.legs);
+    return existing.length ? existing : [newLeg()];
+  });
 
   const set = (name: string, value: string | boolean) =>
     setValues((prev) => {
@@ -454,7 +462,9 @@ export function RecordForm({
     e.preventDefault();
     setMessage(null);
     start(async () => {
-      const res = await saveRecord(resource, record?.id ?? null, values);
+      const res = isTour
+        ? await saveTour(record?.id ?? null, values, legs.map(({ key: _key, ...l }) => l))
+        : await saveRecord(resource, record?.id ?? null, values);
       if (res.ok) {
         const open = RESOURCES[resource].openAfterCreate;
         if (!record && open) router.push(open + res.id);
@@ -773,7 +783,16 @@ export function RecordForm({
   return (
     <form onSubmit={submit} noValidate>
       <div className="grid max-h-[calc(94dvh-128px)] grid-cols-1 gap-4 overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[65vh] sm:grid-cols-2">
-        {fields.map(renderField)}
+        {isTour ? (
+          <>
+            {/* a tour: who and when, then its legs, then the rest */}
+            {fields.filter((f) => f.name !== "distanceKm" && f.name !== "notes").map(renderField)}
+            <LegsEditor legs={legs} onChange={setLegs} refs={refs} errors={errors} canPrice={can("tourPrice", "edit")} />
+            {fields.filter((f) => f.name === "distanceKm" || f.name === "notes").map(renderField)}
+          </>
+        ) : (
+          fields.map(renderField)
+        )}
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-4 py-3">
         {message && <span className="text-sm text-bad">{message}</span>}
@@ -809,6 +828,7 @@ export function useCrud(
     <>
       <Modal
         open={!!editing}
+        wide={resource === "tours"}
         onClose={() => setEditing(null)}
         title={`${editing?.record ? t("c.edit") : t("c.add")} ${titleNoun}`}
       >

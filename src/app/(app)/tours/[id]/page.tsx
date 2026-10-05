@@ -11,7 +11,7 @@ import { legsRoute } from "@/lib/tour-route";
 import { LegsTable } from "@/components/tables/tours";
 import { getPrefs, getT } from "@/lib/prefs";
 import { getRefs } from "@/lib/queries";
-import { allCostSources, COST_KEYS, getTour, legsByTour, listLegs, listTours, overlapping, tourCosts, tourDays, tourPrice, type CostKey } from "@/lib/tours";
+import { allCostSources, COST_KEYS, getTour, legsByTour, legView, listLegs, listTours, overlapping, tourCosts, tourDays, tourPrice, type CostKey } from "@/lib/tours";
 import { getMoney } from "@/lib/money-server";
 import { fmtDate, fmtNum } from "@/lib/format";
 import type { TKey } from "@/lib/i18n";
@@ -69,7 +69,7 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
         sub={`${fmtDate(tour.dateFrom, locale)} – ${tour.dateTo ? fmtDate(tour.dateTo, locale) : sr ? "u toku" : "on the road"} · ${days} ${sr ? (days === 1 ? "dan" : "dana") : days === 1 ? "day" : "days"}`}
         actions={
           can(ctx.perms, "tours", "edit") ? (
-            <RecordActions resource="tours" record={tour} refs={refs} listHref="/tours" />
+            <RecordActions resource="tours" record={{ ...tour, legs: legs.map((l) => legView(l, showPrice)) }} refs={refs} listHref="/tours" />
           ) : undefined
         }
       />

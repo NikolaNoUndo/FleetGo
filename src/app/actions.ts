@@ -314,12 +314,14 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
     if (!out.name && !supplierFields.some((f) => f.value)) return { ok: false, errors: { name: "required" } };
   }
   if (resourceName === "tourLegs" && !id) {
-    // a new leg belongs to the tour it was added on (never moved later)
+    // a new leg belongs to the tour it was added on (never moved later) and comes last
     const tourId = String(raw.tourId ?? "");
     if (!UUID.test(tourId)) return { ok: false, errors: {}, message: "Bad tour" };
     const [tour] = await db.select({ id: schema.tours.id }).from(schema.tours).where(and(eq(schema.tours.id, tourId), eq(schema.tours.companyId, companyId))).limit(1);
     if (!tour) return { ok: false, errors: {}, message: "Bad tour" };
     out.tourId = tour.id;
+    const [last] = await db.select({ p: sql<number>`coalesce(max(${schema.tourLegs.position}), -1)` }).from(schema.tourLegs).where(eq(schema.tourLegs.tourId, tour.id));
+    out.position = Number(last?.p ?? -1) + 1;
   }
   if (resourceName === "tours" && out.dateTo && out.dateFrom && String(out.dateTo) < String(out.dateFrom)) return { ok: false, errors: { dateTo: "date" } };
   for (const sf of supplierFields) out[sf.field] = await resolveSupplier(companyId, sf.value);
@@ -751,4 +753,79 @@ export async function renewDocument(
   }
   revalidatePath("/", "layout");
   return { ok: true, id };
+}
+
+/* ---------- A tour with its legs, saved in one go from the tour form ---------- */
+
+const legIsEmpty = (l: Record<string, unknown>) => ["fromPlace", "toPlace", "date", "clientId", "price", "distanceKm", "notes"].every((k) => String(l[k] ?? "").trim() === "");
+
+/**
+ * Saves a tour and its legs together. Legs come in the order they are shown; empty rows
+ * are skipped; legs left out of an existing tour are removed. Without the "tourPrice"
+ * permission a leg's price is neither read nor changed.
+ */
+export async function saveTour(id: string | null, raw: Record<string, unknown>, legsRaw: Record<string, unknown>[]): Promise<ActionResult> {
+  let ctx;
+  try {
+    ctx = await editContext("tours");
+  } catch {
+    return { ok: false, errors: {}, message: "Nemaš pravo izmene tura." };
+  }
+  const companyId = ctx.company.id;
+  if (id && !UUID.test(id)) return { ok: false, errors: {}, message: "Bad id" };
+  const tour = coerce("tours", raw, ctx.perms);
+  const errors: Record<string, string> = { ...tour.errors };
+  if (tour.out.dateTo && tour.out.dateFrom && String(tour.out.dateTo) < String(tour.out.dateFrom)) errors.dateTo = "date";
+
+  const rows = (Array.isArray(legsRaw) ? legsRaw : []).slice(0, 50).filter((l) => l && typeof l === "object" && !legIsEmpty(l));
+  const legs = rows.map((l, i) => {
+    const c = coerce("tourLegs", l, ctx.perms);
+    for (const [k, v] of Object.entries(c.errors)) errors[`legs.${i}.${k}`] = v;
+    const legId = typeof l.id === "string" && UUID.test(l.id) ? l.id : null;
+    return { ...c, legId, index: i };
+  });
+  if (Object.keys(errors).length) return { ok: false, errors };
+
+  for (const r of tour.refChecks) {
+    const t = TABLES[r.table];
+    const found = await db.select({ id: t.id }).from(t).where(and(eq(t.id, r.id), eq(t.companyId, companyId))).limit(1);
+    if (!found.length) return { ok: false, errors: { [r.field]: "ref" } };
+  }
+  for (const l of legs) for (const cf of l.clientFields) l.out[cf.field] = await resolveClient(companyId, cf.value);
+
+  const T = schema.tours;
+  const L = schema.tourLegs;
+  try {
+    const tourId = await db.transaction(async (tx) => {
+      let tid = id;
+      if (tid) {
+        const res = await tx.update(T).set(tour.out as never).where(and(eq(T.id, tid), eq(T.companyId, companyId))).returning({ id: T.id });
+        if (!res.length) throw new Error("not found");
+      } else {
+        const [row] = await tx.insert(T).values({ ...(tour.out as object), companyId } as never).returning({ id: T.id });
+        tid = row.id;
+      }
+      const existing = id ? await tx.select({ id: L.id }).from(L).where(and(eq(L.tourId, tid!), eq(L.companyId, companyId))) : [];
+      const keep = new Set(existing.map((e) => e.id));
+      const kept = new Set<string>();
+      for (const l of legs) {
+        const values = { ...l.out, position: l.index };
+        if (l.legId && keep.has(l.legId)) {
+          await tx.update(L).set(values as never).where(and(eq(L.id, l.legId), eq(L.companyId, companyId)));
+          kept.add(l.legId);
+        } else {
+          await tx.insert(L).values({ ...values, companyId, tourId: tid! } as never);
+        }
+      }
+      const gone = existing.filter((e) => !kept.has(e.id)).map((e) => e.id);
+      if (gone.length) await tx.delete(L).where(and(eq(L.companyId, companyId), inArray(L.id, gone)));
+      return tid!;
+    });
+    revalidatePath("/", "layout");
+    return { ok: true, id: tourId };
+  } catch (e) {
+    if ((e as Error).message === "not found") return { ok: false, errors: {}, message: "Not found" };
+    console.error("saveTour failed", e);
+    return { ok: false, errors: {}, message: "Database error" };
+  }
 }

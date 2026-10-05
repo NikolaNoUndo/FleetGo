@@ -205,7 +205,6 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[]; /
   },
   tours: {
     title: "r.tours",
-    openAfterCreate: "/tours/",
     fields: [
       { name: "dateFrom", label: "f.dateFrom", type: "date", required: true },
       {

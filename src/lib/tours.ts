@@ -21,13 +21,13 @@ export const listClients = cache(async () => {
 export const listLegs = cache(async () => {
   const { id } = await getCompany();
   const L = schema.tourLegs;
-  return db.select().from(L).where(eq(L.companyId, id)).orderBy(asc(L.date), asc(L.createdAt));
+  return db.select().from(L).where(eq(L.companyId, id)).orderBy(asc(L.position), asc(L.createdAt));
 });
 
 export type Tour = Awaited<ReturnType<typeof listTours>>[number];
 export type Leg = Awaited<ReturnType<typeof listLegs>>[number];
 
-/** legs grouped by tour, in driving order (by date, then as entered) */
+/** legs grouped by tour, in the order they were entered */
 export function legsByTour(legs: Leg[]) {
   const m = new Map<string, Leg[]>();
   for (const l of legs) m.set(l.tourId, [...(m.get(l.tourId) ?? []), l]);
@@ -77,6 +77,20 @@ export function overlapping(t: Tour, all: Tour[]) {
   return all.filter((o) => o.id !== t.id && o.vehicleId === t.vehicleId && tourWindow(o).from <= w.to && tourWindow(o).to >= w.from);
 }
 
+export type LegView = { id: string; fromPlace: string | null; toPlace: string | null; date: string | null; clientId: string | null; distanceKm: number | null; notes: string | null; price?: number | null; currency?: string };
+
+/** a leg as a member may see it: no price without "tourPrice" */
+export const legView = (l: Leg, showPrice: boolean): LegView => ({
+  id: l.id,
+  fromPlace: l.fromPlace,
+  toPlace: l.toPlace,
+  date: l.date,
+  clientId: l.clientId,
+  distanceKm: l.distanceKm,
+  notes: l.notes,
+  ...(showPrice ? { price: l.price, currency: l.currency } : {}),
+});
+
 export type TourRow = {
   id: string;
   dateFrom: string;
@@ -91,6 +105,8 @@ export type TourRow = {
   distanceKm: number | null;
   notes: string | null;
   days: number;
+  /** the legs, for editing; prices only with "tourPrice" */
+  legList: LegView[];
   /** sum of the legs' prices in the viewer's display currency; only with "tourPrice" */
   price?: number | null;
   /** only with "profit", in the viewer's display currency */
@@ -127,6 +143,7 @@ export async function toursFor(perms: Perms, conv: (amount: number | null | unde
       dateTo: t.dateTo,
       route: legsRoute(own),
       legs: own.length,
+      legList: own.map((l) => legView(l, showPrice)),
       vehicleId: t.vehicleId,
       trailerId: t.trailerId,
       driverId: t.driverId,

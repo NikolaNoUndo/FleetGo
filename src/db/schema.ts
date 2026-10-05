@@ -303,6 +303,8 @@ export const tourLegs = pgTable(
     tourId: uuid("tour_id")
       .notNull()
       .references(() => tours.id, { onDelete: "cascade" }),
+    /** order inside the tour, as entered */
+    position: integer("position").notNull().default(0),
     fromPlace: text("from_place"),
     toPlace: text("to_place"),
     date: date("date"),
