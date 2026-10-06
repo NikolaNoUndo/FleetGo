@@ -372,9 +372,9 @@ export function InfoTip({ children, className }: { children: ReactNode; classNam
 }
 
 /* ---------- Expiry status chip ---------- */
-export function ExpiryBadge({ date, compact }: { date: string | null | undefined; compact?: boolean }) {
+export function ExpiryBadge({ date, compact, docType }: { date: string | null | undefined; compact?: boolean; docType?: string }) {
   const { t, warnDays } = usePrefs();
-  const state = expiryState(date, warnDays);
+  const state = expiryState(date, warnDays, docType);
   const n = daysUntil(date);
   const rel = n === null ? "" : n === 0 ? t("e.today") : n > 0 ? t("e.daysLeft", { n }) : t("e.daysAgo", { n: -n });
   if (state === "missing")

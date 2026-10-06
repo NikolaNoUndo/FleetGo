@@ -15,7 +15,7 @@ import { can, ROUTE_MODULE, type ModuleKey } from "@/lib/auth/permissions";
 import { consumptionByVehicle, documentsWithOwner, listEmployees, listExpenses, listFuel, listParts, listPayments, listServices, listTrailers, listVehicles } from "@/lib/queries";
 import { expenseMonthRows } from "@/lib/expenses";
 import { getMoney, inMonth, monthBounds, pctDelta } from "@/lib/money-server";
-import { DOC_TYPES, ENTITY_TYPES, type EntityType, optLabel } from "@/lib/catalog";
+import { DOC_TYPES, ENTITY_TYPES, type EntityType, optLabel, warnFor } from "@/lib/catalog";
 import { daysUntil, expiryState, fmtDate, fmtNum } from "@/lib/format";
 import { getPositions } from "@/lib/telematics";
 import { GROUPS, TOP, BOTTOM } from "@/lib/nav";
@@ -68,13 +68,13 @@ export default async function OverviewPage() {
   const litresDelta = pctDelta(litres(0), litres(-1));
   const lastMonthName = new Intl.DateTimeFormat(locale === "sr" ? "sr-Latn" : "en-GB", { month: "long" }).format(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1));
 
-  const states = docs.map((d) => expiryState(d.expiresAt, m.warnDays));
+  const states = docs.map((d) => expiryState(d.expiresAt, m.warnDays, d.docType));
   const nExpired = states.filter((s) => s === "expired").length;
   const nSoon = states.filter((s) => s === "soon").length;
   const nOk = states.filter((s) => s === "ok").length;
   const upcoming = docs.filter((d) => {
     const n = daysUntil(d.expiresAt);
-    return n !== null && n <= m.warnDays;
+    return n !== null && n <= warnFor(d.docType, m.warnDays);
   });
 
   // fleet status from live positions + asset status
@@ -221,7 +221,7 @@ export default async function OverviewPage() {
                           <tr key={d.id} className="border-b border-line/60 last:border-0 hover:bg-surface-2">
                             <td className="h-11 pl-5">
                               <Link href={docHref(d)} className="flex items-center gap-2.5 font-medium whitespace-nowrap text-ink">
-                                <Dot tone={expiryState(d.expiresAt, m.warnDays) === "expired" ? "bad" : "warn"} />
+                                <Dot tone={expiryState(d.expiresAt, m.warnDays, d.docType) === "expired" ? "bad" : "warn"} />
                                 {optLabel(DOC_TYPES[d.entityType as EntityType] ?? [], d.docType, locale)}
                               </Link>
                             </td>
@@ -230,7 +230,7 @@ export default async function OverviewPage() {
                             </td>
                             <td className="hidden px-3 whitespace-nowrap text-ink-2 tnum sm:table-cell">{fmtDate(d.expiresAt, locale)}</td>
                             <td className="pr-5 text-right">
-                              <ExpiryBadge date={d.expiresAt} compact />
+                              <ExpiryBadge date={d.expiresAt} docType={d.docType} compact />
                             </td>
                           </tr>
                         ))}

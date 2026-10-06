@@ -1,6 +1,8 @@
 "use client";
 
-import { RefreshCw, Truck, Container, User, Wrench, Package, Fuel, Wallet } from "lucide-react";
+import { CheckCircle2, RefreshCw, Truck, Container, User, Wrench, Package, Fuel, Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { renewDocument } from "@/app/actions";
 import Link from "@/components/ui/link";
 import { useState } from "react";
 import { DataTable, IconTile, type Column } from "../data-table";
@@ -10,8 +12,8 @@ import { ExpiryBadge, Select } from "../ui/client";
 import { Badge } from "../ui/primitives";
 import { RenewDialog } from "../renew-dialog";
 import { AddButton, Amount, PaidBadge, PeriodSelect, Stack, TotalRow, usePeriod } from "./common";
-import { COUNTRIES, DOC_TYPES, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
-import { expiryState } from "@/lib/format";
+import { COUNTRIES, DOC_TYPES, DOC_VALIDITY_DAYS, REMINDER_DOC_TYPES, addDaysISO, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
+import { expiryState, todayISO } from "@/lib/format";
 import type { Refs } from "@/lib/resources";
 
 type Common = { refs: Refs; names: Record<string, string>; fixed?: Record<string, string>; hide?: string[]; flush?: boolean };
@@ -52,6 +54,13 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
   // "Obnovi" opens its own dialog: how long, from when, new number and price
   const [renewing, setRenewing] = useState<DocRow | null>(null);
   const renew = (r: DocRow) => setRenewing(r);
+  // a data download (card monthly, tachograph every 3 months): done today, the next one is due after the period
+  const router = useRouter();
+  const markDone = async (r: DocRow) => {
+    const today = todayISO();
+    await renewDocument(r.id, { issuedAt: today, expiresAt: addDaysISO(today, DOC_VALIDITY_DAYS[r.docType] ?? 30), number: "", amount: "", currency: r.currency, addExpense: false, label: "" });
+    router.refresh();
+  };
 
   const cols: Column<DocRow>[] = [
     {
@@ -76,7 +85,7 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
     },
     { key: "issued", m: "hide", header: t("f.issuedAt"), sortValue: (r) => r.issuedAt, hide: "lg", render: (r) => <span className="text-ink-2 tnum">{date(r.issuedAt)}</span> },
     { key: "expires", m: "sub", header: t("f.expiresAt"), sortValue: (r) => r.expiresAt, render: (r) => <span className="font-medium tnum">{date(r.expiresAt)}</span> },
-    { key: "state", m: "end", header: t("f.status"), sortValue: (r) => r.expiresAt, render: (r) => <ExpiryBadge date={r.expiresAt} compact /> },
+    { key: "state", m: "end", header: t("f.status"), sortValue: (r) => r.expiresAt, render: (r) => <ExpiryBadge date={r.expiresAt} docType={r.docType} compact /> },
     { key: "amount", m: "end2", header: t("f.amount"), align: "right", hide: "md", sortValue: (r) => r.amount, render: (r) => (r.amount ? <Amount amount={r.amount} currency={r.currency} /> : <span className="text-ink-4">—</span>) },
   ];
 
@@ -90,12 +99,12 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
         searchText={(r) => [opt(DOC_TYPES[r.entityType as EntityType] ?? [], r.docType), r.ownerName, r.number].join(" ")}
         filters={[
           ...(initialFilter === "attention"
-            ? [{ value: "attention", label: locale === "sr" ? "Zahteva pažnju" : "Needs attention", predicate: (r: DocRow) => ["expired", "soon"].includes(expiryState(r.expiresAt, warnDays)) }]
+            ? [{ value: "attention", label: locale === "sr" ? "Zahteva pažnju" : "Needs attention", predicate: (r: DocRow) => ["expired", "soon"].includes(expiryState(r.expiresAt, warnDays, r.docType)) }]
             : []),
           { value: "all", label: t("c.all"), predicate: () => true },
-          { value: "expired", label: t("e.expired"), predicate: (r) => expiryState(r.expiresAt, warnDays) === "expired" },
-          { value: "soon", label: t("e.soon"), predicate: (r) => expiryState(r.expiresAt, warnDays) === "soon" },
-          { value: "ok", label: t("e.ok"), predicate: (r) => expiryState(r.expiresAt, warnDays) === "ok" },
+          { value: "expired", label: t("e.expired"), predicate: (r) => expiryState(r.expiresAt, warnDays, r.docType) === "expired" },
+          { value: "soon", label: t("e.soon"), predicate: (r) => expiryState(r.expiresAt, warnDays, r.docType) === "soon" },
+          { value: "ok", label: t("e.ok"), predicate: (r) => expiryState(r.expiresAt, warnDays, r.docType) === "ok" },
         ]}
         toolbar={
           <>
@@ -114,7 +123,16 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
             {crud.canEdit && <AddButton onClick={crud.create} quick={!fixed} />}
           </>
         }
-        actions={crud.canEdit ? (r) => crud.menu(r, [{ label: t("c.renew"), icon: <RefreshCw />, onSelect: () => renew(r) }]) : undefined}
+        actions={
+          crud.canEdit
+            ? (r) =>
+                crud.menu(r, [
+                  REMINDER_DOC_TYPES.has(r.docType)
+                    ? { label: locale === "sr" ? "Očitano danas" : "Downloaded today", icon: <CheckCircle2 />, onSelect: () => markDone(r) }
+                    : { label: t("c.renew"), icon: <RefreshCw />, onSelect: () => renew(r) },
+                ])
+            : undefined
+        }
         initialSort={{ key: "expires", dir: "asc" }}
         mIcon={(r) => {
           const I = Icon[r.entityType as EntityType] ?? Truck;

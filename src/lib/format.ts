@@ -1,4 +1,4 @@
-import type { Currency, Locale } from "./catalog";
+import { warnFor, type Currency, type Locale } from "./catalog";
 
 export type Money = { amount: number | null; currency: string | null };
 
@@ -56,11 +56,12 @@ export function daysUntil(dateISO: string | null | undefined): number | null {
 }
 
 export type ExpiryState = "expired" | "soon" | "ok" | "missing";
-export function expiryState(dateISO: string | null | undefined, warnDays: number): ExpiryState {
+/** `docType` lets repeating reminders (monthly card download) use their own, shorter warning. */
+export function expiryState(dateISO: string | null | undefined, warnDays: number, docType?: string | null): ExpiryState {
   const n = daysUntil(dateISO);
   if (n === null) return "missing";
   if (n < 0) return "expired";
-  if (n <= warnDays) return "soon";
+  if (n <= warnFor(docType, warnDays)) return "soon";
   return "ok";
 }
 

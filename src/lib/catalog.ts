@@ -123,6 +123,7 @@ export const DOC_TYPES: Record<EntityType, Option[]> = {
     o("tir", "TIR sertifikat (odobrenje vozila)", "TIR approval certificate"),
     o("fire_extinguisher", "PP aparat", "Fire extinguisher"),
     o("first_aid", "Prva pomoć (kutija)", "First aid kit"),
+    o("tacho_download", "Očitavanje tahografa (na 3 meseca)", "Tachograph download (every 3 months)"),
   ],
   trailer: [
     o("registration", "Registracija", "Registration"),
@@ -145,6 +146,7 @@ export const DOC_TYPES: Record<EntityType, Option[]> = {
     o("adr_card", "ADR kartica vozača", "ADR driver card"),
     o("passport", "Pasoš", "Passport"),
     o("work_permit", "Radna dozvola", "Work permit"),
+    o("card_download", "Očitavanje kartice vozača (mesečno)", "Driver card download (monthly)"),
   ],
 };
 
@@ -231,7 +233,21 @@ export const DOC_VALIDITY_DAYS: Record<string, number> = {
   adr_card: 1825,
   passport: 3650,
   work_permit: 365,
+  // legal maximum between downloads: driver card 28 days, vehicle unit 90 days
+  card_download: 28,
+  tacho_download: 90,
 };
+
+/**
+ * Reminders that repeat (data downloads), not documents that expire. They are marked
+ * done with "Očitano" (next one = today + period) and warn a few days ahead instead of
+ * the company's usual window, which would keep a monthly one always "soon".
+ */
+export const REMINDER_DOC_TYPES = new Set(["card_download", "tacho_download"]);
+const DOC_WARN_DAYS: Record<string, number> = { card_download: 5, tacho_download: 14 };
+
+/** How many days before the date a document of this kind turns "soon". */
+export const warnFor = (docType: string | null | undefined, warnDays: number) => (docType && DOC_WARN_DAYS[docType] ? Math.min(warnDays, DOC_WARN_DAYS[docType]) : warnDays);
 
 export function addDaysISO(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map(Number);

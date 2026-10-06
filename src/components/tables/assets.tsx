@@ -56,7 +56,7 @@ function NextDocCard({ doc, kind }: { doc: NextDoc; kind: "vehicle" | "trailer" 
   if (!doc) return <span className="text-ink-4">—</span>;
   return (
     <span className="flex flex-col items-end gap-1">
-      <ExpiryBadge date={doc.expiresAt} compact />
+      <ExpiryBadge date={doc.expiresAt} docType={doc.docType} compact />
       <span className="max-w-[128px] truncate text-xs text-ink-3">{opt(DOC_TYPES[kind], doc.docType)}</span>
     </span>
   );
@@ -67,7 +67,7 @@ function NextDocCell({ doc, kind }: { doc: NextDoc; kind: "vehicle" | "trailer" 
   if (!doc) return <span className="text-ink-4">—</span>;
   return (
     <div className="flex items-center gap-2">
-      <ExpiryBadge date={doc.expiresAt} compact />
+      <ExpiryBadge date={doc.expiresAt} docType={doc.docType} compact />
       <span className="text-xs text-ink-3">{opt(DOC_TYPES[kind], doc.docType)}</span>
     </div>
   );

@@ -1,6 +1,7 @@
 import {
   ASSET_STATUS,
   DOC_TYPES,
+  REMINDER_DOC_TYPES,
   EMPLOYEE_ROLES,
   EMPLOYEE_STATUS,
   EURO_NORMS,
@@ -114,8 +115,9 @@ const DOC_ALIASES: Record<string, string[]> = {
   work_permit: ["radna dozvola do"],
 };
 
+// repeating reminders (data downloads) are not expiry dates people keep in Excel
 const docCols = (entity: EntityType): DocCol[] =>
-  DOC_TYPES[entity].map((d) => ({
+  DOC_TYPES[entity].filter((d) => !REMINDER_DOC_TYPES.has(d.value)).map((d) => ({
     key: `doc:${d.value}`,
     docType: d.value,
     label: { sr: `${d.label.sr} ističe`, en: `${d.label.en} expires` },

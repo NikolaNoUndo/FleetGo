@@ -1,8 +1,8 @@
 import { expiryState } from "@/lib/format";
 
 /** "125 used / 500 available"-style meter for how many documents are currently valid. */
-export function DocsMeter({ docs, warnDays, locale }: { docs: { expiresAt: string | null }[]; warnDays: number; locale: "sr" | "en" }) {
-  const states = docs.map((d) => expiryState(d.expiresAt, warnDays));
+export function DocsMeter({ docs, warnDays, locale }: { docs: { expiresAt: string | null; docType?: string }[]; warnDays: number; locale: "sr" | "en" }) {
+  const states = docs.map((d) => expiryState(d.expiresAt, warnDays, d.docType));
   const ok = states.filter((s) => s === "ok").length;
   const soon = states.filter((s) => s === "soon").length;
   const expired = states.filter((s) => s === "expired").length;

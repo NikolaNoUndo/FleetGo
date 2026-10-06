@@ -829,3 +829,35 @@ export async function saveTour(id: string | null, raw: Record<string, unknown>, 
     return { ok: false, errors: {}, message: "Database error" };
   }
 }
+
+/* ---------- Data-download reminders for the whole fleet at once ---------- */
+
+/**
+ * Adds the missing download reminders: driver card for every active driver, tachograph
+ * for every active tractor / rigid truck. The first one is due today, so it shows up
+ * until someone downloads the data and marks it "Očitano".
+ */
+export async function addDownloadReminders(): Promise<{ ok: true; added: number } | { ok: false; message: string }> {
+  let ctx;
+  try {
+    ctx = await editContext("documents");
+  } catch {
+    return { ok: false, message: "Nemaš pravo izmene rokova." };
+  }
+  const companyId = ctx.company.id;
+  const D = schema.documents;
+  const [docs, drivers, trucks] = await Promise.all([
+    db.select({ t: D.entityType, id: D.entityId, k: D.docType }).from(D).where(and(eq(D.companyId, companyId), inArray(D.docType, ["card_download", "tacho_download"]))),
+    db.select({ id: schema.employees.id }).from(schema.employees).where(and(eq(schema.employees.companyId, companyId), eq(schema.employees.role, "driver"), sql`${schema.employees.status} <> 'inactive'`)),
+    db.select({ id: schema.vehicles.id }).from(schema.vehicles).where(and(eq(schema.vehicles.companyId, companyId), inArray(schema.vehicles.type, ["tractor", "truck"]), sql`${schema.vehicles.status} <> 'inactive'`)),
+  ]);
+  const has = new Set(docs.map((d) => `${d.t}|${d.id}|${d.k}`));
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = [
+    ...drivers.filter((e) => !has.has(`employee|${e.id}|card_download`)).map((e) => ({ companyId, entityType: "employee", entityId: e.id, docType: "card_download", expiresAt: today })),
+    ...trucks.filter((v) => !has.has(`vehicle|${v.id}|tacho_download`)).map((v) => ({ companyId, entityType: "vehicle", entityId: v.id, docType: "tacho_download", expiresAt: today })),
+  ];
+  if (rows.length) await db.insert(D).values(rows);
+  revalidatePath("/", "layout");
+  return { ok: true, added: rows.length };
+}

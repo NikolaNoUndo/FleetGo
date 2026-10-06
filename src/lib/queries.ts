@@ -7,7 +7,7 @@ import type { Refs } from "./resources";
 import { asPlaceKind, type MapPlace } from "./places";
 import { daysUntil, todayISO } from "./format";
 import { addMonthsDate } from "./expenses";
-import { DOC_TYPES, type EntityType } from "./catalog";
+import { DOC_TYPES, type EntityType, warnFor } from "./catalog";
 
 const S = schema;
 
@@ -192,7 +192,7 @@ export const getAlertCounts = cache(async () => {
     const n = daysUntil(d.expiresAt);
     if (n === null) continue;
     if (n < 0) expired++;
-    else if (n <= company.warnDays) soon++;
+    else if (n <= warnFor(d.docType, company.warnDays)) soon++;
   }
   return { expired, soon };
 });
