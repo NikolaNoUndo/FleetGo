@@ -10,8 +10,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
-import { saveRecord, saveTour, deleteRecord } from "@/app/actions";
+import { CheckCircle2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { saveRecord, saveTour, deleteRecord, setPaid, type PayableResource } from "@/app/actions";
 import { LegsEditor, legDrafts, newLeg, type LegDraft } from "./legs-editor";
 import {
   RESOURCES,
@@ -873,7 +873,22 @@ export function useCrud(
     </>
   );
 
+  // an unpaid service, part or cost can be marked paid right from its menu
+  const payable = resource === "services" || resource === "parts" || resource === "expenses";
   const menu = (row: Row, extra: MenuItem[] = []): MenuItem[] => [
+    ...(canEdit && payable && row.paid === false
+      ? [
+          {
+            label: t("c.markPaid"),
+            icon: <CheckCircle2 />,
+            onSelect: () =>
+              start(async () => {
+                await setPaid(resource as PayableResource, String(row.id), true);
+                router.refresh();
+              }),
+          },
+        ]
+      : []),
     ...extra,
     ...(canEdit
       ? [

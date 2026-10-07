@@ -833,6 +833,26 @@ export async function saveTour(id: string | null, raw: Record<string, unknown>, 
   }
 }
 
+/* ---------- "Označi plaćeno" straight from a row's menu ---------- */
+
+const PAYABLE = ["services", "parts", "expenses"] as const;
+export type PayableResource = (typeof PAYABLE)[number];
+
+/** Marks a service, part or other cost paid (or unpaid) without opening the form. */
+export async function setPaid(resource: PayableResource, id: string, paid: boolean): Promise<{ ok: boolean }> {
+  if (!PAYABLE.includes(resource) || !UUID.test(id)) return { ok: false };
+  let ctx;
+  try {
+    ctx = await editContext(resource);
+  } catch {
+    return { ok: false };
+  }
+  const T = TABLES[resource];
+  const rows = await db.update(T).set({ paid }).where(and(eq(T.id, id), eq(T.companyId, ctx.company.id))).returning({ id: T.id });
+  revalidatePath("/", "layout");
+  return { ok: rows.length > 0 };
+}
+
 /* ---------- Data downloads: tachograph on the truck, card on the driver ---------- */
 
 /**

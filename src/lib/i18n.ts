@@ -83,6 +83,7 @@ const sr = {
   "c.km": "km",
   "c.paid": "Plaćeno",
   "c.unpaid": "Nije plaćeno",
+  "c.markPaid": "Označi plaćeno",
   "c.table": "Tabela",
   "c.chart": "Grafikon",
 
@@ -387,6 +388,7 @@ const en: Dict = {
   "c.km": "km",
   "c.paid": "Paid",
   "c.unpaid": "Unpaid",
+  "c.markPaid": "Mark as paid",
   "c.table": "Table",
   "c.chart": "Chart",
 
