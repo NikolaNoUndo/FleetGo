@@ -12,6 +12,7 @@ import { UserAvatar } from "./user-avatar";
 import { cn } from "./ui/primitives";
 import { Popover, Segmented } from "./ui/client";
 import { BOTTOM, GROUPS, TOP, isActive, type NavItem } from "@/lib/nav";
+import { FeedbackButton, FeedbackDialog } from "./feedback";
 import { ROUTE_MODULE, ROLES } from "@/lib/auth/permissions";
 
 type Company = { id: string; name: string; role?: string };
@@ -42,6 +43,7 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [feedback, setFeedback] = useState(false);
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ tours: true, fleet: true, costs: true });
   const [, start] = useTransition();
@@ -278,6 +280,12 @@ export function Sidebar({
       </nav>
 
       <div className="space-y-1 px-2 pb-3">
+        <FeedbackButton
+          onClick={() => {
+            setMobileOpen(false);
+            setFeedback(true);
+          }}
+        />
         {bottom.map((it) => (
           <Row key={it.href} it={it} />
         ))}
@@ -313,6 +321,7 @@ export function Sidebar({
         ))}
       </nav>
       <div className="flex w-full flex-col gap-1 px-2 pb-3">
+        <FeedbackButton rail onClick={() => setFeedback(true)} />
         {bottom.map((it) => (
           <Row key={it.href} it={it} rail />
         ))}
@@ -338,6 +347,7 @@ export function Sidebar({
       <aside className={cn("sticky top-[var(--bar-h,0px)] z-30 hidden h-[calc(100dvh-var(--bar-h,0px))] shrink-0 bg-side transition-[width] duration-200 lg:block", collapsed ? "w-16" : "w-[256px]")}>
         {collapsed ? rail : full()}
       </aside>
+      <FeedbackDialog open={feedback} onClose={() => setFeedback(false)} />
     </LucideProvider>
   );
 }

@@ -499,3 +499,25 @@ export const expenses = pgTable(
   },
   (t) => [index("expenses_company_idx").on(t.companyId), index("expenses_date_idx").on(t.date), index("expenses_recurring_idx").on(t.companyId, t.recurring)],
 );
+
+/**
+ * What users tell us from inside the app ("Pošalji utisak"). Read only in the admin
+ * panel; company and user names are kept as they were, so the note stays readable
+ * even if the company or user is removed.
+ */
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: id(),
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    companyName: text("company_name"),
+    userEmail: text("user_email"),
+    message: text("message").notNull(),
+    /** the page it was sent from */
+    page: text("page"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("feedback_created_idx").on(t.createdAt), index("feedback_user_idx").on(t.userId)],
+);

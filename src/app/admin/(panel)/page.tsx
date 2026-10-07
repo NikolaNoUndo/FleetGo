@@ -13,7 +13,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
   const sp = await props.searchParams;
   const tab = typeof sp.tab === "string" ? sp.tab : "requests";
 
-  const [requests, companies, members, users, vehicleCounts, log] = await Promise.all([
+  const [requests, companies, members, users, vehicleCounts, log, feedback] = await Promise.all([
     db.select().from(schema.registrationRequests).orderBy(desc(schema.registrationRequests.createdAt)).limit(100),
     db.select().from(schema.companies).orderBy(desc(schema.companies.createdAt)),
     db
@@ -36,6 +36,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
       .where(or(eq(schema.auditLog.actor, "admin"), inArray(schema.auditLog.action, ["request.created", "support.granted", "support.revoked"])))
       .orderBy(desc(schema.auditLog.createdAt))
       .limit(200),
+    db.select().from(schema.feedback).orderBy(desc(schema.feedback.createdAt)).limit(500),
   ]);
 
   const companyName = new Map(companies.map((c) => [c.id, c.name]));
@@ -70,6 +71,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
           .filter((m) => m.userId === u.id)
           .map((m) => ({ companyId: m.companyId, company: companyName.get(m.companyId) ?? "—", role: m.role, support: supportOpen.has(m.companyId) })),
       }))}
+      feedback={feedback.map((f) => ({ id: f.id, company: f.companyName, email: f.userEmail, message: f.message, page: f.page, readAt: f.readAt?.toISOString() ?? null, createdAt: f.createdAt.toISOString() }))}
       log={log.map((l) => ({ id: l.id, actor: l.actor, action: l.action, company: l.companyId ? (companyName.get(l.companyId) ?? null) : null, details: l.details, createdAt: l.createdAt.toISOString() }))}
     />
   );

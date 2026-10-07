@@ -861,3 +861,36 @@ export async function addDownloadReminders(): Promise<{ ok: true; added: number 
   revalidatePath("/", "layout");
   return { ok: true, added: rows.length };
 }
+
+/* ---------- "Pošalji utisak": a note from a user to the Roadline admin ---------- */
+
+/**
+ * Saves a note from a signed-in user. The robot check is a "Nisam robot" box, a field
+ * people never see (bots fill it in), a minimum time on the form and at most 10 notes
+ * an hour per person.
+ */
+export async function sendFeedback(input: { message: string; page: string; human: boolean; website: string; openedAt: number }): Promise<{ ok: true } | { ok: false; message: string }> {
+  const ctx = await getContext();
+  if (!ctx) return { ok: false, message: "Nisi prijavljen." };
+  if (ctx.impersonating) return { ok: false, message: "Podrška ne šalje utiske u ime korisnika." };
+  const message = String(input?.message ?? "").trim().slice(0, 4000);
+  if (message.length < 3) return { ok: false, message: "Napiši šta želiš da nam kažeš." };
+  if (input?.human !== true) return { ok: false, message: "Potvrdi da nisi robot." };
+  const tooFast = !Number.isFinite(input?.openedAt) || Date.now() - Number(input.openedAt) < 2500;
+  if (String(input?.website ?? "") !== "" || tooFast) return { ok: false, message: "Nije poslato. Pokušaj ponovo za par sekundi." };
+  const F = schema.feedback;
+  const [recent] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(F)
+    .where(and(eq(F.userId, ctx.user.id), sql`${F.createdAt} > now() - interval '1 hour'`));
+  if ((recent?.n ?? 0) >= 10) return { ok: false, message: "Poslao si dosta utisaka u poslednjih sat vremena. Pokušaj malo kasnije." };
+  await db.insert(F).values({
+    companyId: ctx.company.id,
+    userId: ctx.user.id,
+    companyName: ctx.company.name,
+    userEmail: ctx.user.email,
+    message,
+    page: String(input?.page ?? "").slice(0, 300) || null,
+  });
+  return { ok: true };
+}

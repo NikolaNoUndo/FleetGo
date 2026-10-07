@@ -181,3 +181,12 @@ export async function stopImpersonation() {
   await audit("admin", "impersonate.stop");
   redirect("/admin");
 }
+
+/** Marks a user's note as read (or back to unread). */
+export async function setFeedbackRead(id: string, read: boolean): Promise<AdminResult> {
+  await guard();
+  if (!UUID.test(id)) return { ok: false, error: "id" };
+  await db.update(schema.feedback).set({ readAt: read ? new Date() : null }).where(eq(schema.feedback.id, id));
+  revalidatePath("/admin");
+  return { ok: true };
+}

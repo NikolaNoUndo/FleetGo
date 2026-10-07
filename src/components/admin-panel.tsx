@@ -12,6 +12,7 @@ import {
   impersonate,
   rejectRequest,
   setCompanyStatus,
+  setFeedbackRead,
   setUserStatus,
   type AdminResult,
 } from "@/app/admin/actions";
@@ -48,6 +49,7 @@ type User = {
   memberships: { companyId: string; company: string; role: string; support: boolean }[];
 };
 type Log = { id: string; actor: string; action: string; company: string | null; details: unknown; createdAt: string };
+export type FeedbackItem = { id: string; company: string | null; email: string | null; message: string; page: string | null; readAt: string | null; createdAt: string };
 
 /** Turns a failed server call into a readable message instead of failing silently. */
 const failMsg = (e: unknown) =>
@@ -87,7 +89,7 @@ function SecretModal({ secret, onClose }: { secret: { kind: "link" | "password";
   );
 }
 
-export function AdminPanel({ tab, activeWeek, requests, companies, users, log }: { tab: string; activeWeek: number; requests: Req[]; companies: Company[]; users: User[]; log: Log[] }) {
+export function AdminPanel({ tab, activeWeek, requests, companies, users, log, feedback }: { tab: string; activeWeek: number; requests: Req[]; companies: Company[]; users: User[]; log: Log[]; feedback: FeedbackItem[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [secret, setSecret] = useState<{ kind: "link" | "password"; value: string; who?: string } | null>(null);
@@ -185,8 +187,40 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log }:
     { key: "details", header: "Detalji", hide: "lg", render: (l) => <span className="block max-w-[320px] truncate font-mono text-xs text-ink-3">{l.details ? JSON.stringify(l.details) : ""}</span> },
   ];
 
+  const unread = feedback.filter((f) => !f.readAt).length;
+  const feedbackCols: Column<FeedbackItem>[] = [
+    { key: "at", header: "Stiglo", sortValue: (f) => f.createdAt, render: (f) => <span className="whitespace-nowrap text-ink-2 tnum">{dt(f.createdAt)}</span> },
+    { key: "who", header: "Od koga", sortValue: (f) => f.company ?? "", render: (f) => <Stack main={f.company ?? "—"} sub={f.email ?? undefined} /> },
+    {
+      key: "msg",
+      header: "Utisak",
+      render: (f) => (
+        <div className="max-w-[560px] py-1">
+          <p className={f.readAt ? "whitespace-pre-wrap text-ink-2" : "font-medium whitespace-pre-wrap text-ink"}>{f.message}</p>
+          {f.page && <span className="mt-0.5 block font-mono text-xs text-ink-4">{f.page}</span>}
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      sortValue: (f) => (f.readAt ? 1 : 0),
+      render: (f) =>
+        f.readAt ? (
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setFeedbackRead(f.id, false))}>
+            Pročitano
+          </Button>
+        ) : (
+          <Button size="sm" disabled={pending} onClick={() => run(() => setFeedbackRead(f.id, true))}>
+            <Check /> Označi pročitano
+          </Button>
+        ),
+    },
+  ];
+
   const tabs = [
     { value: "requests", label: "Zahtevi", count: pendingReqs.length, href: "/admin?tab=requests" },
+    { value: "feedback", label: "Utisci", count: unread, href: "/admin?tab=feedback" },
     { value: "companies", label: "Firme", count: companies.length, href: "/admin?tab=companies" },
     { value: "users", label: "Korisnici", count: users.length, href: "/admin?tab=users" },
     { value: "log", label: "Dnevnik", href: "/admin?tab=log" },
@@ -269,6 +303,19 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log }:
               ? { label: "Blokiraj nalog", icon: <Ban />, danger: true, onSelect: () => run(() => setUserStatus(u.id, "blocked")) }
               : { label: "Aktiviraj nalog", icon: <RotateCcw />, onSelect: () => run(() => setUserStatus(u.id, "active")) },
           ]}
+        />
+      )}
+
+      {tab === "feedback" && (
+        <DataTable
+          rows={feedback}
+          columns={feedbackCols}
+          searchText={(f) => [f.company, f.email, f.message, f.page].join(" ")}
+          filters={[
+            { value: "unread", label: "Nepročitano", predicate: (f) => !f.readAt },
+            { value: "all", label: "Svi", predicate: () => true },
+          ]}
+          initialSort={{ key: "at", dir: "desc" }}
         />
       )}
 
