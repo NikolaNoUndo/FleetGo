@@ -7,7 +7,7 @@ import { useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
 import { ExpiryBadge } from "../ui/client";
 import { AddButton, AssetStatus, EmployeeStatus, Stack } from "./common";
-import { DOC_TYPES, EMPLOYEE_ROLES, TRAILER_TYPES, VEHICLE_TYPES } from "@/lib/catalog";
+import { DOC_TYPES, READING_OPTIONS, EMPLOYEE_ROLES, TRAILER_TYPES, VEHICLE_TYPES } from "@/lib/catalog";
 import type { Refs } from "@/lib/resources";
 
 type NextDoc = { docType: string; expiresAt: string | null } | null;
@@ -57,7 +57,7 @@ function NextDocCard({ doc, kind }: { doc: NextDoc; kind: "vehicle" | "trailer" 
   return (
     <span className="flex flex-col items-end gap-1">
       <ExpiryBadge date={doc.expiresAt} docType={doc.docType} compact />
-      <span className="max-w-[128px] truncate text-xs text-ink-3">{opt(DOC_TYPES[kind], doc.docType)}</span>
+      <span className="max-w-[128px] truncate text-xs text-ink-3">{opt([...DOC_TYPES[kind], ...READING_OPTIONS], doc.docType)}</span>
     </span>
   );
 }
@@ -68,7 +68,7 @@ function NextDocCell({ doc, kind }: { doc: NextDoc; kind: "vehicle" | "trailer" 
   return (
     <div className="flex items-center gap-2">
       <ExpiryBadge date={doc.expiresAt} docType={doc.docType} compact />
-      <span className="text-xs text-ink-3">{opt(DOC_TYPES[kind], doc.docType)}</span>
+      <span className="text-xs text-ink-3">{opt([...DOC_TYPES[kind], ...READING_OPTIONS], doc.docType)}</span>
     </div>
   );
 }

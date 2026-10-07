@@ -11,7 +11,8 @@ import { DocumentsTable, FuelTable, PaymentsTable } from "@/components/tables/re
 import { getPrefs, getT } from "@/lib/prefs";
 import { documentsWithOwner, getEmployee, getRefs, listFuel, listPayments, listVehicles } from "@/lib/queries";
 import { getMoney, inMonth } from "@/lib/money-server";
-import { EMPLOYEE_ROLES, optLabel } from "@/lib/catalog";
+import { EMPLOYEE_ROLES, hasDriverCard, optLabel } from "@/lib/catalog";
+import { ReadingCard } from "@/components/reading-card";
 import { fmtDate } from "@/lib/format";
 
 export async function generateMetadata(props: PageProps<"/employees/[id]">) {
@@ -74,6 +75,7 @@ export default async function EmployeePage(props: PageProps<"/employees/[id]">) 
               </Kv>
             </div>
           </Shell>
+          {hasDriverCard(e) && <ReadingCard kind="card_download" id={e.id} last={e.cardReadAt} canEdit={can(ctx.perms, "employees", "edit")} />}
           {allow("documents") && (
             <Shell icon={<ShieldCheck />} title={t("x.docsStatus")}>
               <DocsMeter docs={docs} warnDays={m.warnDays} locale={locale} />

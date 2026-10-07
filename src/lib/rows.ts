@@ -1,5 +1,6 @@
 import "server-only";
 import { getRefs, listDocuments, listEmployees, listPayments, listTrailers, listVehicleTrailers, listVehicles, fullName, type Doc } from "./queries";
+import { hasDriverCard, hasTachograph, nextReading, type ReadingKind } from "./catalog";
 import type { EmployeeRow, TrailerRow, VehicleRow } from "@/components/tables/assets";
 
 /** Earliest expiry per owner, used for the "next expiry" column. */
@@ -11,6 +12,14 @@ export function nextDocs(docs: Doc[]) {
     if (!cur || (cur.expiresAt ?? "9999") > d.expiresAt) map.set(d.entityId, { docType: d.docType, expiresAt: d.expiresAt });
   }
   return map;
+}
+
+type Next = { docType: string; expiresAt: string | null } | null;
+/** the data download counts as "next" when it is due before any document */
+function withReading(doc: Next | undefined, kind: ReadingKind, last: string | null, applies: boolean): Next {
+  const due = applies ? nextReading(last, kind) : null;
+  if (due && (!doc?.expiresAt || due < doc.expiresAt)) return { docType: kind, expiresAt: due };
+  return doc ?? null;
 }
 
 export async function vehicleRows(): Promise<VehicleRow[]> {
@@ -26,7 +35,7 @@ export async function vehicleRows(): Promise<VehicleRow[]> {
     extraDriverNames: v.extraDriverIds.map((id) => emp.get(id)).filter((x): x is string => !!x),
     trailerIds: links.filter((l) => l.vehicleId === v.id).map((l) => l.trailerId),
     trailerPlates: links.filter((l) => l.vehicleId === v.id).map((l) => plateOf.get(l.trailerId) ?? "").filter(Boolean).sort(),
-    nextDoc: next.get(v.id) ?? null,
+    nextDoc: withReading(next.get(v.id), "tacho_download", v.tachoReadAt, hasTachograph(v)),
   }));
 }
 
@@ -52,6 +61,6 @@ export async function employeeRows(): Promise<EmployeeRow[]> {
     status: e.status, notes: e.notes,
     vehiclePlate: vehicles.find((v) => v.driverId === e.id)?.plate ?? vehicles.find((v) => v.extraDriverIds.includes(e.id))?.plate ?? null,
     paidThisMonth: payments.filter((p) => p.employeeId === e.id && p.date >= monthStart).map((p) => ({ amount: p.amount, currency: p.currency })),
-    nextDoc: next.get(e.id) ?? null,
+    nextDoc: withReading(next.get(e.id), "card_download", e.cardReadAt, hasDriverCard(e)),
   }));
 }

@@ -15,7 +15,7 @@ import { can, ROUTE_MODULE, type ModuleKey } from "@/lib/auth/permissions";
 import { consumptionByVehicle, documentsWithOwner, listEmployees, listExpenses, listFuel, listParts, listPayments, listServices, listTrailers, listVehicles } from "@/lib/queries";
 import { expenseMonthRows } from "@/lib/expenses";
 import { getMoney, inMonth, monthBounds, pctDelta } from "@/lib/money-server";
-import { DOC_TYPES, ENTITY_TYPES, type EntityType, optLabel, warnFor } from "@/lib/catalog";
+import { DOC_TYPES, ENTITY_TYPES, READING_OPTIONS, type EntityType, hasDriverCard, hasTachograph, nextReading, optLabel, warnFor } from "@/lib/catalog";
 import { daysUntil, expiryState, fmtDate, fmtNum } from "@/lib/format";
 import { getPositions } from "@/lib/telematics";
 import { GROUPS, TOP, BOTTOM } from "@/lib/nav";
@@ -72,10 +72,17 @@ export default async function OverviewPage() {
   const nExpired = states.filter((s) => s === "expired").length;
   const nSoon = states.filter((s) => s === "soon").length;
   const nOk = states.filter((s) => s === "ok").length;
-  const upcoming = docs.filter((d) => {
-    const n = daysUntil(d.expiresAt);
-    return n !== null && n <= warnFor(d.docType, m.warnDays);
-  });
+  // data downloads (tachograph on the truck, card on the driver) sit in the same list
+  const readings = [
+    ...vehicles.filter((v) => hasTachograph(v) && v.status !== "inactive").map((v) => ({ id: `r-${v.id}`, entityType: "vehicle", entityId: v.id, docType: "tacho_download", expiresAt: nextReading(v.tachoReadAt, "tacho_download"), ownerName: v.plate })),
+    ...employees.filter((e) => hasDriverCard(e) && e.status !== "inactive").map((e) => ({ id: `r-${e.id}`, entityType: "employee", entityId: e.id, docType: "card_download", expiresAt: nextReading(e.cardReadAt, "card_download"), ownerName: `${e.firstName} ${e.lastName}` })),
+  ];
+  const upcoming = [...docs, ...readings]
+    .filter((d) => {
+      const n = daysUntil(d.expiresAt);
+      return n !== null && n <= warnFor(d.docType, m.warnDays);
+    })
+    .sort((a, b) => (a.expiresAt ?? "").localeCompare(b.expiresAt ?? ""));
 
   // fleet status from live positions + asset status
   const live = A.vehicles ? await getPositions({ token: ctx.company.wialonToken, host: ctx.company.wialonHost }, vehicles.map((v) => ({ id: v.id, plate: v.plate, wialonUnitId: v.wialonUnitId, status: v.status, driverName: null }))) : null;
@@ -222,7 +229,7 @@ export default async function OverviewPage() {
                             <td className="h-11 pl-5">
                               <Link href={docHref(d)} className="flex items-center gap-2.5 font-medium whitespace-nowrap text-ink">
                                 <Dot tone={expiryState(d.expiresAt, m.warnDays, d.docType) === "expired" ? "bad" : "warn"} />
-                                {optLabel(DOC_TYPES[d.entityType as EntityType] ?? [], d.docType, locale)}
+                                {optLabel([...(DOC_TYPES[d.entityType as EntityType] ?? []), ...READING_OPTIONS], d.docType, locale)}
                               </Link>
                             </td>
                             <td className="px-3 whitespace-nowrap text-ink-2">

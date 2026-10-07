@@ -1,7 +1,6 @@
 import {
   ASSET_STATUS,
   DOC_TYPES,
-  REMINDER_DOC_TYPES,
   EMPLOYEE_ROLES,
   EMPLOYEE_STATUS,
   EURO_NORMS,
@@ -115,9 +114,8 @@ const DOC_ALIASES: Record<string, string[]> = {
   work_permit: ["radna dozvola do"],
 };
 
-// repeating reminders (data downloads) are not expiry dates people keep in Excel
 const docCols = (entity: EntityType): DocCol[] =>
-  DOC_TYPES[entity].filter((d) => !REMINDER_DOC_TYPES.has(d.value)).map((d) => ({
+  DOC_TYPES[entity].map((d) => ({
     key: `doc:${d.value}`,
     docType: d.value,
     label: { sr: `${d.label.sr} ističe`, en: `${d.label.en} expires` },
@@ -146,6 +144,7 @@ export const SHEETS: SheetSpec[] = [
       { key: "euroNorm", kind: "option", label: { sr: "Euro norma", en: "Euro norm" }, options: EURO_NORMS, width: 11, aliases: ["euro", "emisija", "euro norm", "euro klasa"], synonyms: { "3": "EURO 3", "4": "EURO 4", "5": "EURO 5", "6": "EURO 6", "euro3": "EURO 3", "euro4": "EURO 4", "euro5": "EURO 5", "euro6": "EURO 6", "euro 6d": "EURO 6", "euro 6c": "EURO 6" } },
       vin,
       { key: "odometerKm", kind: "int", label: { sr: "Kilometraža", en: "Odometer (km)" }, width: 12, range: [0, 5_000_000], aliases: ["km", "stanje km", "odometar", "predjeni km", "predjena kilometraza", "mileage", "odometer", "kilometraza km"] },
+      { key: "tachoReadAt", kind: "date", label: { sr: "Tahograf očitan", en: "Tachograph downloaded" }, width: 14, aliases: ["ocitavanje tahografa", "poslednje ocitavanje tahografa", "tahograf ocitan", "ocitan tahograf", "tachograph download", "last tachograph download"], note: { sr: "Kada je poslednji put očitan; sledeće je za 90 dana", en: "Last download; the next one is due in 90 days" } },
       status(ASSET_STATUS),
       { key: "driver", kind: "text", label: { sr: "Vozač", en: "Driver" }, width: 20, aliases: ["glavni vozac", "vozac ime i prezime", "driver", "vozaci"], note: { sr: "Ime i prezime, kao na listu Vozači", en: "First and last name, as on the Drivers sheet" } },
       { key: "trailers", kind: "text", label: { sr: "Prikolica", en: "Trailer" }, width: 15, aliases: ["prikolice", "poluprikolica", "trailer", "trailers", "registracija prikolice"], note: { sr: "Registracija prikolice; više njih odvoji zarezom", en: "Trailer plate; separate several with commas" } },
@@ -190,6 +189,7 @@ export const SHEETS: SheetSpec[] = [
       { key: "phone", kind: "text", label: { sr: "Telefon", en: "Phone" }, width: 16, aliases: ["mobilni", "tel", "broj telefona", "phone", "mobile", "kontakt"] },
       { key: "email", kind: "text", label: { sr: "Email", en: "Email" }, width: 22, aliases: ["e mail", "mejl", "mail", "email adresa"] },
       { key: "hiredAt", kind: "date", label: { sr: "Zaposlen od", en: "Hired on" }, width: 12, aliases: ["datum zaposlenja", "pocetak rada", "zaposlen", "hired", "hired at", "start date"] },
+      { key: "cardReadAt", kind: "date", label: { sr: "Kartica očitana", en: "Card downloaded" }, width: 14, aliases: ["ocitavanje kartice", "poslednje ocitavanje kartice", "kartica ocitana", "ocitana kartica", "card download", "last card download"], note: { sr: "Kada je poslednji put očitana; sledeće je za 28 dana", en: "Last download; the next one is due in 28 days" } },
       notes,
     ],
     docs: docCols("employee"),

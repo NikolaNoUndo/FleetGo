@@ -63,6 +63,8 @@ export const employees = pgTable(
     phone: text("phone"),
     email: text("email"),
     hiredAt: date("hired_at"),
+    /** last driver-card download (drivers only); the next one is due 28 days later */
+    cardReadAt: date("card_read_at"),
     status: text("status").notNull().default("active"),
     notes: text("notes"),
     createdAt: createdAt(),
@@ -83,6 +85,8 @@ export const vehicles = pgTable(
     vin: text("vin"),
     euroNorm: text("euro_norm"),
     odometerKm: integer("odometer_km"),
+    /** last tachograph (vehicle unit) download; the next one is due 90 days later */
+    tachoReadAt: date("tacho_read_at"),
     status: text("status").notNull().default("active"),
     driverId: uuid("driver_id").references(() => employees.id, { onDelete: "set null" }),
     /** second, third… driver of the same vehicle, in order (the main one is driverId) */

@@ -123,7 +123,6 @@ export const DOC_TYPES: Record<EntityType, Option[]> = {
     o("tir", "TIR sertifikat (odobrenje vozila)", "TIR approval certificate"),
     o("fire_extinguisher", "PP aparat", "Fire extinguisher"),
     o("first_aid", "Prva pomoć (kutija)", "First aid kit"),
-    o("tacho_download", "Očitavanje tahografa (na 3 meseca)", "Tachograph download (every 3 months)"),
   ],
   trailer: [
     o("registration", "Registracija", "Registration"),
@@ -146,7 +145,6 @@ export const DOC_TYPES: Record<EntityType, Option[]> = {
     o("adr_card", "ADR kartica vozača", "ADR driver card"),
     o("passport", "Pasoš", "Passport"),
     o("work_permit", "Radna dozvola", "Work permit"),
-    o("card_download", "Očitavanje kartice vozača (mesečno)", "Driver card download (monthly)"),
   ],
 };
 
@@ -233,21 +231,30 @@ export const DOC_VALIDITY_DAYS: Record<string, number> = {
   adr_card: 1825,
   passport: 3650,
   work_permit: 365,
-  // legal maximum between downloads: driver card 28 days, vehicle unit 90 days
-  card_download: 28,
-  tacho_download: 90,
 };
 
 /**
- * Reminders that repeat (data downloads), not documents that expire. They are marked
- * done with "Očitano" (next one = today + period) and warn a few days ahead instead of
- * the company's usual window, which would keep a monthly one always "soon".
+ * Data downloads that repeat: not documents but a date kept on the truck (tachograph)
+ * and on the driver (card). "Obnovi" sets it to today; the next one is due a period
+ * later (the legal maximum: card 28 days, vehicle unit 90 days). They warn a few days
+ * ahead instead of the company's usual window, which would keep a monthly one always "soon".
  */
-export const REMINDER_DOC_TYPES = new Set(["card_download", "tacho_download"]);
-const DOC_WARN_DAYS: Record<string, number> = { card_download: 5, tacho_download: 14 };
+export const READINGS = {
+  tacho_download: { entity: "vehicle", period: 90, warn: 14, label: { sr: "Očitavanje tahografa", en: "Tachograph download" }, every: { sr: "na 3 meseca", en: "every 3 months" } },
+  card_download: { entity: "employee", period: 28, warn: 5, label: { sr: "Očitavanje kartice", en: "Driver card download" }, every: { sr: "na 28 dana", en: "every 28 days" } },
+} as const;
+export type ReadingKind = keyof typeof READINGS;
+export const READING_OPTIONS: Option[] = (Object.keys(READINGS) as ReadingKind[]).map((k) => o(k, READINGS[k].label.sr, READINGS[k].label.en));
 
-/** How many days before the date a document of this kind turns "soon". */
-export const warnFor = (docType: string | null | undefined, warnDays: number) => (docType && DOC_WARN_DAYS[docType] ? Math.min(warnDays, DOC_WARN_DAYS[docType]) : warnDays);
+/** trucks and tractors carry a tachograph; trailers and vans in this app don't */
+export const hasTachograph = (v: { type: string; status?: string }) => v.type === "tractor" || v.type === "truck";
+export const hasDriverCard = (e: { role: string }) => e.role === "driver";
+
+/** when the next download is due, from the last one */
+export const nextReading = (last: string | null | undefined, kind: ReadingKind) => (last ? addDaysISO(last, READINGS[kind].period) : null);
+
+/** How many days before the date something of this kind turns "soon". */
+export const warnFor = (docType: string | null | undefined, warnDays: number) => (docType && docType in READINGS ? Math.min(warnDays, READINGS[docType as ReadingKind].warn) : warnDays);
 
 export function addDaysISO(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map(Number);

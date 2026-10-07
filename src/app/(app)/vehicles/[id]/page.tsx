@@ -15,7 +15,8 @@ import { ExpensesTable } from "@/components/tables/expenses";
 import { ToursTable } from "@/components/tables/tours";
 import { listTours, toursFor } from "@/lib/tours";
 import { getMoney } from "@/lib/money-server";
-import { EURO_NORMS, VEHICLE_TYPES, optLabel } from "@/lib/catalog";
+import { EURO_NORMS, VEHICLE_TYPES, hasTachograph, optLabel } from "@/lib/catalog";
+import { ReadingCard } from "@/components/reading-card";
 import { fmtNum } from "@/lib/format";
 
 export async function generateMetadata(props: PageProps<"/vehicles/[id]">) {
@@ -106,6 +107,8 @@ export default async function VehiclePage(props: PageProps<"/vehicles/[id]">) {
               <Kv label={t("f.wialonUnitId")}>{v.wialonUnitId ?? "—"}</Kv>
             </div>
           </Shell>
+
+          {hasTachograph(v) && <ReadingCard kind="tacho_download" id={v.id} last={v.tachoReadAt} canEdit={can(ctx.perms, "vehicles", "edit")} />}
 
           {allow("documents") && (
             <Shell icon={<ShieldCheck />} title={t("x.docsStatus")}>

@@ -18,7 +18,7 @@ export type FieldDef = {
   placeholder?: string;
   defaultValue?: string | number | boolean;
   /** only shown (and saved) when another field has this value */
-  showIf?: { field: string; value: string };
+  showIf?: { field: string; value: string | string[] };
   /** shown and saved only for members with edit access to this module (e.g. a tour's price) */
   perm?: ModuleKey;
   /** short help under the field */
@@ -40,6 +40,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[]; /
       { name: "euroNorm", label: "f.euroNorm", type: "select", options: "euroNorms" },
       { name: "vin", label: "f.vin", type: "text", span: 2 },
       { name: "odometerKm", label: "f.odometerKm", type: "int" },
+      { name: "tachoReadAt", label: "f.tachoReadAt", type: "date", showIf: { field: "type", value: ["tractor", "truck"] }, hint: { sr: "Sledeće očitavanje je 90 dana kasnije.", en: "The next download is due 90 days later." } },
       { name: "status", label: "f.status", type: "select", options: "assetStatus", required: true, defaultValue: "active" },
       { name: "driverId", label: "f.mainDriver", type: "drivers", ref: "drivers", span: 2 },
       { name: "trailerIds", label: "f.trailersLinked", type: "links", ref: "trailers", span: 2 },
@@ -72,6 +73,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[]; /
       { name: "phone", label: "f.phone", type: "text", placeholder: "+381 6x xxx xxxx" },
       { name: "email", label: "f.email", type: "text" },
       { name: "hiredAt", label: "f.hiredAt", type: "date" },
+      { name: "cardReadAt", label: "f.cardReadAt", type: "date", showIf: { field: "role", value: "driver" }, hint: { sr: "Sledeće očitavanje je 28 dana kasnije.", en: "The next download is due 28 days later." } },
       { name: "notes", label: "f.notes", type: "textarea", span: 2 },
     ],
   },

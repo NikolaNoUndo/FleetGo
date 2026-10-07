@@ -491,7 +491,7 @@ export function RecordForm({
     );
     const locked = fixed && f.name in fixed;
     if (locked) return null;
-    if (f.showIf && String(values[f.showIf.field] ?? "") !== f.showIf.value)
+    if (f.showIf && ![f.showIf.value].flat().includes(String(values[f.showIf.field] ?? "")))
       return null;
     const val = values[f.name];
 

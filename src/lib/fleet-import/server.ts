@@ -6,6 +6,7 @@ import { can, type Perms } from "@/lib/auth/permissions";
 import type { EntityType, Locale, Option } from "@/lib/catalog";
 import { ORDER, SHEETS, foldHeader, headerIndex, isDocCol, specOf, type Col, type DocCol, type SheetSpec } from "./spec";
 import type { ImportIssue, ImportPreview, ImportResult, ImportSheet, PreviewRow, SheetSummary } from "./types";
+import { todayISO } from "@/lib/format";
 
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_ROWS = 3000;
@@ -247,6 +248,8 @@ function planSheet(read: ReadSheet, ex: Existing, sr: boolean, inFile: { employe
         case "date": {
           const d = parseDate(raw);
           if (!d) issues.push({ level: "warn", text: tr(sr, `${label}: „${text}“ nije datum, preskočeno`, `${label}: "${text}" is not a date, left out`) });
+          // a download date can't be in the future
+          else if (c.key.endsWith("ReadAt") && d > todayISO()) issues.push({ level: "warn", text: tr(sr, `${label}: „${text}“ je u budućnosti, preskočeno`, `${label}: "${text}" is in the future, left out`) });
           else values[c.key] = d;
           break;
         }
@@ -407,9 +410,9 @@ export async function previewImport(buf: ArrayBuffer, companyId: string, perms: 
 /* ───────────────────────── writing ───────────────────────── */
 
 const FIELDS: Record<ImportSheet, string[]> = {
-  vehicles: ["plate", "type", "brand", "model", "year", "euroNorm", "vin", "odometerKm", "status", "wialonUnitId", "notes"],
+  vehicles: ["plate", "type", "brand", "model", "year", "euroNorm", "vin", "odometerKm", "tachoReadAt", "status", "wialonUnitId", "notes"],
   trailers: ["plate", "type", "brand", "year", "vin", "axles", "capacityKg", "status", "notes"],
-  employees: ["firstName", "lastName", "role", "status", "phone", "email", "hiredAt", "notes"],
+  employees: ["firstName", "lastName", "role", "status", "phone", "email", "hiredAt", "cardReadAt", "notes"],
 };
 
 /** Adds new records and fills in existing ones (a blank cell never erases anything). */
@@ -554,7 +557,7 @@ export async function buildTemplate(companyId: string, perms: Perms, locale: Loc
   const optLabel = (c: Col, v: unknown) => c.options?.find((o) => o.value === v)?.label[sr ? "sr" : "en"] ?? (v as string) ?? null;
 
   const existingRows = (s: ImportSheet): { id: string; get: (c: Col) => unknown }[] => {
-    if (s === "employees") return employees.map((e) => ({ id: e.id, get: (c) => (c.key === "hiredAt" ? toDate(e.hiredAt) : (e as Record<string, unknown>)[c.key]) }));
+    if (s === "employees") return employees.map((e) => ({ id: e.id, get: (c) => (c.key === "hiredAt" ? toDate(e.hiredAt) : c.key === "cardReadAt" ? toDate(e.cardReadAt) : (e as Record<string, unknown>)[c.key]) }));
     if (s === "trailers") return trailers.map((t) => ({ id: t.id, get: (c) => (t as Record<string, unknown>)[c.key] }));
     return vehicles.map((v) => ({
       id: v.id,
@@ -569,7 +572,9 @@ export async function buildTemplate(companyId: string, perms: Perms, locale: Loc
                 .map((l) => trlPlate.get(l.trailerId))
                 .filter(Boolean)
                 .join(", ") || null
-            : (v as Record<string, unknown>)[c.key],
+            : c.key === "tachoReadAt"
+              ? toDate(v.tachoReadAt)
+              : (v as Record<string, unknown>)[c.key],
     }));
   };
 

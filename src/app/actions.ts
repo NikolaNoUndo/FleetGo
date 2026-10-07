@@ -10,7 +10,8 @@ import { can, canSuppliers, RESOURCE_MODULE, type Perms } from "@/lib/auth/permi
 import { setSessionCompany } from "@/lib/auth/session";
 import { audit } from "@/lib/auth/audit";
 import { getNbsRate } from "@/lib/fx";
-import { DOC_TYPES, OPTION_SETS, type EntityType } from "@/lib/catalog";
+import { DOC_TYPES, OPTION_SETS, READINGS, type EntityType, type ReadingKind } from "@/lib/catalog";
+import { todayISO } from "@/lib/format";
 import { getPositions, normalizeWialonHost } from "@/lib/telematics";
 import { resolveLocation, validLatLng } from "@/lib/geo";
 import { addMonthsDate, MAX_SPREAD } from "@/lib/expenses";
@@ -324,6 +325,8 @@ export async function saveRecord(resourceName: string, id: string | null, raw: R
     out.position = Number(last?.p ?? -1) + 1;
   }
   if (resourceName === "tours" && out.dateTo && out.dateFrom && String(out.dateTo) < String(out.dateFrom)) return { ok: false, errors: { dateTo: "date" } };
+  // a download can't have happened in the future
+  for (const k of ["tachoReadAt", "cardReadAt"]) if (out[k] && String(out[k]) > todayISO()) return { ok: false, errors: { [k]: "date" } };
   for (const sf of supplierFields) out[sf.field] = await resolveSupplier(companyId, sf.value);
   for (const cf of clientFields) out[cf.field] = await resolveClient(companyId, cf.value);
 
@@ -830,36 +833,33 @@ export async function saveTour(id: string | null, raw: Record<string, unknown>, 
   }
 }
 
-/* ---------- Data-download reminders for the whole fleet at once ---------- */
+/* ---------- Data downloads: tachograph on the truck, card on the driver ---------- */
 
 /**
- * Adds the missing download reminders: driver card for every active driver, tachograph
- * for every active tractor / rigid truck. The first one is due today, so it shows up
- * until someone downloads the data and marks it "Očitano".
+ * "Obnovi": the tachograph of a truck or the card of a driver was downloaded on this
+ * date (today by default); the next one is counted from it. An empty date clears it.
  */
-export async function addDownloadReminders(): Promise<{ ok: true; added: number } | { ok: false; message: string }> {
+export async function markReading(kind: ReadingKind, id: string, date?: string | null): Promise<{ ok: true; date: string | null } | { ok: false; message: string }> {
+  if (!(kind in READINGS)) return { ok: false, message: "Nepoznato očitavanje." };
+  const resource = READINGS[kind].entity === "vehicle" ? "vehicles" : "employees";
   let ctx;
   try {
-    ctx = await editContext("documents");
+    ctx = await editContext(resource);
   } catch {
-    return { ok: false, message: "Nemaš pravo izmene rokova." };
+    return { ok: false, message: "Nemaš pravo izmene." };
   }
+  const today = todayISO();
+  const value = date === undefined ? today : date || null;
+  if (value !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value)))) return { ok: false, message: "Neispravan datum." };
+  if (value !== null && value > today) return { ok: false, message: "Datum ne može biti u budućnosti." };
   const companyId = ctx.company.id;
-  const D = schema.documents;
-  const [docs, drivers, trucks] = await Promise.all([
-    db.select({ t: D.entityType, id: D.entityId, k: D.docType }).from(D).where(and(eq(D.companyId, companyId), inArray(D.docType, ["card_download", "tacho_download"]))),
-    db.select({ id: schema.employees.id }).from(schema.employees).where(and(eq(schema.employees.companyId, companyId), eq(schema.employees.role, "driver"), sql`${schema.employees.status} <> 'inactive'`)),
-    db.select({ id: schema.vehicles.id }).from(schema.vehicles).where(and(eq(schema.vehicles.companyId, companyId), inArray(schema.vehicles.type, ["tractor", "truck"]), sql`${schema.vehicles.status} <> 'inactive'`)),
-  ]);
-  const has = new Set(docs.map((d) => `${d.t}|${d.id}|${d.k}`));
-  const today = new Date().toISOString().slice(0, 10);
-  const rows = [
-    ...drivers.filter((e) => !has.has(`employee|${e.id}|card_download`)).map((e) => ({ companyId, entityType: "employee", entityId: e.id, docType: "card_download", expiresAt: today })),
-    ...trucks.filter((v) => !has.has(`vehicle|${v.id}|tacho_download`)).map((v) => ({ companyId, entityType: "vehicle", entityId: v.id, docType: "tacho_download", expiresAt: today })),
-  ];
-  if (rows.length) await db.insert(D).values(rows);
+  const rows =
+    kind === "tacho_download"
+      ? await db.update(schema.vehicles).set({ tachoReadAt: value }).where(and(eq(schema.vehicles.id, id), eq(schema.vehicles.companyId, companyId))).returning({ id: schema.vehicles.id })
+      : await db.update(schema.employees).set({ cardReadAt: value }).where(and(eq(schema.employees.id, id), eq(schema.employees.companyId, companyId))).returning({ id: schema.employees.id });
+  if (!rows.length) return { ok: false, message: "Nije pronađeno." };
   revalidatePath("/", "layout");
-  return { ok: true, added: rows.length };
+  return { ok: true, date: value };
 }
 
 /* ---------- "Pošalji utisak": a note from a user to the Roadline admin ---------- */

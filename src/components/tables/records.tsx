@@ -1,8 +1,6 @@
 "use client";
 
-import { CheckCircle2, RefreshCw, Truck, Container, User, Wrench, Package, Fuel, Wallet } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { renewDocument } from "@/app/actions";
+import { RefreshCw, Truck, Container, User, Wrench, Package, Fuel, Wallet } from "lucide-react";
 import Link from "@/components/ui/link";
 import { useState } from "react";
 import { DataTable, IconTile, type Column } from "../data-table";
@@ -12,8 +10,8 @@ import { ExpiryBadge, Select } from "../ui/client";
 import { Badge } from "../ui/primitives";
 import { RenewDialog } from "../renew-dialog";
 import { AddButton, Amount, PaidBadge, PeriodSelect, Stack, TotalRow, usePeriod } from "./common";
-import { COUNTRIES, DOC_TYPES, DOC_VALIDITY_DAYS, REMINDER_DOC_TYPES, addDaysISO, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
-import { expiryState, todayISO } from "@/lib/format";
+import { COUNTRIES, DOC_TYPES, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
+import { expiryState } from "@/lib/format";
 import type { Refs } from "@/lib/resources";
 
 type Common = { refs: Refs; names: Record<string, string>; fixed?: Record<string, string>; hide?: string[]; flush?: boolean };
@@ -54,13 +52,6 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
   // "Obnovi" opens its own dialog: how long, from when, new number and price
   const [renewing, setRenewing] = useState<DocRow | null>(null);
   const renew = (r: DocRow) => setRenewing(r);
-  // a data download (card monthly, tachograph every 3 months): done today, the next one is due after the period
-  const router = useRouter();
-  const markDone = async (r: DocRow) => {
-    const today = todayISO();
-    await renewDocument(r.id, { issuedAt: today, expiresAt: addDaysISO(today, DOC_VALIDITY_DAYS[r.docType] ?? 30), number: "", amount: "", currency: r.currency, addExpense: false, label: "" });
-    router.refresh();
-  };
 
   const cols: Column<DocRow>[] = [
     {
@@ -123,16 +114,7 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
             {crud.canEdit && <AddButton onClick={crud.create} quick={!fixed} />}
           </>
         }
-        actions={
-          crud.canEdit
-            ? (r) =>
-                crud.menu(r, [
-                  REMINDER_DOC_TYPES.has(r.docType)
-                    ? { label: locale === "sr" ? "Očitano danas" : "Downloaded today", icon: <CheckCircle2 />, onSelect: () => markDone(r) }
-                    : { label: t("c.renew"), icon: <RefreshCw />, onSelect: () => renew(r) },
-                ])
-            : undefined
-        }
+        actions={crud.canEdit ? (r) => crud.menu(r, [{ label: t("c.renew"), icon: <RefreshCw />, onSelect: () => renew(r) }]) : undefined}
         initialSort={{ key: "expires", dir: "asc" }}
         mIcon={(r) => {
           const I = Icon[r.entityType as EntityType] ?? Truck;
