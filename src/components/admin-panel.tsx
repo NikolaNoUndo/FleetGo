@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Building2, Check, CheckCircle2, Copy, Eye, KeyRound, Link2, Plus, RotateCcw, UserPlus, X } from "lucide-react";
+import { Ban, Building2, Check, CheckCircle2, Copy, Eye, KeyRound, Link2, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
 import {
   addCompanyMember,
   adminPasswordLink,
@@ -17,6 +17,7 @@ import {
   type AdminResult,
 } from "@/app/admin/actions";
 import { DataTable, type Column } from "./data-table";
+import { DeleteFeedbackDialog } from "./admin-feedback";
 import { Badge, Button, Dot, PageHeader, StatusDot } from "./ui/primitives";
 import { FieldShell, Modal, Select, TextInput, UnderlineTabs } from "./ui/client";
 import { Stat, StatRow } from "./stat";
@@ -96,6 +97,7 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
   const [newCompany, setNewCompany] = useState(false);
   const [addMemberTo, setAddMemberTo] = useState<Company | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deletingFeedback, setDeletingFeedback] = useState<string | null>(null);
 
   const run = (fn: () => Promise<AdminResult>, who?: string) =>
     start(async () => {
@@ -196,26 +198,12 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
       header: "Utisak",
       render: (f) => (
         <div className="max-w-[560px] py-1">
-          <p className={f.readAt ? "whitespace-pre-wrap text-ink-2" : "font-medium whitespace-pre-wrap text-ink"}>{f.message}</p>
+          <p className={f.readAt ? "line-clamp-2 text-ink-2" : "line-clamp-2 font-medium text-ink"}>{f.message}</p>
           {f.page && <span className="mt-0.5 block font-mono text-xs text-ink-4">{f.page}</span>}
         </div>
       ),
     },
-    {
-      key: "status",
-      header: "Status",
-      sortValue: (f) => (f.readAt ? 1 : 0),
-      render: (f) =>
-        f.readAt ? (
-          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setFeedbackRead(f.id, false))}>
-            Pročitano
-          </Button>
-        ) : (
-          <Button size="sm" disabled={pending} onClick={() => run(() => setFeedbackRead(f.id, true))}>
-            <Check /> Označi pročitano
-          </Button>
-        ),
-    },
+    { key: "status", header: "Status", sortValue: (f) => (f.readAt ? 1 : 0), render: (f) => (f.readAt ? <StatusDot tone="neutral">Pročitano</StatusDot> : <Badge tone="accent">Novo</Badge>) },
   ];
 
   const tabs = [
@@ -311,6 +299,14 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
           rows={feedback}
           columns={feedbackCols}
           searchText={(f) => [f.company, f.email, f.message, f.page].join(" ")}
+          rowHref={(f) => `/admin/feedback/${f.id}`}
+          actions={(f) => [
+            { label: "Otvori", icon: <Eye />, onSelect: () => router.push(`/admin/feedback/${f.id}`) },
+            f.readAt
+              ? { label: "Označi nepročitano", icon: <RotateCcw />, onSelect: () => run(() => setFeedbackRead(f.id, false)) }
+              : { label: "Označi pročitano", icon: <Check />, onSelect: () => run(() => setFeedbackRead(f.id, true)) },
+            { label: "Obriši", icon: <Trash2 />, danger: true, onSelect: () => setDeletingFeedback(f.id) },
+          ]}
           filters={[
             { value: "unread", label: "Nepročitano", predicate: (f) => !f.readAt },
             { value: "all", label: "Svi", predicate: () => true },
@@ -328,6 +324,14 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
       <NewCompanyModal open={newCompany} onClose={() => setNewCompany(false)} onDone={(link, who) => (link ? setSecret({ kind: "link", value: link, who }) : null)} />
       <AddMemberModal company={addMemberTo} onClose={() => setAddMemberTo(null)} onDone={(link, who) => (link ? setSecret({ kind: "link", value: link, who }) : null)} />
       <SecretModal secret={secret} onClose={() => setSecret(null)} />
+      <DeleteFeedbackDialog
+        id={deletingFeedback}
+        onClose={() => setDeletingFeedback(null)}
+        onDeleted={() => {
+          setDeletingFeedback(null);
+          router.refresh();
+        }}
+      />
     </>
   );
 }

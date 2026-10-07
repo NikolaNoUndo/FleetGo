@@ -190,3 +190,13 @@ export async function setFeedbackRead(id: string, read: boolean): Promise<AdminR
   revalidatePath("/admin");
   return { ok: true };
 }
+
+/** Deletes a user's note for good. */
+export async function deleteFeedback(id: string): Promise<AdminResult> {
+  await guard();
+  if (!UUID.test(id)) return { ok: false, error: "id" };
+  await db.delete(schema.feedback).where(eq(schema.feedback.id, id));
+  await audit("admin", "feedback.deleted", { id });
+  revalidatePath("/admin");
+  return { ok: true };
+}
