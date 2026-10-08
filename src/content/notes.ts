@@ -26,6 +26,7 @@ export const CHANGES: ShippedChange[] = [
   { key: "c-2026-10-07-3", date: "2026-10-07", text: "Admin: utisak se otvara na svojoj strani (ko, firma, strana, ostali utisci, odgovor mejlom) i može da se obriše." },
   { key: "c-2026-10-07-4", date: "2026-10-07", text: "„Označi plaćeno” u meniju na tri tačke za neplaćene servise, delove i ostale troškove." },
   { key: "c-2026-10-08-1", date: "2026-10-08", text: "Admin: Izmene po danima i Ideje za kasnije (ručno ili ih dopisuje Claude)." },
+  { key: "c-2026-10-08-2", date: "2026-10-08", text: "Admin: blokiran korisnik može da se ukloni (nalog i članstvo; podaci firme ostaju), uz upozorenje ako firma ostaje bez vlasnika." },
 ];
 
 export const IDEAS: ShippedIdea[] = [

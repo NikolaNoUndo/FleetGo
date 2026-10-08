@@ -128,6 +128,22 @@ export async function setUserStatus(userId: string, status: "active" | "blocked"
   return { ok: true };
 }
 
+/**
+ * Removes a blocked user for good: their sign-in, memberships and sessions. Company data
+ * stays; their feedback notes stay without the link to them. Only after blocking.
+ */
+export async function deleteUser(userId: string): Promise<AdminResult> {
+  await guard();
+  if (!UUID.test(userId)) return { ok: false, error: "bad" };
+  const [u] = await db.select({ email: schema.users.email, status: schema.users.status }).from(schema.users).where(eq(schema.users.id, userId));
+  if (!u) return { ok: false, error: "Korisnik ne postoji." };
+  if (u.status !== "blocked") return { ok: false, error: "Prvo blokiraj korisnika, pa ga onda ukloni." };
+  await db.delete(schema.users).where(eq(schema.users.id, userId));
+  await audit("admin", "user.deleted", { email: u.email });
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
 export async function adminPasswordLink(userId: string): Promise<AdminResult> {
   await guard();
   if (!UUID.test(userId)) return { ok: false, error: "bad" };

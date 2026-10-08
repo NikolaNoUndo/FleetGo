@@ -9,6 +9,7 @@ import {
   adminTempPassword,
   approveRequest,
   createCompany,
+  deleteUser,
   impersonate,
   rejectRequest,
   setCompanyStatus,
@@ -99,6 +100,7 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
   const [addMemberTo, setAddMemberTo] = useState<Company | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletingFeedback, setDeletingFeedback] = useState<string | null>(null);
+  const [removingUser, setRemovingUser] = useState<User | null>(null);
 
   const run = (fn: () => Promise<AdminResult>, who?: string) =>
     start(async () => {
@@ -293,6 +295,8 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
             u.status === "active"
               ? { label: "Blokiraj nalog", icon: <Ban />, danger: true, onSelect: () => run(() => setUserStatus(u.id, "blocked")) }
               : { label: "Aktiviraj nalog", icon: <RotateCcw />, onSelect: () => run(() => setUserStatus(u.id, "active")) },
+            // removing is only offered once the account is blocked
+            ...(u.status !== "active" ? [{ label: "Ukloni korisnika", icon: <Trash2 />, danger: true, onSelect: () => setRemovingUser(u) }] : []),
           ]}
         />
       )}
@@ -330,6 +334,7 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
       <NewCompanyModal open={newCompany} onClose={() => setNewCompany(false)} onDone={(link, who) => (link ? setSecret({ kind: "link", value: link, who }) : null)} />
       <AddMemberModal company={addMemberTo} onClose={() => setAddMemberTo(null)} onDone={(link, who) => (link ? setSecret({ kind: "link", value: link, who }) : null)} />
       <SecretModal secret={secret} onClose={() => setSecret(null)} />
+      <RemoveUserModal user={removingUser} companies={companies} onClose={() => setRemovingUser(null)} onDone={() => (setRemovingUser(null), router.refresh())} />
       <DeleteFeedbackDialog
         id={deletingFeedback}
         onClose={() => setDeletingFeedback(null)}
@@ -462,3 +467,48 @@ function AddMemberModal({ company, onClose, onDone }: { company: Company | null;
   );
 }
 
+
+/** "Ukloni korisnika": what goes away, and which companies would be left without an owner. */
+function RemoveUserModal({ user, companies, onClose, onDone }: { user: User | null; companies: Company[]; onClose: () => void; onDone: () => void }) {
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const orphaned = user
+    ? companies.filter((c) => c.members.some((m) => m.userId === user.id && m.role === "owner") && !c.members.some((m) => m.userId !== user.id && m.role === "owner"))
+    : [];
+  return (
+    <Modal open={!!user} onClose={onClose} title="Ukloniti korisnika?">
+      {user && (
+        <div className="flex flex-col gap-3 px-4 py-4 text-sm leading-relaxed text-ink-2">
+          <p>
+            <b className="font-semibold text-ink">{user.email}</b> se briše zauvek: nalog, lozinka i članstvo
+            {((t) => (t.endsWith(".") ? t : `${t}.`))(user.memberships.length ? ` u ${user.memberships.map((m) => m.company).join(", ")}` : "")} Podaci firme ostaju.
+          </p>
+          {orphaned.length > 0 && (
+            <p className="rounded-lg border border-warn-line bg-warn-soft px-3 py-2 text-warn-ink">
+              {orphaned.map((c) => c.name).join(", ")} {orphaned.length > 1 ? "ostaju" : "ostaje"} bez vlasnika. Posle možeš da dodaš novog kroz Firme → Dodaj člana / vlasnika.
+            </p>
+          )}
+          {error && <p className="text-bad">{error}</p>}
+        </div>
+      )}
+      <div className="flex justify-end gap-2 border-t border-line bg-surface-2/60 px-4 py-3">
+        <Button onClick={onClose}>Otkaži</Button>
+        <Button
+          variant="danger"
+          disabled={pending}
+          onClick={() =>
+            user &&
+            start(async () => {
+              setError(null);
+              const r = await deleteUser(user.id).catch(() => ({ ok: false as const, error: "Nije uspelo, probaj ponovo." }));
+              if (!r.ok) return setError(r.error);
+              onDone();
+            })
+          }
+        >
+          <Trash2 /> {pending ? "Uklanjam…" : "Ukloni"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
