@@ -525,3 +525,26 @@ export const feedback = pgTable(
   },
   (t) => [index("feedback_created_idx").on(t.createdAt), index("feedback_user_idx").on(t.userId)],
 );
+
+/**
+ * The admin's own notes: what changed on which day ("change") and ideas for later
+ * ("idea"). Typed in the admin panel, or shipped with the code (src/content/notes.ts,
+ * with a key) and copied in once; a removed one with a key stays as a tombstone so it
+ * isn't copied in again.
+ */
+export const adminNotes = pgTable(
+  "admin_notes",
+  {
+    id: id(),
+    kind: text("kind").notNull(), // change | idea
+    date: date("date"),
+    text: text("text").notNull(),
+    source: text("source").notNull().default("manual"), // manual | claude
+    key: text("key"),
+    done: boolean("done").notNull().default(false),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("admin_notes_key_uq").on(t.key), index("admin_notes_kind_idx").on(t.kind, t.date)],
+);

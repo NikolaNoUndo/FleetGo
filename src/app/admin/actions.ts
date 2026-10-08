@@ -200,3 +200,49 @@ export async function deleteFeedback(id: string): Promise<AdminResult> {
   revalidatePath("/admin");
   return { ok: true };
 }
+
+/* ---------- Izmene i ideje (admin's own notes) ---------- */
+
+const NOTE_KINDS = ["change", "idea"] as const;
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+export async function addNote(kind: "change" | "idea", text: string, date?: string): Promise<AdminResult> {
+  await guard();
+  const body = text.trim().slice(0, 4000);
+  if (!NOTE_KINDS.includes(kind) || !body) return { ok: false, error: "Upiši tekst." };
+  if (kind === "change" && (!date || !ISO.test(date))) return { ok: false, error: "Izaberi datum." };
+  await db.insert(schema.adminNotes).values({ kind, text: body, date: kind === "change" ? date : null, source: "manual" });
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function updateNote(id: string, patch: { text?: string; date?: string; done?: boolean }): Promise<AdminResult> {
+  await guard();
+  if (!UUID.test(id)) return { ok: false, error: "id" };
+  const set: Partial<typeof schema.adminNotes.$inferInsert> = { updatedAt: new Date() };
+  if (patch.text !== undefined) {
+    const body = patch.text.trim().slice(0, 4000);
+    if (!body) return { ok: false, error: "Upiši tekst." };
+    set.text = body;
+  }
+  if (patch.date !== undefined) {
+    if (!ISO.test(patch.date)) return { ok: false, error: "Izaberi datum." };
+    set.date = patch.date;
+  }
+  if (patch.done !== undefined) set.done = patch.done;
+  await db.update(schema.adminNotes).set(set).where(eq(schema.adminNotes.id, id));
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+/** Removes a note; one that came with the code stays as a hidden marker so it isn't copied in again. */
+export async function deleteNote(id: string): Promise<AdminResult> {
+  await guard();
+  if (!UUID.test(id)) return { ok: false, error: "id" };
+  const N = schema.adminNotes;
+  const [n] = await db.select({ key: N.key }).from(N).where(eq(N.id, id)).limit(1);
+  if (n?.key) await db.update(N).set({ deletedAt: new Date() }).where(eq(N.id, id));
+  else await db.delete(N).where(eq(N.id, id));
+  revalidatePath("/admin");
+  return { ok: true };
+}

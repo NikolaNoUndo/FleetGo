@@ -18,6 +18,7 @@ import {
 } from "@/app/admin/actions";
 import { DataTable, type Column } from "./data-table";
 import { DeleteFeedbackDialog } from "./admin-feedback";
+import { ChangesTab, IdeasTab, type NoteItem } from "./admin-notes";
 import { Badge, Button, Dot, PageHeader, StatusDot } from "./ui/primitives";
 import { FieldShell, Modal, Select, TextInput, UnderlineTabs } from "./ui/client";
 import { Stat, StatRow } from "./stat";
@@ -90,7 +91,7 @@ function SecretModal({ secret, onClose }: { secret: { kind: "link" | "password";
   );
 }
 
-export function AdminPanel({ tab, activeWeek, requests, companies, users, log, feedback }: { tab: string; activeWeek: number; requests: Req[]; companies: Company[]; users: User[]; log: Log[]; feedback: FeedbackItem[] }) {
+export function AdminPanel({ tab, activeWeek, requests, companies, users, log, feedback, notes }: { tab: string; activeWeek: number; requests: Req[]; companies: Company[]; users: User[]; log: Log[]; feedback: FeedbackItem[]; notes: NoteItem[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [secret, setSecret] = useState<{ kind: "link" | "password"; value: string; who?: string } | null>(null);
@@ -211,6 +212,8 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
     { value: "feedback", label: "Utisci", count: unread, href: "/admin?tab=feedback" },
     { value: "companies", label: "Firme", count: companies.length, href: "/admin?tab=companies" },
     { value: "users", label: "Korisnici", count: users.length, href: "/admin?tab=users" },
+    { value: "changes", label: "Izmene", href: "/admin?tab=changes" },
+    { value: "ideas", label: "Ideje", count: notes.filter((n) => n.kind === "idea" && !n.done).length, href: "/admin?tab=ideas" },
     { value: "log", label: "Dnevnik", href: "/admin?tab=log" },
   ];
 
@@ -314,6 +317,9 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
           initialSort={{ key: "at", dir: "desc" }}
         />
       )}
+
+      {tab === "changes" && <ChangesTab notes={notes} />}
+      {tab === "ideas" && <IdeasTab notes={notes} />}
 
       {tab === "log" && <DataTable rows={log} columns={logCols} searchText={(l) => [l.actor, l.action, l.company, JSON.stringify(l.details)].join(" ")} initialSort={{ key: "at", dir: "desc" }} />}
 
