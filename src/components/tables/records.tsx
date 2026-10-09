@@ -6,11 +6,11 @@ import { useState } from "react";
 import { DataTable, IconTile, type Column } from "../data-table";
 import { useCrud } from "../record-form";
 import { usePrefs } from "../prefs";
-import { ExpiryBadge, Select } from "../ui/client";
+import { ExpiryBadge, MultiSelect, Select } from "../ui/client";
 import { Badge } from "../ui/primitives";
 import { RenewDialog } from "../renew-dialog";
 import { AddButton, Amount, PaidBadge, PeriodSelect, Stack, TotalRow, usePeriod } from "./common";
-import { COUNTRIES, DOC_TYPES, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
+import { ALL_DOC_TYPES, COUNTRIES, DOC_TYPES, ENTITY_TYPES, FUEL_PAYMENT, PAYMENT_KINDS, PAYMENT_METHODS, SERVICE_KINDS, type EntityType } from "@/lib/catalog";
 import { expiryState } from "@/lib/format";
 import type { Refs } from "@/lib/resources";
 
@@ -46,7 +46,18 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
   const { t, opt, date, warnDays, locale } = usePrefs();
   const crud = useCrud("documents", refs, fixed);
   const [entity, setEntity] = useState<"all" | EntityType>("all");
-  const shown = entity === "all" ? rows : rows.filter((r) => r.entityType === entity);
+  const [types, setTypes] = useState<string[]>([]);
+  const byEntity = entity === "all" ? rows : rows.filter((r) => r.entityType === entity);
+  const shown = types.length ? byEntity.filter((r) => types.includes(r.docType)) : byEntity;
+  // the kinds of documents there are (for the picked owner type), with how many of each
+  const typeOptions = (() => {
+    const n = new Map<string, number>();
+    for (const r of byEntity) n.set(r.docType, (n.get(r.docType) ?? 0) + 1);
+    for (const v of types) if (!n.has(v)) n.set(v, 0);
+    return [...n]
+      .map(([value, count]) => ({ value, count, label: opt(ALL_DOC_TYPES, value) }))
+      .sort((a, b) => a.label.localeCompare(b.label, locale));
+  })();
   const Icon = { vehicle: Truck, trailer: Container, employee: User } as const;
 
   // "Obnovi" opens its own dialog: how long, from when, new number and price
@@ -110,6 +121,16 @@ export function DocumentsTable({ rows, refs, fixed, hide, flush, initialFilter }
                   ))}
                 </Select>
               </div>
+            )}
+            {!fixed && (
+              <MultiSelect
+                className="min-w-[40%] flex-1 sm:w-52 sm:min-w-0 sm:flex-none"
+                options={typeOptions}
+                value={types}
+                onChange={setTypes}
+                allLabel={locale === "sr" ? "Sva dokumenta" : "All documents"}
+                clearLabel={locale === "sr" ? "Prikaži sva dokumenta" : "Show all documents"}
+              />
             )}
             {crud.canEdit && <AddButton onClick={crud.create} quick={!fixed} />}
           </>

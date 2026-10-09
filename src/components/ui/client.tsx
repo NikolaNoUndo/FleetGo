@@ -3,7 +3,7 @@
 import Link from "@/components/ui/link";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, CheckCircle2, ChevronsUpDown, CircleDashed, Info, MoreHorizontal, Search, X, XCircle } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, ChevronsUpDown, CircleDashed, Info, MoreHorizontal, Search, X, XCircle } from "lucide-react";
 import { cn, Badge } from "./primitives";
 import { usePrefs } from "@/components/prefs";
 import { daysUntil, expiryState } from "@/lib/format";
@@ -422,6 +422,73 @@ export function Select(props: React.ComponentProps<"select">) {
     <div className="relative">
       <select {...props} className={cn(inputBase, "appearance-none pr-8", props.className)} />
       <ChevronsUpDown className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-ink-3 sm:right-2.5" />
+    </div>
+  );
+}
+
+/* ---------- Multi-select (a list of checkboxes behind a select-looking button) ---------- */
+export function MultiSelect({
+  options,
+  value,
+  onChange,
+  allLabel,
+  clearLabel,
+  className,
+}: {
+  options: { value: string; label: string; count?: number }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  /** shown on the button when nothing is picked */
+  allLabel: string;
+  clearLabel: string;
+  className?: string;
+}) {
+  const picked = options.filter((o) => value.includes(o.value));
+  const text = picked.length === 0 ? allLabel : picked.length === 1 ? picked[0].label : `${picked[0].label} +${picked.length - 1}`;
+  const toggle = (v: string) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
+  return (
+    <div className={className}>
+      <Popover
+        label={allLabel}
+        triggerClassName={cn(inputBase, "relative flex items-center pr-8 text-left sm:h-9", picked.length > 0 && "border-accent/50")}
+        trigger={
+          <>
+            <span className={cn("truncate", picked.length === 0 && "text-ink-2")}>{text}</span>
+            <ChevronsUpDown className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-ink-3 sm:right-2.5" />
+          </>
+        }
+        align="right"
+        panelClassName="w-[min(300px,calc(100vw-32px))]"
+      >
+        {() => (
+          <div className="flex flex-col">
+            <div className="max-h-72 overflow-y-auto">
+              {options.map((o) => {
+                const on = value.includes(o.value);
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={on}
+                    onClick={() => toggle(o.value)}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-surface-2 sm:py-1.5"
+                  >
+                    <span className={cn("grid size-4 shrink-0 place-items-center rounded border", on ? "border-accent bg-accent text-white" : "border-line-strong bg-surface")}>{on && <Check size={12} strokeWidth={3} />}</span>
+                    <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                    {o.count !== undefined && <span className="text-xs text-ink-3 tnum">{o.count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+            {value.length > 0 && (
+              <button type="button" onClick={() => onChange([])} className="mt-1 rounded-lg border-t border-line/70 px-2.5 pt-2 pb-1.5 text-left text-xs font-medium text-ink-2 hover:text-ink">
+                {clearLabel}
+              </button>
+            )}
+          </div>
+        )}
+      </Popover>
     </div>
   );
 }
