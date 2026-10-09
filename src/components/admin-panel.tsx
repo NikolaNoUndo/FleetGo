@@ -1,5 +1,6 @@
 "use client";
 
+import { TollsTab, type NetRow } from "./admin-tolls";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Building2, Check, CheckCircle2, Copy, Eye, KeyRound, Link2, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
@@ -92,7 +93,7 @@ function SecretModal({ secret, onClose }: { secret: { kind: "link" | "password";
   );
 }
 
-export function AdminPanel({ tab, activeWeek, requests, companies, users, log, feedback, notes }: { tab: string; activeWeek: number; requests: Req[]; companies: Company[]; users: User[]; log: Log[]; feedback: FeedbackItem[]; notes: NoteItem[] }) {
+export function AdminPanel({ tab, activeWeek, requests, companies, users, log, feedback, notes, tolls }: { tab: string; activeWeek: number; requests: Req[]; companies: Company[]; users: User[]; log: Log[]; feedback: FeedbackItem[]; notes: NoteItem[]; tolls: NetRow[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [secret, setSecret] = useState<{ kind: "link" | "password"; value: string; who?: string } | null>(null);
@@ -216,6 +217,7 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
     { value: "users", label: "Korisnici", count: users.length, href: "/admin?tab=users" },
     { value: "changes", label: "Izmene", href: "/admin?tab=changes" },
     { value: "ideas", label: "Ideje", count: notes.filter((n) => n.kind === "idea" && !n.done).length, href: "/admin?tab=ideas" },
+    { value: "tolls", label: "Putarina", href: "/admin?tab=tolls" },
     { value: "log", label: "Dnevnik", href: "/admin?tab=log" },
   ];
 
@@ -324,6 +326,7 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
 
       {tab === "changes" && <ChangesTab notes={notes} />}
       {tab === "ideas" && <IdeasTab notes={notes} />}
+      {tab === "tolls" && <TollsTab network={tolls} />}
 
       {tab === "log" && <DataTable rows={log} columns={logCols} searchText={(l) => [l.actor, l.action, l.company, JSON.stringify(l.details)].join(" ")} initialSort={{ key: "at", dir: "desc" }} />}
 

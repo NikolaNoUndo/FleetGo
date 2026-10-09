@@ -14,6 +14,7 @@ import { DOC_TYPES, OPTION_SETS, READINGS, type EntityType, type ReadingKind } f
 import { todayISO } from "@/lib/format";
 import { getPositions, normalizeWialonHost } from "@/lib/telematics";
 import { resolveLocation, validLatLng } from "@/lib/geo";
+import { calcTourToll } from "@/lib/tolls/server";
 import { addMonthsDate, MAX_SPREAD } from "@/lib/expenses";
 import { asPlaceKind } from "@/lib/places";
 
@@ -148,6 +149,14 @@ function coerce(resource: ResourceKey, raw: Record<string, unknown>, perms?: Per
         if (!DATE.test(s)) errors[f.name] = "date";
         else out[f.name] = s;
         break;
+      case "time": {
+        // "7:30", "07.30" and "0730" are all fine
+        const m = s.replace(/[.,h]/g, ":").match(/^(\d{1,2}):?(\d{2})$/);
+        const h = m ? Number(m[1]) : NaN, mi = m ? Number(m[2]) : NaN;
+        if (!m || h > 23 || mi > 59) errors[f.name] = "time";
+        else out[f.name] = `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+        break;
+      }
       case "month":
         // <input type="month"> gives "2026-11"; stored as the first day of that month
         if (!/^\d{4}-\d{2}$/.test(s.slice(0, 7))) errors[f.name] = "date";
@@ -779,6 +788,7 @@ export async function saveTour(id: string | null, raw: Record<string, unknown>, 
   const tour = coerce("tours", raw, ctx.perms);
   const errors: Record<string, string> = { ...tour.errors };
   if (tour.out.dateTo && tour.out.dateFrom && String(tour.out.dateTo) < String(tour.out.dateFrom)) errors.dateTo = "date";
+  if (tour.out.dateTo && tour.out.dateTo === tour.out.dateFrom && tour.out.timeFrom && tour.out.timeTo && String(tour.out.timeTo) <= String(tour.out.timeFrom)) errors.timeTo = "time";
 
   const rows = (Array.isArray(legsRaw) ? legsRaw : []).slice(0, 50).filter((l) => l && typeof l === "object" && !legIsEmpty(l));
   const legs = rows.map((l, i) => {
@@ -912,5 +922,48 @@ export async function sendFeedback(input: { message: string; page: string; human
     message,
     page: String(input?.page ?? "").slice(0, 300) || null,
   });
+  return { ok: true };
+}
+
+/* ---------- road tolls on a tour ---------- */
+
+/** Works out the tour's tolls from the truck's track (see src/lib/tolls). */
+export async function calcToll(tourId: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!UUID.test(tourId)) return { ok: false, message: "Bad id" };
+  let ctx;
+  try {
+    ctx = await editContext("tours");
+  } catch {
+    return { ok: false, message: "Nemaš pravo izmene tura." };
+  }
+  const res = await calcTourToll(ctx.company.id, tourId);
+  if (!res.ok) return { ok: false, message: res.error };
+  revalidatePath("/tours", "layout");
+  return { ok: true };
+}
+
+/** Tolls typed by hand (from the invoice, or for a truck without tracking); null clears it. */
+export async function setTollManual(tourId: string, amount: string | null, currency: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!UUID.test(tourId)) return { ok: false, message: "Bad id" };
+  let ctx;
+  try {
+    ctx = await editContext("tours");
+  } catch {
+    return { ok: false, message: "Nemaš pravo izmene tura." };
+  }
+  let value: number | null = null;
+  if (amount !== null && amount.trim() !== "") {
+    const n = parseNumber(amount.trim());
+    if (n === null || Number.isNaN(n) || n < 0 || n > 1_000_000) return { ok: false, message: "Neispravan iznos." };
+    value = Math.round(n * 100) / 100;
+  }
+  const cur = currency === "RSD" ? "RSD" : "EUR";
+  const rows = await db
+    .update(schema.tours)
+    .set({ tollManual: value, tollCurrency: cur })
+    .where(and(eq(schema.tours.id, tourId), eq(schema.tours.companyId, ctx.company.id)))
+    .returning({ id: schema.tours.id });
+  if (!rows.length) return { ok: false, message: "Tura ne postoji." };
+  revalidatePath("/tours", "layout");
   return { ok: true };
 }

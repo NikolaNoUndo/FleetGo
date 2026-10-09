@@ -27,6 +27,7 @@ export const CHANGES: ShippedChange[] = [
   { key: "c-2026-10-07-4", date: "2026-10-07", text: "„Označi plaćeno” u meniju na tri tačke za neplaćene servise, delove i ostale troškove." },
   { key: "c-2026-10-08-1", date: "2026-10-08", text: "Admin: Izmene po danima i Ideje za kasnije (ručno ili ih dopisuje Claude)." },
   { key: "c-2026-10-08-2", date: "2026-10-08", text: "Admin: blokiran korisnik može da se ukloni (nalog i članstvo; podaci firme ostaju), uz upozorenje ako firma ostaje bez vlasnika." },
+  { key: "c-2026-10-09-1", date: "2026-10-09", text: "Putarina na turi: računa se iz trase kamiona (km po putevima pod naplatom × cena po km za broj osovina) za Srbiju, Hrvatsku, Sloveniju, Italiju, Francusku, Mađarsku, Austriju i Nemačku, ili se upiše ručno sa računa; ulazi u zaradu ture. Na turi vreme polaska i povratka, na vozilu broj osovina. Admin: tab Putarina (mreža iz OpenStreetMap-a i cene sa izvorima)." },
 ];
 
 export const IDEAS: ShippedIdea[] = [
@@ -36,4 +37,8 @@ export const IDEAS: ShippedIdea[] = [
   { key: "i-fiksni-troskovi", text: "Fiksni troškovi po danu (lizing, osiguranje, plata) u isplativosti ture." },
   { key: "i-demo-osvezi", text: "Osvežiti demo nalog test@gmail.com: u folderu fleetgo pokrenuti „node demo-osvezi.mjs”." },
   { key: "i-sajt-domen", text: "Marketing sajt na roadline.app, aplikacija na my.roadline.app." },
+  { key: "i-putarina-mreza", text: "Putarina: u admin panelu (tab Putarina) učitati mrežu za sve zemlje, pa proveriti par pravih tura sa računima (TAG, ENC, DKV) da li je ±10 %." },
+  { key: "i-putarina-uvoz", text: "Putarina: uvoz mesečnog izveštaja sa TAG/ENC/DKV/UTA da se stvarni iznos poredi sa procenom." },
+  { key: "i-putarina-posebne", text: "Putarina: posebne deonice (Brenner, Tauern, Arlberg, Karavanke…) i magistralni putevi u Mađarskoj i Nemačkoj još nisu uračunati; Slovačka, Češka, Poljska, Bugarska još nisu u mreži." },
+  { key: "i-putarina-cene", text: "Putarina: cene se ažuriraju (Srbija 1. jul, Italija 1. jan, Francuska 1. feb, Hrvatska free-flow od marta 2027) — smisliti kako (sada u src/lib/tolls/countries.ts)." },
 ];

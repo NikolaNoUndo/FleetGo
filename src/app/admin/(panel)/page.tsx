@@ -3,8 +3,11 @@ import { desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AdminPanel } from "@/components/admin-panel";
 import { listNotes } from "@/lib/admin/notes";
+import { networkStatus } from "@/lib/tolls/server";
 
 export const metadata: Metadata = { title: "Admin" };
+/** loading the toll network fetches OpenStreetMap tiles from server actions on this page */
+export const maxDuration = 60;
 
 function daysAgo(n: number) {
   return new Date(Date.now() - n * 86400000);
@@ -40,6 +43,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
     db.select().from(schema.feedback).orderBy(desc(schema.feedback.createdAt)).limit(500),
     listNotes(),
   ]);
+  const tolls = tab === "tolls" ? await networkStatus() : [];
 
   const companyName = new Map(companies.map((c) => [c.id, c.name]));
   const supportOpen = new Set(companies.filter((c) => c.supportAccessUntil && c.supportAccessUntil > new Date()).map((c) => c.id));
@@ -48,6 +52,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
   return (
     <AdminPanel
       tab={tab}
+      tolls={tolls}
       activeWeek={activeWeek}
       requests={requests.map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), handledAt: r.handledAt?.toISOString() ?? null }))}
       companies={companies.map((c) => ({

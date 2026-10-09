@@ -1,5 +1,5 @@
 import "server-only";
-import { DEFAULT_WIALON_HOST, wialonConfigured, wialonFuel, wialonPositions, type FuelLevel } from "./wialon";
+import { DEFAULT_WIALON_HOST, wialonConfigured, wialonFuel, wialonPositions, wialonTrack, type FuelLevel } from "./wialon";
 import type { PositionsResult, TrackedVehicle, WialonConfig } from "./types";
 
 export type { Position, PositionsResult, TrackedVehicle, WialonConfig } from "./types";
@@ -23,4 +23,10 @@ export async function getPositions(cfg: WialonConfig, vehicles: TrackedVehicle[]
 export async function getFuelLevel(cfg: WialonConfig, unitId: string): Promise<FuelLevel> {
   if (!wialonConfigured(cfg)) return null;
   return wialonFuel({ token: cfg.token.trim(), host: cfg.host || DEFAULT_WIALON_HOST }, unitId);
+}
+
+/** The truck's GPS track between two moments (ms); null when tracking is off or the truck isn't found there. */
+export async function getTrack(cfg: WialonConfig, vehicle: { plate: string; wialonUnitId: string | null }, fromMs: number, toMs: number) {
+  if (!wialonConfigured(cfg)) return null;
+  return wialonTrack({ token: cfg.token.trim(), host: cfg.host || DEFAULT_WIALON_HOST }, vehicle, fromMs, toMs);
 }

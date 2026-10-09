@@ -11,6 +11,7 @@ import { createPasswordLink, ensureUser } from "@/lib/auth/users";
 import { isRole, ROLE_PRESETS, type Role } from "@/lib/auth/permissions";
 import { recordAttempt, tooManyAttempts, WINDOW_MIN } from "@/lib/auth/ratelimit";
 import { audit } from "@/lib/auth/audit";
+import { loadTile, resetCountry } from "@/lib/tolls/server";
 
 export type AdminResult = { ok: true; link?: string | null; password?: string; id?: string } | { ok: false; error: string };
 
@@ -261,4 +262,28 @@ export async function deleteNote(id: string): Promise<AdminResult> {
   else await db.delete(N).where(eq(N.id, id));
   revalidatePath("/admin");
   return { ok: true };
+}
+
+/* ---------- tolled road network (OpenStreetMap → toll_cells) ---------- */
+
+export async function tollReset(code: string): Promise<{ ok: true; total: number } | { ok: false; error: string }> {
+  await guard();
+  try {
+    const total = await resetCountry(code);
+    await audit("admin", "tolls.reset", { country: code });
+    return { ok: true, total };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+export async function tollLoadTile(code: string, index: number): Promise<{ ok: true; cells: number; done: number; total: number } | { ok: false; error: string }> {
+  await guard();
+  try {
+    const r = await loadTile(code, index);
+    if (r.done === r.total) await audit("admin", "tolls.loaded", { country: code, cells: r.cells });
+    return { ok: true, cells: r.cells, done: r.done, total: r.total };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message.slice(0, 200) };
+  }
 }

@@ -120,9 +120,19 @@ export function tourPrice(legs: Leg[], conv: (amount: number | null | undefined,
   return priced.length ? priced.reduce((s, l) => s + conv(l.price, l.currency), 0) : null;
 }
 
+/**
+ * A tour's road tolls in the display currency: typed by hand when there is such an
+ * amount (from the invoice), otherwise what was worked out from the truck's track.
+ */
+export function tourToll(t: Pick<Tour, "tollManual" | "tollCurrency" | "tollCalc">, conv: (amount: number | null | undefined, from: string) => number) {
+  if (t.tollManual !== null && t.tollManual !== undefined) return { amount: conv(t.tollManual, t.tollCurrency), source: "manual" as const };
+  if (t.tollCalc) return { amount: conv(t.tollCalc.totalEur, "EUR"), source: "calc" as const };
+  return { amount: 0, source: null };
+}
+
 export function tourCostTotal(t: Tour, src: Awaited<ReturnType<typeof allCostSources>>, conv: (amount: number | null | undefined, from: string) => number) {
   const c = tourCosts(t, src);
-  return COST_KEYS.reduce((s, k) => s + c[k].reduce((x, r) => x + conv(r.amount, r.currency), 0), 0);
+  return COST_KEYS.reduce((s, k) => s + c[k].reduce((x, r) => x + conv(r.amount, r.currency), 0), 0) + tourToll(t, conv).amount;
 }
 
 /**

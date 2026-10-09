@@ -1,6 +1,6 @@
 import Link from "@/components/ui/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, Info, Receipt, TrendingUp } from "lucide-react";
+import { AlertTriangle, Info, Receipt, TrendingUp, Ticket } from "lucide-react";
 import { requireAccess } from "@/lib/auth/context";
 import { can, type ModuleKey } from "@/lib/auth/permissions";
 import { Kv, PageHeader, Shell } from "@/components/ui/primitives";
@@ -11,7 +11,10 @@ import { legsRoute } from "@/lib/tour-route";
 import { LegsTable } from "@/components/tables/tours";
 import { getPrefs, getT } from "@/lib/prefs";
 import { getRefs } from "@/lib/queries";
-import { allCostSources, COST_KEYS, getTour, legsByTour, legView, listLegs, listTours, overlapping, tourCosts, tourDays, tourPrice, type CostKey } from "@/lib/tours";
+import { allCostSources, COST_KEYS, getTour, legsByTour, legView, listLegs, listTours, overlapping, tourCosts, tourDays, tourPrice, tourToll, type CostKey } from "@/lib/tours";
+import { TollCard, type TollView } from "@/components/toll-card";
+import { tollCountry } from "@/lib/tolls/countries";
+import { tollStale } from "@/lib/tolls/server";
 import { getMoney } from "@/lib/money-server";
 import { fmtDate, fmtNum } from "@/lib/format";
 import type { TKey } from "@/lib/i18n";
@@ -22,6 +25,9 @@ export async function generateMetadata(props: PageProps<"/tours/[id]">) {
   const legs = tour ? (await listLegs()).filter((l) => l.tourId === tour.id) : [];
   return { title: tour && legs.length ? legsRoute(legs) : "Tura" };
 }
+
+/** working out tolls loads the truck's track from Wialon in a server action on this page */
+export const maxDuration = 60;
 
 const CAT: Record<CostKey, { label: TKey; module: ModuleKey }> = {
   fuel: { label: "cat.fuel", module: "fuel" },
@@ -52,7 +58,33 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
   // a category is shown to members who may see that part of the app; profit needs them all
   const visible = COST_KEYS.filter((k) => showProfit || allow(CAT[k].module));
   const total = (k: CostKey) => costs[k].reduce((s, r) => s + m.conv(r.amount, r.currency), 0);
-  const costSum = COST_KEYS.reduce((s, k) => s + total(k), 0);
+  const toll = tourToll(tour, m.conv);
+  const costSum = COST_KEYS.reduce((s, k) => s + total(k), 0) + toll.amount;
+  const calc = tour.tollCalc;
+  const num = (n: number, d = 0) => fmtNum(n, locale, d);
+  const tollView: TollView = {
+    source: toll.source,
+    totalFmt: toll.source ? m.fmt(toll.amount) : null,
+    manual: tour.tollManual !== null ? { amount: tour.tollManual, currency: tour.tollCurrency } : null,
+    calc: calc
+      ? {
+          totalFmt: m.fmt(m.conv(calc.totalEur, "EUR")),
+          at: calc.at,
+          axles: calc.axles,
+          trackKm: calc.trackKm,
+          rows: calc.parts.map((p) => ({
+            country: p.country,
+            name: tollCountry(p.country)?.name[sr ? "sr" : "en"] ?? p.country,
+            km: p.km,
+            amountFmt: m.fmt(m.conv(p.eur, "EUR")),
+            rate: `${num(p.km)} km × ${num(p.rate, p.rateCurrency === "EUR" ? 3 : 1)} ${p.rateCurrency}/km`,
+            estimated: !!p.estimated,
+          })),
+          notes: calc.notes ?? [],
+          stale: tollStale(tour, calc),
+        }
+      : null,
+  };
   const priceConv = tourPrice(legs, m.conv);
   const profit = priceConv === null ? null : priceConv - costSum;
   const days = tourDays(tour);
@@ -66,7 +98,7 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
       <PageHeader
         detail
         title={legs.length ? legsRoute(legs) : sr ? "Nova tura" : "New tour"}
-        sub={`${fmtDate(tour.dateFrom, locale)} – ${tour.dateTo ? fmtDate(tour.dateTo, locale) : sr ? "u toku" : "on the road"} · ${days} ${sr ? (days === 1 ? "dan" : "dana") : days === 1 ? "day" : "days"}`}
+        sub={`${fmtDate(tour.dateFrom, locale)}${tour.timeFrom ? ` ${tour.timeFrom}` : ""} – ${tour.dateTo ? `${fmtDate(tour.dateTo, locale)}${tour.timeTo ? ` ${tour.timeTo}` : ""}` : sr ? "u toku" : "on the road"} · ${days} ${sr ? (days === 1 ? "dan" : "dana") : days === 1 ? "day" : "days"}`}
         actions={
           can(ctx.perms, "tours", "edit") ? (
             <RecordActions resource="tours" record={{ ...tour, legs: legs.map((l) => legView(l, showPrice)) }} refs={refs} listHref="/tours" />
@@ -129,6 +161,9 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
                       <span className="text-ink-2">− {m.fmt(total(k))}</span>
                     </Kv>
                   ))}
+                  <Kv label={sr ? "Putarina" : "Tolls"}>
+                    <span className="text-ink-2">{toll.source ? `− ${m.fmt(toll.amount)}` : "—"}</span>
+                  </Kv>
                   <Kv label={sr ? "Troškovi ukupno" : "Costs in total"}>− {m.fmt(costSum)}</Kv>
                   {profit !== null && km ? <Kv label={sr ? "Zarada po km" : "Profit per km"}>{per(profit / km, "km")}</Kv> : null}
                   {profit !== null && <Kv label={sr ? "Zarada po danu" : "Profit per day"}>{per(profit / days, sr ? "dan" : "day")}</Kv>}
@@ -145,9 +180,15 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
                       {m.fmt(total(k))}
                     </Kv>
                   ))}
+                  <Kv label={sr ? "Putarina" : "Tolls"}>{toll.source ? m.fmt(toll.amount) : "—"}</Kv>
                 </div>
               </Shell>
             )
+          )}
+          {(showProfit || visible.length > 0) && (
+            <Shell icon={<Ticket />} title={sr ? "Putarina" : "Road tolls"}>
+              <TollCard tourId={tour.id} canEdit={can(ctx.perms, "tours", "edit")} view={tollView} sr={sr} />
+            </Shell>
           )}
           {liters > 0 && allow("fuel") && km ? (
             <p className="px-1 text-xs text-ink-3">

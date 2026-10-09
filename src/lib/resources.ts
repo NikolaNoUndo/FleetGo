@@ -5,7 +5,7 @@ import type { ModuleKey } from "./auth/permissions";
 export type ResourceKey = "vehicles" | "trailers" | "employees" | "documents" | "services" | "parts" | "fuel" | "payments" | "suppliers" | "places" | "expenses" | "tours" | "tourLegs" | "clients";
 export type RefKey = "vehicles" | "trailers" | "reefers" | "employees" | "drivers" | "suppliers" | "docTypes" | "clients";
 
-export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers" | "links" | "coords" | "month" | "client";
+export type FieldType = "text" | "int" | "decimal" | "money" | "date" | "select" | "ref" | "textarea" | "bool" | "entity" | "docType" | "supplier" | "drivers" | "links" | "coords" | "month" | "client" | "time";
 
 export type FieldDef = {
   name: string;
@@ -38,6 +38,7 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[]; /
       { name: "model", label: "f.model", type: "text", placeholder: "R450" },
       { name: "year", label: "f.year", type: "int" },
       { name: "euroNorm", label: "f.euroNorm", type: "select", options: "euroNorms" },
+      { name: "axles", label: "f.axles", type: "int", hint: { sr: "Samo vozilo, bez prikolice. Za putarinu.", en: "The vehicle alone, without the trailer. Used for tolls." } },
       { name: "vin", label: "f.vin", type: "text", span: 2 },
       { name: "odometerKm", label: "f.odometerKm", type: "int" },
       { name: "tachoReadAt", label: "f.tachoReadAt", type: "date", showIf: { field: "type", value: ["tractor", "truck"] }, hint: { sr: "Sledeće očitavanje je 90 dana kasnije.", en: "The next download is due 90 days later." } },
@@ -209,12 +210,14 @@ export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[]; /
     title: "r.tours",
     fields: [
       { name: "dateFrom", label: "f.dateFrom", type: "date", required: true },
+      { name: "timeFrom", label: "f.timeFrom", type: "time", hint: { sr: "Za putarinu iz praćenja. Prazno = od početka dana.", en: "For tolls from tracking. Empty = from the start of the day." } },
       {
         name: "dateTo",
         label: "f.dateTo",
         type: "date",
         hint: { sr: "Prazno dok je kamion na putu. Troškovi kamiona i vozača u ovom periodu idu na turu.", en: "Empty while the truck is out. The truck's and driver's costs in this period count for the tour." },
       },
+      { name: "timeTo", label: "f.timeTo", type: "time", hint: { sr: "Prazno = do kraja dana.", en: "Empty = until the end of the day." } },
       { name: "vehicleId", label: "f.vehicle", type: "ref", ref: "vehicles", required: true },
       { name: "trailerId", label: "f.trailer", type: "ref", ref: "trailers" },
       { name: "driverId", label: "f.driver", type: "ref", ref: "drivers", span: 2 },

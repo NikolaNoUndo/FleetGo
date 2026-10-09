@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   jsonb,
   primaryKey,
+  bigint,
   doublePrecision,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
@@ -84,6 +85,8 @@ export const vehicles = pgTable(
     year: integer("year"),
     vin: text("vin"),
     euroNorm: text("euro_norm"),
+    /** axles of the truck itself (without the trailer); used for road tolls */
+    axles: integer("axles"),
     odometerKm: integer("odometer_km"),
     /** last tachograph (vehicle unit) download; the next one is due 90 days later */
     tachoReadAt: date("tacho_read_at"),
@@ -285,14 +288,23 @@ export const tours = pgTable(
     id: id(),
     companyId: companyId(),
     dateFrom: date("date_from").notNull(),
+    /** "HH:MM" local time the truck left; empty = start of the day */
+    timeFrom: text("time_from"),
     /** null = still on the road */
     dateTo: date("date_to"),
+    /** "HH:MM" local time the truck was back; empty = end of the day */
+    timeTo: text("time_to"),
     vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
     trailerId: uuid("trailer_id").references(() => trailers.id, { onDelete: "set null" }),
     driverId: uuid("driver_id").references(() => employees.id, { onDelete: "set null" }),
     /** kilometres of the whole round */
     distanceKm: integer("distance_km"),
     notes: text("notes"),
+    /** road tolls typed by hand; when set it is used instead of the calculated amount */
+    tollManual: money("toll_manual"),
+    tollCurrency: text("toll_currency").notNull().default("EUR"),
+    /** road tolls worked out from the truck's track (see src/lib/tolls) */
+    tollCalc: jsonb("toll_calc").$type<import("../lib/tolls/types").TollCalc>(),
     createdAt: createdAt(),
   },
   (t) => [index("tours_company_idx").on(t.companyId), index("tours_vehicle_idx").on(t.vehicleId), index("tours_date_idx").on(t.dateFrom)],
@@ -548,3 +560,28 @@ export const adminNotes = pgTable(
   },
   (t) => [uniqueIndex("admin_notes_key_uq").on(t.key), index("admin_notes_kind_idx").on(t.kind, t.date)],
 );
+
+/**
+ * Tolled road network, as small grid cells (~110 × 80 m) per country, taken from
+ * OpenStreetMap. Shared by all companies; refreshed from the admin panel.
+ */
+export const tollCells = pgTable(
+  "toll_cells",
+  {
+    cell: bigint("cell", { mode: "number" }).notNull(),
+    country: text("country").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.cell, t.country] }), index("toll_cells_country_idx").on(t.country)],
+);
+
+/** When each country's tolled network was last loaded, and how big it is. */
+export const tollNetwork = pgTable("toll_network", {
+  country: text("country").primaryKey(),
+  ways: integer("ways").notNull().default(0),
+  km: integer("km").notNull().default(0),
+  cells: integer("cells").notNull().default(0),
+  tilesDone: integer("tiles_done").notNull().default(0),
+  tilesTotal: integer("tiles_total").notNull().default(0),
+  error: text("error"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
+});

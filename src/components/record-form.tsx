@@ -397,6 +397,7 @@ const ERR: Record<string, TKey> = {
   required: "c.required",
   number: "err.number",
   date: "err.date",
+  time: "err.time",
   option: "err.option",
   ref: "err.ref",
   duplicate: "err.duplicate",
@@ -504,6 +505,19 @@ export function RecordForm({
             value={String(val ?? "")}
             onChange={(e) => set(f.name, e.target.value)}
             placeholder={f.placeholder}
+          />
+        );
+        break;
+      case "time":
+        control = (
+          <TextInput
+            id={id}
+            inputMode="numeric"
+            value={String(val ?? "")}
+            onChange={(e) => set(f.name, e.target.value)}
+            placeholder="07:30"
+            className="tnum"
+            maxLength={5}
           />
         );
         break;

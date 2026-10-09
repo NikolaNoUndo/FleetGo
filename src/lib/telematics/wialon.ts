@@ -26,7 +26,7 @@ export const DEFAULT_WIALON_HOST = "https://hst-api.wialon.com";
 /** Wialon sessions per token, so companies never share one. */
 const sessions = new Map<string, string>();
 
-async function call<T>(host: string, svc: string, params: unknown, sid?: string): Promise<T> {
+async function call<T>(host: string, svc: string, params: unknown, sid?: string, timeoutMs = 10000): Promise<T> {
   const body = new URLSearchParams({ svc, params: JSON.stringify(params) });
   if (sid) body.set("sid", sid);
   const res = await fetch(`${host}/wialon/ajax.html`, {
@@ -34,7 +34,7 @@ async function call<T>(host: string, svc: string, params: unknown, sid?: string)
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
     cache: "no-store",
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`Wialon HTTP ${res.status}`);
   const json = (await res.json()) as T & { error?: number; reason?: string };
@@ -248,4 +248,54 @@ export function normalizeWialonHost(raw: string | null | undefined): string | nu
 
 export function wialonConfigured(cfg: WialonConfig): cfg is { token: string; host: string | null } {
   return !!cfg.token?.trim();
+}
+
+/** The Wialon unit of one of our vehicles: by unit ID, device ID (IMEI) or plate in the unit's name. */
+function findUnit(units: WialonUnit[], v: { plate: string; wialonUnitId: string | null }) {
+  const want = v.wialonUnitId ? String(v.wialonUnitId).trim() : null;
+  const plate = norm(v.plate);
+  return (
+    (want && units.find((u) => String(u.id) === want || (u.uid && u.uid.trim() === want))) ||
+    (plate.length >= 4 ? units.find((u) => norm(u.nm).includes(plate)) : undefined) ||
+    null
+  );
+}
+
+export type TrackPoint = { t: number; lat: number; lon: number };
+
+/**
+ * The truck's GPS track between two moments (ms), from Wialon's message history.
+ * Loaded a day at a time so one answer never gets too big; only time and position are kept.
+ */
+export async function wialonTrack(cfg: { token: string; host: string }, vehicle: { plate: string; wialonUnitId: string | null }, fromMs: number, toMs: number): Promise<TrackPoint[] | null> {
+  const host = cfg.host.replace(/\/$/, "");
+  const unit = findUnit(await cachedUnits(host, cfg.token), vehicle);
+  if (!unit) return null;
+  const run = async (retry: boolean): Promise<TrackPoint[]> => {
+    const sid = sessions.get(cfg.token) ?? (await login(host, cfg.token));
+    const out: TrackPoint[] = [];
+    try {
+      for (let a = Math.floor(fromMs / 1000); a < Math.floor(toMs / 1000); a += 86400) {
+        const b = Math.min(a + 86400 - 1, Math.floor(toMs / 1000));
+        const res = await call<{ messages?: { t: number; pos?: { y: number; x: number } | null }[] }>(
+          host,
+          "messages/load_interval",
+          { itemId: unit.id, timeFrom: a, timeTo: b, flags: 1, flagsMask: 65281, loadCount: 100000 },
+          sid,
+          45000,
+        );
+        for (const m of res.messages ?? []) if (m.pos && Number.isFinite(m.pos.y) && Number.isFinite(m.pos.x) && (m.pos.y !== 0 || m.pos.x !== 0)) out.push({ t: m.t * 1000, lat: m.pos.y, lon: m.pos.x });
+      }
+      await call(host, "messages/unload", {}, sid).catch(() => null);
+      return out.sort((x, y) => x.t - y.t);
+    } catch (e) {
+      const code = (e as { code?: number }).code;
+      if (retry && (code === 1 || code === 4 || code === 7)) {
+        sessions.delete(cfg.token);
+        return run(false);
+      }
+      throw e;
+    }
+  };
+  return run(true);
 }
