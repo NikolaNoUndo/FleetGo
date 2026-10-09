@@ -4,7 +4,7 @@
  * a GPS point is on it when its own cell or a neighbouring one is stored.
  */
 export const CELL_DEG = 0.001;
-const LON_CELLS = 360_000; // 360° / 0.001
+export const LON_CELLS = 360_000; // 360° / 0.001
 
 export const cellOf = (lat: number, lon: number) => Math.floor((lat + 90) / CELL_DEG) * LON_CELLS + Math.floor((lon + 180) / CELL_DEG);
 
@@ -41,4 +41,15 @@ export function rasterize(line: { lat: number; lon: number }[], into: Set<number
     }
   }
   return len;
+}
+
+/** cells grouped by grid row: row → sorted columns (how they are stored) */
+export function byRow(cells: Iterable<number>) {
+  const m = new Map<number, number[]>();
+  for (const cell of cells) {
+    const r = Math.floor(cell / LON_CELLS);
+    (m.get(r) ?? m.set(r, []).get(r)!).push(cell - r * LON_CELLS);
+  }
+  for (const v of m.values()) v.sort((a, b) => a - b);
+  return m;
 }

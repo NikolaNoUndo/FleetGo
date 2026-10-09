@@ -13,7 +13,7 @@ import { getPrefs, getT } from "@/lib/prefs";
 import { getRefs } from "@/lib/queries";
 import { allCostSources, COST_KEYS, getTour, legsByTour, legView, listLegs, listTours, overlapping, tourCosts, tourDays, tourPrice, tourToll, type CostKey } from "@/lib/tours";
 import { TollCard, type TollView } from "@/components/toll-card";
-import { tollCountry } from "@/lib/tolls/countries";
+import { tollKey } from "@/lib/tolls/countries";
 import { tollStale } from "@/lib/tolls/server";
 import { getMoney } from "@/lib/money-server";
 import { fmtDate, fmtNum } from "@/lib/format";
@@ -74,10 +74,10 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
           trackKm: calc.trackKm,
           rows: calc.parts.map((p) => ({
             country: p.country,
-            name: tollCountry(p.country)?.name[sr ? "sr" : "en"] ?? p.country,
+            name: tollKey(p.country)?.name[sr ? "sr" : "en"] ?? p.country,
             km: p.km,
             amountFmt: m.fmt(m.conv(p.eur, "EUR")),
-            rate: `${num(p.km)} km × ${num(p.rate, p.rateCurrency === "EUR" ? 3 : 1)} ${p.rateCurrency}/km`,
+            rate: p.days ? (sr ? `rovinieta, ${p.days} ${p.days === 1 ? "dan" : "dana"}` : `vignette, ${p.days} day(s)`) : `${num(p.km)} km × ${num(p.rate, p.rateCurrency === "EUR" ? 3 : 2)} ${p.rateCurrency}/km`,
             estimated: !!p.estimated,
           })),
           notes: calc.notes ?? [],

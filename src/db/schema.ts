@@ -562,16 +562,18 @@ export const adminNotes = pgTable(
 );
 
 /**
- * Tolled road network, as small grid cells (~110 × 80 m) per country, taken from
- * OpenStreetMap. Shared by all companies; refreshed from the admin panel.
+ * Tolled road network from OpenStreetMap, as a grid of 0.001° cells (~110 × 80 m), kept
+ * compact: one row per network key ("RS", "PL-A2"…) and grid row, holding the grid columns
+ * the roads run through. Shared by all companies; refreshed from the admin panel.
  */
-export const tollCells = pgTable(
-  "toll_cells",
+export const tollRows = pgTable(
+  "toll_rows",
   {
-    cell: bigint("cell", { mode: "number" }).notNull(),
+    r: integer("r").notNull(),
     country: text("country").notNull(),
+    cols: integer("cols").array().notNull(),
   },
-  (t) => [primaryKey({ columns: [t.cell, t.country] }), index("toll_cells_country_idx").on(t.country)],
+  (t) => [primaryKey({ columns: [t.r, t.country] })],
 );
 
 /** When each country's tolled network was last loaded, and how big it is. */

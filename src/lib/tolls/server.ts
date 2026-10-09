@@ -1,13 +1,13 @@
 import "server-only";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getTrack } from "@/lib/telematics";
 import { companyRate } from "@/lib/fx";
 import { todayISO } from "@/lib/format";
-import { countryTiles, tollCountry, TOLL_COUNTRIES } from "./countries";
-import { cellsAround } from "./grid";
+import { loadSteps, tollCountry, TOLL_COUNTRIES } from "./countries";
+import { byRow, cellsAround, LON_CELLS } from "./grid";
 import { tollParts, tolledKm, totalAxles } from "./calc";
-import { fetchTile } from "./overpass";
+import { fetchStep } from "./overpass";
 import type { TollCalc } from "./types";
 
 /** "2026-10-05" + "06:30" in Serbian time → ms since epoch (summer/winter time handled). */
@@ -29,6 +29,57 @@ export function tollStale(t: { dateFrom: string; timeFrom: string | null; dateTo
   return false;
 }
 
+type Trailer = typeof schema.trailers.$inferSelect;
+
+/**
+ * The trailer the truck pulled on this tour: the one on the tour; otherwise the one linked to
+ * the truck (several linked: the one it pulled on its last tour, else the one with most axles);
+ * a tractor with none known is counted with a 3-axle semi-trailer.
+ */
+async function tourTrailer(companyId: string, tour: { trailerId: string | null; vehicleId: string | null }, vehicle: { id: string; type: string }): Promise<{ trailer: Pick<Trailer, "plate" | "axles"> | null; how: "tour" | "linked" | "assumed" | null }> {
+  const T = schema.trailers;
+  if (tour.trailerId) {
+    const [t] = await db.select().from(T).where(and(eq(T.id, tour.trailerId), eq(T.companyId, companyId))).limit(1);
+    if (t) return { trailer: t, how: "tour" };
+  }
+  const linked = await db
+    .select({ id: T.id, plate: T.plate, axles: T.axles })
+    .from(schema.vehicleTrailers)
+    .innerJoin(T, eq(T.id, schema.vehicleTrailers.trailerId))
+    .where(and(eq(schema.vehicleTrailers.vehicleId, vehicle.id), eq(schema.vehicleTrailers.companyId, companyId), ne(T.status, "inactive")));
+  if (linked.length === 1) return { trailer: linked[0], how: "linked" };
+  if (linked.length > 1) {
+    const [last] = await db
+      .select({ trailerId: schema.tours.trailerId })
+      .from(schema.tours)
+      .where(and(eq(schema.tours.companyId, companyId), eq(schema.tours.vehicleId, vehicle.id), inArray(schema.tours.trailerId, linked.map((l) => l.id))))
+      .orderBy(desc(schema.tours.dateFrom))
+      .limit(1);
+    const pick = linked.find((l) => l.id === last?.trailerId) ?? [...linked].sort((a, b) => (b.axles ?? 3) - (a.axles ?? 3))[0];
+    return { trailer: pick, how: "linked" };
+  }
+  if (vehicle.type === "tractor") return { trailer: { plate: "", axles: 3 }, how: "assumed" };
+  return { trailer: null, how: null };
+}
+
+/** Which network keys ("RS", "PL-A2"…) each grid cell near the track belongs to. */
+async function networkAround(track: { lat: number; lon: number }[]) {
+  const wanted = new Set<number>();
+  for (const p of track) for (const c of cellsAround(p.lat, p.lon)) wanted.add(c);
+  const rowIds = [...byRow(wanted).keys()];
+  const hits = new Map<number, string[]>();
+  for (let i = 0; i < rowIds.length; i += 5000) {
+    const chunk = rowIds.slice(i, i + 5000);
+    const rows = await db.select().from(schema.tollRows).where(sql`${schema.tollRows.r} = any(${`{${chunk.join(",")}}`}::int[])`);
+    for (const row of rows)
+      for (const col of row.cols) {
+        const cell = row.r * LON_CELLS + col;
+        if (wanted.has(cell)) hits.set(cell, [...(hits.get(cell) ?? []), row.country]);
+      }
+  }
+  return hits;
+}
+
 export type CalcResult = { ok: true; calc: TollCalc } | { ok: false; error: string };
 
 /** Works out a tour's tolls from its truck's track and stores them on the tour. */
@@ -36,10 +87,9 @@ export async function calcTourToll(companyId: string, tourId: string): Promise<C
   const [tour] = await db.select().from(schema.tours).where(and(eq(schema.tours.id, tourId), eq(schema.tours.companyId, companyId))).limit(1);
   if (!tour) return { ok: false, error: "Tura ne postoji." };
   if (!tour.vehicleId) return { ok: false, error: "Tura nema kamion." };
-  const [[company], [vehicle], trailerRows, network] = await Promise.all([
+  const [[company], [vehicle], network] = await Promise.all([
     db.select().from(schema.companies).where(eq(schema.companies.id, companyId)).limit(1),
     db.select().from(schema.vehicles).where(and(eq(schema.vehicles.id, tour.vehicleId), eq(schema.vehicles.companyId, companyId))).limit(1),
-    tour.trailerId ? db.select().from(schema.trailers).where(and(eq(schema.trailers.id, tour.trailerId), eq(schema.trailers.companyId, companyId))).limit(1) : Promise.resolve([]),
     db.select().from(schema.tollNetwork),
   ]);
   if (!vehicle) return { ok: false, error: "Kamion ture ne postoji." };
@@ -60,27 +110,20 @@ export async function calcTourToll(companyId: string, tourId: string): Promise<C
   if (track === null) return { ok: false, error: `Kamion ${vehicle.plate} nije pronađen u praćenju. Upiši Wialon ID ili IMEI na kamionu.` };
   if (track.length < 2) return { ok: false, error: "Praćenje nema zapisa o kretanju za vreme ture." };
 
-  // which tolled-network cells are near the track
-  const wanted = new Set<number>();
-  for (const p of track) for (const c of cellsAround(p.lat, p.lon)) wanted.add(c);
-  const hits = new Map<number, string[]>();
-  const ids = [...wanted];
-  for (let i = 0; i < ids.length; i += 20000) {
-    const chunk = ids.slice(i, i + 20000);
-    const rows = await db.select({ cell: schema.tollCells.cell, country: schema.tollCells.country }).from(schema.tollCells).where(sql`${schema.tollCells.cell} = any(${`{${chunk.join(",")}}`}::bigint[])`);
-    for (const r of rows) hits.set(Number(r.cell), [...(hits.get(Number(r.cell)) ?? []), r.country]);
-  }
-
-  const { km, trackKm } = tolledKm(track, (c) => hits.get(c));
-  const trailer = (trailerRows as (typeof schema.trailers.$inferSelect)[])[0] ?? null;
+  const hits = await networkAround(track);
+  const { km, days, trackKm } = tolledKm(track, (c) => hits.get(c));
+  const { trailer, how } = await tourTrailer(companyId, tour, vehicle);
   const axles = totalAxles(vehicle, trailer);
   const rate = await companyRate(company);
-  const parts = tollParts(km, axles, rate);
+  const parts = tollParts(km, days, axles, rate, tour.dateFrom);
   const loaded = new Set(network.filter((n) => n.cells > 0).map((n) => n.country));
   const notes: string[] = [];
   const missing = TOLL_COUNTRIES.filter((c) => !loaded.has(c.code)).map((c) => c.name.sr);
   if (missing.length) notes.push(`Mreža nije učitana za: ${missing.join(", ")}.`);
+  if (how === "linked") notes.push(`Prikolica nije upisana na turi; uzeta je ${trailer!.plate}, vezana za kamion (${trailer!.axles ?? 3} osovine).`);
+  if (how === "assumed") notes.push("Prikolica nije upisana ni vezana za tegljač; računato sa poluprikolicom od 3 osovine.");
   if (!vehicle.axles) notes.push(`Broj osovina kamiona nije upisan; računato sa 2${trailer ? ` + ${trailer.axles ?? 3} na prikolici` : ""}.`);
+  if (parts.some((p) => p.days)) notes.push("Rumunija je do 30. 9. 2026. računata kao rovinieta (vinjeta po danima).");
   if (vehicle.euroNorm && !/6|VI/i.test(vehicle.euroNorm)) notes.push(`Cene su za EURO VI; za ${vehicle.euroNorm} je putarina u EU nešto veća.`);
 
   const calc: TollCalc = {
@@ -107,16 +150,16 @@ export async function networkStatus() {
   const rows = await db.select().from(schema.tollNetwork);
   return TOLL_COUNTRIES.map((c) => {
     const r = rows.find((x) => x.country === c.code);
-    return { code: c.code, ways: r?.ways ?? 0, km: r?.km ?? 0, cells: r?.cells ?? 0, tilesDone: r?.tilesDone ?? 0, tilesTotal: r?.tilesTotal ?? countryTiles(c).length, error: r?.error ?? null, updatedAt: r?.updatedAt?.toISOString() ?? null };
+    return { code: c.code, ways: r?.ways ?? 0, km: r?.km ?? 0, cells: r?.cells ?? 0, tilesDone: r?.tilesDone ?? 0, tilesTotal: r?.tilesTotal ?? loadSteps(c).length, error: r?.error ?? null, updatedAt: r?.updatedAt?.toISOString() ?? null };
   });
 }
 
-/** Starts loading a country again: forgets its old cells. */
+/** Starts loading a country again: forgets its old network (and its priced stretches). */
 export async function resetCountry(code: string) {
   const c = tollCountry(code);
-  if (!c) throw new Error("country");
-  const total = countryTiles(c).length;
-  await db.delete(schema.tollCells).where(eq(schema.tollCells.country, code));
+  if (!c || c.code !== code) throw new Error("country");
+  const total = loadSteps(c).length;
+  await db.delete(schema.tollRows).where(sql`${schema.tollRows.country} = ${code} or ${schema.tollRows.country} like ${code + "-%"}`);
   await db
     .insert(schema.tollNetwork)
     .values({ country: code, ways: 0, km: 0, cells: 0, tilesDone: 0, tilesTotal: total, error: null, updatedAt: new Date() })
@@ -124,28 +167,37 @@ export async function resetCountry(code: string) {
   return total;
 }
 
-/** Loads one tile of a country from OpenStreetMap into the cell table. */
+/** Loads one step of a country (a tile of its network or a priced stretch) from OpenStreetMap. */
 export async function loadTile(code: string, index: number) {
   const c = tollCountry(code);
-  if (!c) throw new Error("country");
-  const tiles = countryTiles(c);
-  if (index < 0 || index >= tiles.length) throw new Error("tile");
+  if (!c || c.code !== code) throw new Error("country");
+  const steps = loadSteps(c);
+  if (index < 0 || index >= steps.length) throw new Error("tile");
+  const step = steps[index];
+  const key = step.kind === "zone" ? step.zone.key : code;
   try {
-    const { cells, ways, km } = await fetchTile(c, tiles[index]);
-    const list = [...cells];
-    for (let i = 0; i < list.length; i += 5000) {
-      const chunk = list.slice(i, i + 5000);
-      await db.execute(sql`insert into toll_cells (cell, country) select unnest(${`{${chunk.join(",")}}`}::bigint[]), ${code} on conflict do nothing`);
+    const { cells, ways, km } = await fetchStep(c, step);
+    const rows = [...byRow(cells)].map(([r, cols]) => ({ r, c: cols }));
+    for (let i = 0; i < rows.length; i += 2000) {
+      const chunk = JSON.stringify(rows.slice(i, i + 2000));
+      await db.execute(sql`
+        insert into toll_rows (r, country, cols)
+        select (x->>'r')::int, ${key}, array(select jsonb_array_elements_text(x->'c')::int)
+        from jsonb_array_elements(${chunk}::jsonb) x
+        on conflict (r, country) do update set cols = array(select distinct unnest(toll_rows.cols || excluded.cols) order by 1)`);
     }
-    const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.tollCells).where(eq(schema.tollCells.country, code));
+    const [{ n }] = await db
+      .select({ n: sql<number>`coalesce(sum(cardinality(${schema.tollRows.cols})), 0)::int` })
+      .from(schema.tollRows)
+      .where(sql`${schema.tollRows.country} = ${code} or ${schema.tollRows.country} like ${code + "-%"}`);
     await db
       .update(schema.tollNetwork)
-      .set({ ways: sql`${schema.tollNetwork.ways} + ${ways}`, km: sql`${schema.tollNetwork.km} + ${Math.round(km)}`, cells: n, tilesDone: index + 1, error: null, updatedAt: new Date() })
+      .set({ ways: sql`${schema.tollNetwork.ways} + ${ways}`, km: step.kind === "tile" ? sql`${schema.tollNetwork.km} + ${Math.round(km)}` : schema.tollNetwork.km, cells: n, tilesDone: index + 1, error: null, updatedAt: new Date() })
       .where(eq(schema.tollNetwork.country, code));
-    return { ways, km: Math.round(km), cells: n, done: index + 1, total: tiles.length };
+    return { ways, km: Math.round(km), cells: n, done: index + 1, total: steps.length };
   } catch (e) {
     const msg = (e as Error).message.slice(0, 200);
-    await db.update(schema.tollNetwork).set({ error: `Deo ${index + 1}/${tiles.length}: ${msg}`, updatedAt: new Date() }).where(eq(schema.tollNetwork.country, code));
+    await db.update(schema.tollNetwork).set({ error: `Deo ${index + 1}/${steps.length}: ${msg}`, updatedAt: new Date() }).where(eq(schema.tollNetwork.country, code));
     throw e;
   }
 }

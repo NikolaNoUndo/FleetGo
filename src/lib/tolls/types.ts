@@ -1,4 +1,6 @@
-/** One country on a tour: km driven on tolled roads and what that costs. */
+import type { Currency } from "./countries";
+
+/** One country (or priced stretch, "PL-A2") on a tour: km driven on tolled roads and what that costs. */
 export type TollPart = {
   country: string;
   km: number;
@@ -6,7 +8,9 @@ export type TollPart = {
   eur: number;
   /** the rate used, in the country's own currency per km */
   rate: number;
-  rateCurrency: "EUR" | "RSD" | "HUF";
+  rateCurrency: Currency;
+  /** paid by days (a vignette) instead of by km: how many days */
+  days?: number;
   /** the rate for this vehicle class is our estimate, not from a price list */
   estimated?: boolean;
 };

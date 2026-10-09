@@ -1,5 +1,5 @@
 import "server-only";
-import type { TollCountry } from "./countries";
+import type { LoadStep, TollCountry } from "./countries";
 import { rasterize } from "./grid";
 
 /** Public Overpass servers (OpenStreetMap); tried in order. */
@@ -7,9 +7,18 @@ const ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.
 
 type OverpassWay = { type: "way"; id: number; geometry?: { lat: number; lon: number }[] };
 
+/** The Overpass query for one step of loading a country: a tile of its network, or a priced stretch. */
+export function stepQuery(c: TollCountry, step: LoadStep) {
+  if (step.kind === "zone") {
+    const [s, w, n, e] = step.zone.bbox;
+    return `[out:json][timeout:45];area["ISO3166-1"="${c.code}"][admin_level=2]->.a;way["highway"~"^(motorway|trunk)$"]["ref"~"${step.zone.ref}"](area.a)(${s},${w},${n},${e});out skel geom qt;`;
+  }
+  return tileQuery(c, step.bbox);
+}
+
 /** The Overpass query for one tile of a country's tolled network. */
 export function tileQuery(c: TollCountry, [s, w, n, e]: [number, number, number, number]) {
-  const hw = `["highway"~"^(motorway|trunk)$"]`;
+  const hw = c.network === "national" ? `["highway"~"^(motorway|trunk|primary)$"]` : `["highway"~"^(motorway|trunk)$"]`;
   const box = `(area.a)(${s},${w},${n},${e})`;
   const ways =
     c.network === "tagged"
@@ -32,8 +41,8 @@ export function tileCells(json: { elements?: OverpassWay[] }) {
   return { cells, ways, km: metres / 1000 };
 }
 
-export async function fetchTile(c: TollCountry, tile: [number, number, number, number]) {
-  const query = tileQuery(c, tile);
+export async function fetchStep(c: TollCountry, step: LoadStep) {
+  const query = stepQuery(c, step);
   let lastErr: unknown = null;
   const deadline = Date.now() + 52_000; // stay inside one server request (60 s)
   for (const url of ENDPOINTS) {

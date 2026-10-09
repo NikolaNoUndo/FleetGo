@@ -151,14 +151,19 @@ export const fullName = (e: { firstName: string; lastName: string }) => `${e.fir
 /** Options for every <select> that points at another record, plus id → label lookups for tables. */
 export const getRefs = cache(async () => {
   const { id: companyId } = await getCompany();
-  const [vehicles, trailers, employees, suppliers, docs, clients] = await Promise.all([
+  const [vehicles, trailers, employees, suppliers, docs, clients, links] = await Promise.all([
     listVehicles(),
     listTrailers(),
     listEmployees(),
     listSuppliers(),
     listDocuments(),
     db.select({ id: S.clients.id, name: S.clients.name }).from(S.clients).where(eq(S.clients.companyId, companyId)).orderBy(asc(S.clients.name)),
+    listVehicleTrailers(),
   ]);
+  // a truck with exactly one active trailer linked: picking the truck on a tour fills in the trailer
+  const activeTrailer = new Set(trailers.filter((t) => t.status !== "inactive").map((t) => t.id));
+  const onlyTrailer = new Map<string, string | null>();
+  for (const l of links) if (activeTrailer.has(l.trailerId)) onlyTrailer.set(l.vehicleId, onlyTrailer.has(l.vehicleId) ? null : l.trailerId);
   // kinds of documents the company typed in itself ("Drugo"): id = the name, sub = what it is for
   const ownDocTypes = new Map<string, { id: string; label: string; sub: string }>();
   for (const d of docs) {
@@ -167,7 +172,7 @@ export const getRefs = cache(async () => {
   }
   const refs: Refs = {
     docTypes: [...ownDocTypes.values()],
-    vehicles: vehicles.map((v) => ({ id: v.id, label: v.plate, sub: [v.brand, v.model].filter(Boolean).join(" ") })),
+    vehicles: vehicles.map((v) => ({ id: v.id, label: v.plate, sub: [v.brand, v.model].filter(Boolean).join(" "), ...(onlyTrailer.get(v.id) ? { link: onlyTrailer.get(v.id)! } : {}) })),
     trailers: trailers.map((t) => ({ id: t.id, label: t.plate, sub: t.brand ?? undefined })),
     reefers: trailers.filter((t) => t.type === "reefer").map((t) => ({ id: t.id, label: t.plate, sub: t.brand ?? undefined })),
     employees: employees.map((e) => ({ id: e.id, label: fullName(e) })),

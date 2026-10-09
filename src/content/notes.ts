@@ -28,6 +28,7 @@ export const CHANGES: ShippedChange[] = [
   { key: "c-2026-10-08-1", date: "2026-10-08", text: "Admin: Izmene po danima i Ideje za kasnije (ručno ili ih dopisuje Claude)." },
   { key: "c-2026-10-08-2", date: "2026-10-08", text: "Admin: blokiran korisnik može da se ukloni (nalog i članstvo; podaci firme ostaju), uz upozorenje ako firma ostaje bez vlasnika." },
   { key: "c-2026-10-09-1", date: "2026-10-09", text: "Putarina na turi: računa se iz trase kamiona (km po putevima pod naplatom × cena po km za broj osovina) za Srbiju, Hrvatsku, Sloveniju, Italiju, Francusku, Mađarsku, Austriju i Nemačku, ili se upiše ručno sa računa; ulazi u zaradu ture. Na turi vreme polaska i povratka, na vozilu broj osovina. Admin: tab Putarina (mreža iz OpenStreetMap-a i cene sa izvorima)." },
+  { key: "c-2026-10-09-2", date: "2026-10-09", text: "Putarina: dodate Poljska (sa koncesijama A1, A2, A4), Češka, Slovačka, Bugarska, Rumunija (vinjeta do 30. 9. 2026, TollRo posle) i Španija; Brenner i Tauern posebno. Prikolica se uzima sa ture, a ako je nema, ona vezana za kamion (tegljač bez podatka = poluprikolica sa 3 osovine); izbor kamiona na turi sam popuni prikolicu. Mreža se čuva oko 10 puta sažetije u bazi." },
 ];
 
 export const IDEAS: ShippedIdea[] = [
@@ -39,6 +40,7 @@ export const IDEAS: ShippedIdea[] = [
   { key: "i-sajt-domen", text: "Marketing sajt na roadline.app, aplikacija na my.roadline.app." },
   { key: "i-putarina-mreza", text: "Putarina: u admin panelu (tab Putarina) učitati mrežu za sve zemlje, pa proveriti par pravih tura sa računima (TAG, ENC, DKV) da li je ±10 %." },
   { key: "i-putarina-uvoz", text: "Putarina: uvoz mesečnog izveštaja sa TAG/ENC/DKV/UTA da se stvarni iznos poredi sa procenom." },
-  { key: "i-putarina-posebne", text: "Putarina: posebne deonice (Brenner, Tauern, Arlberg, Karavanke…) i magistralni putevi u Mađarskoj i Nemačkoj još nisu uračunati; Slovačka, Češka, Poljska, Bugarska još nisu u mreži." },
+  { key: "i-putarina-posebne", text: "Putarina: Arlberg, Gleinalm, Karavanke, rumunski mostovi i magistralni putevi u Mađarskoj, Nemačkoj, Češkoj, Slovačkoj i Poljskoj još nisu uračunati." },
+  { key: "i-putarina-rampe", text: "Putarina: zemlje sa naplatom od rampe do rampe (Srbija, Hrvatska, Italija, Francuska, Španija, poljske koncesije) računati po ulaznoj i izlaznoj stanici iz zvaničnog cenovnika, a ne prosekom po km." },
   { key: "i-putarina-cene", text: "Putarina: cene se ažuriraju (Srbija 1. jul, Italija 1. jan, Francuska 1. feb, Hrvatska free-flow od marta 2027) — smisliti kako (sada u src/lib/tolls/countries.ts)." },
 ];

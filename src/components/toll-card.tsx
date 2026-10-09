@@ -104,7 +104,7 @@ export function TollCard({ tourId, canEdit, view, sr }: { tourId: string; canEdi
             c.rows.map((r) => (
               <div key={r.country} className="flex items-center justify-between gap-3 py-2">
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="w-7 shrink-0 rounded bg-surface-3 px-1 py-0.5 text-center text-[11px] font-semibold text-ink-2">{r.country}</span>
+                  <span className="w-7 shrink-0 rounded bg-surface-3 px-1 py-0.5 text-center text-[11px] font-semibold text-ink-2">{r.country.slice(0, 2)}</span>
                   <span className="truncate">{r.name}</span>
                   <span className="shrink-0 text-xs text-ink-3 tnum">{r.km.toLocaleString(sr ? "sr-Latn-RS" : "en-GB", { maximumFractionDigits: 0 })} km</span>
                 </span>

@@ -133,7 +133,7 @@ export function TollsTab({ network }: { network: NetRow[] }) {
           </table>
         </div>
         <p className="border-t border-line/70 px-4 py-3 text-xs leading-relaxed text-ink-3">
-          Italija i Francuska: samo autoputevi označeni kao putevi pod naplatom. Srbija i Hrvatska: svi autoputevi osim onih označenih kao besplatni. Slovenija, Mađarska, Austrija i Nemačka: svi autoputevi i brze ceste (kamioni plaćaju po km). Dvosmerni autoput se u OSM broji kao dve linije, pa su km linija oko dva puta veći od dužine autoputa.
+          Italija, Francuska i Španija: samo autoputevi označeni kao putevi pod naplatom. Srbija i Hrvatska: svi autoputevi osim onih označenih kao besplatni. Slovenija, Mađarska, Austrija, Nemačka, Češka, Slovačka i Poljska: svi autoputevi i brze ceste (kamioni plaćaju po km). Bugarska i Rumunija: i glavni državni putevi. Deonice sa posebnom cenom (Brenner, Tauern, poljske koncesije, rumunski autoputevi) učitavaju se posle zemlje. Dvosmerni autoput se u OSM broji kao dve linije, pa su km linija oko dva puta veći od dužine autoputa.
         </p>
       </section>
 
@@ -159,6 +159,12 @@ export function TollsTab({ network }: { network: NetRow[] }) {
               </summary>
               <div className="mt-2 flex flex-col gap-1.5 text-xs leading-relaxed text-ink-2">
                 <p>{c.basis}</p>
+                {c.zones?.map((z) => (
+                  <p key={z.key}>
+                    <span className="font-medium text-ink">{z.name.sr}:</span> {z.basis}
+                  </p>
+                ))}
+                {c.vignette && <p>{c.vignette.basis}</p>}
                 {c.caveats && <p className="text-warn-ink">{c.caveats}</p>}
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {c.sources.map((s) => (

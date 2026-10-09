@@ -25,7 +25,8 @@ export type FieldDef = {
   hint?: { sr: string; en: string };
 };
 
-export type RefOption = { id: string; label: string; sub?: string };
+/** `link`: a record that usually goes with this one (a truck's only trailer), filled in for you */
+export type RefOption = { id: string; label: string; sub?: string; link?: string };
 export type Refs = Partial<Record<RefKey, RefOption[]>>;
 
 export const RESOURCES: Record<ResourceKey, { title: TKey; fields: FieldDef[]; /** a new record opens its own page (path prefix + id) */ openAfterCreate?: string }> = {

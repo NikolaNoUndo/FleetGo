@@ -445,6 +445,11 @@ export function RecordForm({
         next.entityId = "";
         next.docType = "";
       }
+      // a tour: the truck's trailer comes along (it rarely drives without one; tolls depend on it)
+      if (resource === "tours" && name === "vehicleId" && !prev.trailerId) {
+        const link = refs.vehicles?.find((v) => v.id === value)?.link;
+        if (link) next.trailerId = link;
+      }
       // Suggest an expiry from the document's typical validity (user can still change it).
       if (
         resource === "documents" &&
