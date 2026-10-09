@@ -42,6 +42,11 @@ export type TollCountry = {
    * - "national": motorways, expressways and main national roads (Bulgaria, Romania)
    */
   network: "tagged" | "motorways" | "all" | "national";
+  /**
+   * How the country charges trucks: "ramp" = by the entry and exit station (closed system,
+   * official entry–exit price list); "km" = by the km driven (electronic toll, or km × tariff).
+   */
+  charging: "ramp" | "km";
   zones?: TollZone[];
   /** Romania until TollRo (1 Oct 2026): a time vignette per day instead of a price per km */
   vignette?: { until: string; byBucket: Record<AxleBucket, { days: number; eur: number }[]>; basis: string };
@@ -64,6 +69,7 @@ export const HUF_PER_EUR = FX_PER_EUR.HUF;
 export const TOLL_COUNTRIES: TollCountry[] = [
   {
     code: "RS",
+    charging: "ramp",
     name: { sr: "Srbija", en: "Serbia" },
     currency: "RSD",
     rates: { 2: { perKm: 20, estimated: true }, 3: { perKm: 20, estimated: true }, 4: { perKm: 33 }, 5: { perKm: 33 } },
@@ -78,6 +84,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "HR",
+    charging: "ramp",
     name: { sr: "Hrvatska", en: "Croatia" },
     currency: "EUR",
     rates: { 2: { perKm: 0.11, estimated: true }, 3: { perKm: 0.11, estimated: true }, 4: { perKm: 0.18 }, 5: { perKm: 0.18 } },
@@ -92,6 +99,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "SI",
+    charging: "km",
     name: { sr: "Slovenija", en: "Slovenia" },
     currency: "EUR",
     rates: { 2: { perKm: 0.21, estimated: true }, 3: { perKm: 0.21, estimated: true }, 4: { perKm: 0.335 }, 5: { perKm: 0.335 } },
@@ -105,6 +113,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "IT",
+    charging: "km",
     name: { sr: "Italija", en: "Italy" },
     currency: "EUR",
     rates: { 2: { perKm: 0.1, estimated: true }, 3: { perKm: 0.13, estimated: true }, 4: { perKm: 0.161 }, 5: { perKm: 0.19 } },
@@ -118,6 +127,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "FR",
+    charging: "ramp",
     name: { sr: "Francuska", en: "France" },
     currency: "EUR",
     rates: { 2: { perKm: 0.24, estimated: true }, 3: { perKm: 0.35 }, 4: { perKm: 0.35 }, 5: { perKm: 0.35 } },
@@ -131,6 +141,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "HU",
+    charging: "km",
     name: { sr: "Mađarska", en: "Hungary" },
     currency: "HUF",
     rates: { 2: { perKm: 95, estimated: true }, 3: { perKm: 140, estimated: true }, 4: { perKm: 200.28 }, 5: { perKm: 214.37 } },
@@ -144,6 +155,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "AT",
+    charging: "km",
     name: { sr: "Austrija", en: "Austria" },
     currency: "EUR",
     rates: { 2: { perKm: 0.3, estimated: true }, 3: { perKm: 0.48, estimated: true }, 4: { perKm: 0.687 }, 5: { perKm: 0.687 } },
@@ -175,6 +187,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "DE",
+    charging: "km",
     name: { sr: "Nemačka", en: "Germany" },
     currency: "EUR",
     rates: { 2: { perKm: 0.2, estimated: true }, 3: { perKm: 0.28, estimated: true }, 4: { perKm: 0.33, estimated: true }, 5: { perKm: 0.348 } },
@@ -188,6 +201,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "CZ",
+    charging: "km",
     name: { sr: "Češka", en: "Czechia" },
     currency: "CZK",
     rates: { 2: { perKm: 2.834 }, 3: { perKm: 3.7433 }, 4: { perKm: 4.9285 }, 5: { perKm: 5.9644 } },
@@ -201,6 +215,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "SK",
+    charging: "km",
     name: { sr: "Slovačka", en: "Slovakia" },
     currency: "EUR",
     rates: { 2: { perKm: 0.236 }, 3: { perKm: 0.3321 }, 4: { perKm: 0.3692 }, 5: { perKm: 0.3293 } },
@@ -214,6 +229,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "PL",
+    charging: "km",
     name: { sr: "Poljska", en: "Poland" },
     currency: "PLN",
     rates: { 2: { perKm: 0.56 }, 3: { perKm: 0.56 }, 4: { perKm: 0.56 }, 5: { perKm: 0.56 } },
@@ -253,6 +269,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "BG",
+    charging: "km",
     name: { sr: "Bugarska", en: "Bulgaria" },
     currency: "EUR",
     rates: { 2: { perKm: 0.135 }, 3: { perKm: 0.135 }, 4: { perKm: 0.2 }, 5: { perKm: 0.2 } },
@@ -266,6 +283,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "RO",
+    charging: "km",
     name: { sr: "Rumunija", en: "Romania" },
     currency: "RON",
     rates: { 2: { perKm: 0.24 }, 3: { perKm: 0.24 }, 4: { perKm: 0.24 }, 5: { perKm: 0.24 } },
@@ -299,6 +317,7 @@ export const TOLL_COUNTRIES: TollCountry[] = [
   },
   {
     code: "ES",
+    charging: "ramp",
     name: { sr: "Španija", en: "Spain" },
     currency: "EUR",
     rates: { 2: { perKm: 0.19 }, 3: { perKm: 0.19 }, 4: { perKm: 0.23 }, 5: { perKm: 0.23 } },

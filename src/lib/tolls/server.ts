@@ -8,7 +8,9 @@ import { loadSteps, tollCountry, TOLL_COUNTRIES } from "./countries";
 import { byRow, cellsAround, LON_CELLS } from "./grid";
 import { tollParts, tolledKm, totalAxles } from "./calc";
 import { fetchStep } from "./overpass";
-import type { TollCalc } from "./types";
+import { rampTrips } from "./ramps";
+import { rampData } from "./ramps-server";
+import type { TollCalc, TollPart } from "./types";
 
 /** "2026-10-05" + "06:30" in Serbian time → ms since epoch (summer/winter time handled). */
 export function localMs(date: string, time: string | null, end = false) {
@@ -111,13 +113,45 @@ export async function calcTourToll(companyId: string, tourId: string): Promise<C
   if (track.length < 2) return { ok: false, error: "Praćenje nema zapisa o kretanju za vreme ture." };
 
   const hits = await networkAround(track);
-  const { km, days, trackKm } = tolledKm(track, (c) => hits.get(c));
+  const { km, days, seg, trackKm } = tolledKm(track, (c) => hits.get(c));
   const { trailer, how } = await tourTrailer(companyId, tour, vehicle);
   const axles = totalAxles(vehicle, trailer);
   const rate = await companyRate(company);
-  const parts = tollParts(km, days, axles, rate, tour.dateFrom);
-  const loaded = new Set(network.filter((n) => n.cells > 0).map((n) => n.country));
   const notes: string[] = [];
+  // ramp to ramp: priced from the official entry–exit list; what can't be matched stays per km
+  const rampParts: TollPart[] = [];
+  for (const country of [...new Set(Object.keys(km).map((k) => k.slice(0, 2)))]) {
+    const systems = await rampData(country);
+    if (!systems.length) continue;
+    let mainUnpriced: number | null = null, bypassKm = 0;
+    for (const s of systems) {
+      const cat = s.system.category(axles);
+      const matrix = s.prices[cat];
+      if (!matrix) continue;
+      const { trips, unpricedKm } = rampTrips(track, seg, country, s.stations, s.names, matrix, s.system.passM);
+      if (s.system.key === country) mainUnpriced = unpricedKm;
+      else bypassKm += trips.reduce((x, t) => x + t.km, 0);
+      if (!trips.length) continue;
+      const local = trips.reduce((x, t) => x + t.price, 0);
+      rampParts.push({
+        country: s.system.key,
+        km: Math.round(trips.reduce((x, t) => x + t.km, 0) * 10) / 10,
+        eur: Math.round((s.currency === "RSD" ? local / rate : local) * 100) / 100,
+        rate: 0,
+        rateCurrency: s.currency as TollPart["rateCurrency"],
+        method: "ramp",
+        trips,
+      });
+    }
+    if (mainUnpriced !== null) km[country] = Math.max(0, mainUnpriced - bypassKm);
+    if (systems.some((s) => Date.now() - s.fetchedAt.getTime() > 120 * 86400_000)) notes.push(`Cenovnik za ${tollCountry(country)?.name.sr} je stariji od 4 meseca; osveži ga u admin panelu.`);
+  }
+  const rampCountries = new Set(rampParts.map((p) => p.country.slice(0, 2)));
+  const parts = [
+    ...rampParts,
+    ...tollParts(km, days, axles, rate, tour.dateFrom).map((p) => ({ ...p, method: p.days ? ("vignette" as const) : ("km" as const), ...(rampCountries.has(p.country.slice(0, 2)) || tollCountry(p.country)?.charging === "ramp" ? { estimated: true } : {}) })),
+  ];
+  const loaded = new Set(network.filter((n) => n.cells > 0).map((n) => n.country));
   const missing = TOLL_COUNTRIES.filter((c) => !loaded.has(c.code)).map((c) => c.name.sr);
   if (missing.length) notes.push(`Mreža nije učitana za: ${missing.join(", ")}.`);
   if (how === "linked") notes.push(`Prikolica nije upisana na turi; uzeta je ${trailer!.plate}, vezana za kamion (${trailer!.axles ?? 3} osovine).`);

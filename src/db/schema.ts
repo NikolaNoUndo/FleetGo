@@ -587,3 +587,30 @@ export const tollNetwork = pgTable("toll_network", {
   error: text("error"),
   updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
+
+/** Toll stations of a "ramp to ramp" system (closed tolling): every booth point we know, by station. */
+export const tollRamps = pgTable(
+  "toll_ramps",
+  {
+    system: text("system").notNull(),
+    station: integer("station").notNull(),
+    lat: doublePrecision("lat").notNull(),
+    lon: doublePrecision("lon").notNull(),
+  },
+  (t) => [index("toll_ramps_system_idx").on(t.system)],
+);
+
+/** Official entry × exit price lists of the ramp systems, as fetched from the operator. */
+export const tollPrices = pgTable("toll_prices", {
+  system: text("system").primaryKey(),
+  /** station names, in the operator's order (the matrix index) */
+  names: jsonb("names").$type<string[]>().notNull(),
+  /** price[category][from][to] in `currency`; categories as the operator numbers them */
+  prices: jsonb("prices").$type<Record<string, number[][]>>().notNull(),
+  currency: text("currency").notNull(),
+  source: text("source").notNull(),
+  /** stations found on the map / stations in the price list, and which were not found */
+  found: integer("found").notNull().default(0),
+  missing: jsonb("missing").$type<string[]>().notNull().default([]),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+});

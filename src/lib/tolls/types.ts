@@ -11,6 +11,10 @@ export type TollPart = {
   rateCurrency: Currency;
   /** paid by days (a vignette) instead of by km: how many days */
   days?: number;
+  /** how it was worked out: by km on tolled roads, from the official entry–exit price list, or a vignette */
+  method?: "km" | "ramp" | "vignette";
+  /** ramp to ramp: each stretch with its entry and exit station and official price (in rateCurrency) */
+  trips?: { from: string; to: string; price: number; km: number }[];
   /** the rate for this vehicle class is our estimate, not from a price list */
   estimated?: boolean;
 };

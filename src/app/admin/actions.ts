@@ -12,6 +12,7 @@ import { isRole, ROLE_PRESETS, type Role } from "@/lib/auth/permissions";
 import { recordAttempt, tooManyAttempts, WINDOW_MIN } from "@/lib/auth/ratelimit";
 import { audit } from "@/lib/auth/audit";
 import { loadTile, resetCountry } from "@/lib/tolls/server";
+import { refreshRamps } from "@/lib/tolls/ramps-server";
 
 export type AdminResult = { ok: true; link?: string | null; password?: string; id?: string } | { ok: false; error: string };
 
@@ -285,5 +286,17 @@ export async function tollLoadTile(code: string, index: number): Promise<{ ok: t
     return { ok: true, cells: r.cells, done: r.done, total: r.total };
   } catch (e) {
     return { ok: false, error: (e as Error).message.slice(0, 200) };
+  }
+}
+
+/** Fetches the official entry–exit price list and finds its stations on the map (ramp-to-ramp countries). */
+export async function tollRampRefresh(country: string): Promise<{ ok: true; summary: string } | { ok: false; error: string }> {
+  await guard();
+  try {
+    const r = await refreshRamps(country);
+    await audit("admin", "tolls.ramps", { country, systems: r.map((x) => `${x.key} ${x.found}/${x.stations}`) });
+    return { ok: true, summary: r.map((x) => `${x.key}: ${x.found}/${x.stations} stanica`).join(", ") };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message.slice(0, 300) };
   }
 }

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download, ExternalLink, Square } from "lucide-react";
-import { tollLoadTile, tollReset } from "@/app/admin/actions";
+import { tollLoadTile, tollRampRefresh, tollReset } from "@/app/admin/actions";
 import { HUF_PER_EUR, TOLL_COUNTRIES } from "@/lib/tolls/countries";
 import { Badge, Button, cn, Progress } from "./ui/primitives";
 
@@ -13,7 +13,9 @@ const dt = (iso: string | null) => (iso ? new Intl.DateTimeFormat("sr-Latn-RS", 
 const nf = (n: number, d = 0) => n.toLocaleString("sr-Latn-RS", { maximumFractionDigits: d, minimumFractionDigits: d });
 
 /** "Putarina": the tolled road network from OpenStreetMap, and the rates used per country. */
-export function TollsTab({ network }: { network: NetRow[] }) {
+export type RampRow = { key: string; country: string; name: string; stations: number; found: number; missing: string[]; fetchedAt: string | null };
+
+export function TollsTab({ network, ramps }: { network: NetRow[]; ramps: RampRow[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState<{ code: string; done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +139,8 @@ export function TollsTab({ network }: { network: NetRow[] }) {
         </p>
       </section>
 
+      <RampsSection ramps={ramps} />
+
       <section className="rounded-xl border border-line bg-surface shadow-xs">
         <header className="border-b border-line/70 px-4 py-3">
           <h2 className="text-sm font-semibold text-ink">Cene po km (kamion, EURO VI)</h2>
@@ -179,5 +183,59 @@ export function TollsTab({ network }: { network: NetRow[] }) {
         </div>
       </section>
     </div>
+  );
+}
+
+/** Countries that charge from ramp to ramp: the operator's official entry–exit price list and its stations on the map. */
+function RampsSection({ ramps }: { ramps: RampRow[] }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const countries = [...new Set(ramps.map((r) => r.country))];
+  const refresh = async (country: string) => {
+    setBusy(country);
+    setMsg(null);
+    const r = await tollRampRefresh(country).catch((e: Error) => ({ ok: false as const, error: e.message }));
+    setMsg(r.ok ? { ok: true, text: r.summary } : { ok: false, text: r.error });
+    setBusy(null);
+    router.refresh();
+  };
+  return (
+    <section className="rounded-xl border border-line bg-surface shadow-xs">
+      <header className="border-b border-line/70 px-4 py-3">
+        <h2 className="text-sm font-semibold text-ink">Naplata od rampe do rampe</h2>
+        <p className="mt-0.5 text-xs leading-relaxed text-ink-3">
+          Srbija, Hrvatska, Francuska i Španija naplaćuju po ulaznoj i izlaznoj stanici, ne po km. Za njih se cena uzima iz zvaničnog cenovnika operatera, a stanice se nalaze na mapi (OpenStreetMap). Za sada je povezan cenovnik Puteva Srbije; Hrvatska, Francuska i Španija se do tada računaju procenom po km.
+        </p>
+      </header>
+      {msg && <p className={cn("mx-4 mt-3 rounded-md px-3 py-2 text-xs", msg.ok ? "bg-good-soft text-good-ink" : "bg-bad-soft text-bad-ink")}>{msg.text}</p>}
+      <div className="divide-y divide-line/70">
+        {countries.map((c) => (
+          <div key={c} className="flex flex-col gap-2 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-ink">{TOLL_COUNTRIES.find((x) => x.code === c)?.name.sr}</span>
+              <Button size="sm" disabled={!!busy} onClick={() => refresh(c)}>
+                {busy === c ? "Učitavam…" : "Osveži cenovnik i stanice"}
+              </Button>
+            </div>
+            {ramps
+              .filter((r) => r.country === c)
+              .map((r) => (
+                <div key={r.key} className="text-xs leading-relaxed text-ink-2">
+                  <span className="font-medium text-ink">{r.name}:</span>{" "}
+                  {r.fetchedAt ? (
+                    <>
+                      cenovnik od {dt(r.fetchedAt)}, na mapi pronađeno {r.found}/{r.stations} stanica
+                      {r.missing.length > 0 && <span className="text-warn-ink"> (nisu pronađene: {r.missing.join(", ")}; vožnje preko njih idu procenom po km)</span>}
+                    </>
+                  ) : (
+                    <span className="text-ink-3">još nije učitano</span>
+                  )}
+                </div>
+              ))}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

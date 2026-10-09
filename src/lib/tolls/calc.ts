@@ -20,6 +20,8 @@ export function tolledKm(points: TrackPoint[], keysOf: (cell: number) => string[
   });
   const km: Record<string, number> = {};
   const days: Record<string, Set<string>> = {};
+  /** network key of each step (point i-1 → i), null off the network */
+  const seg: (string | null)[] = new Array(points.length).fill(null);
   let trackKm = 0;
   let last: string | null = null;
   for (let i = 1; i < points.length; i++) {
@@ -38,10 +40,11 @@ export function tolledKm(points: TrackPoint[], keysOf: (cell: number) => string[
     const pool = zones.length ? zones : common;
     const k: string = last && pool.includes(last) ? last : pool[0];
     km[k] = (km[k] ?? 0) + d / 1000;
+    seg[i] = k;
     (days[k] ??= new Set()).add(dayOf(b.t));
     last = k;
   }
-  return { km, trackKm, days: Object.fromEntries(Object.entries(days).map(([k, v]) => [k, v.size])) as Record<string, number> };
+  return { km, seg, trackKm, days: Object.fromEntries(Object.entries(days).map(([k, v]) => [k, v.size])) as Record<string, number> };
 }
 
 const toEur = (amount: number, cur: Currency, rsdPerEur: number) => (cur === "EUR" ? amount : cur === "RSD" ? amount / rsdPerEur : amount / FX_PER_EUR[cur]);

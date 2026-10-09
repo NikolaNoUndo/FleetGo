@@ -1,6 +1,6 @@
 "use client";
 
-import { TollsTab, type NetRow } from "./admin-tolls";
+import { TollsTab, type NetRow, type RampRow } from "./admin-tolls";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Building2, Check, CheckCircle2, Copy, Eye, KeyRound, Link2, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
@@ -93,7 +93,7 @@ function SecretModal({ secret, onClose }: { secret: { kind: "link" | "password";
   );
 }
 
-export function AdminPanel({ tab, activeWeek, requests, companies, users, log, feedback, notes, tolls }: { tab: string; activeWeek: number; requests: Req[]; companies: Company[]; users: User[]; log: Log[]; feedback: FeedbackItem[]; notes: NoteItem[]; tolls: NetRow[] }) {
+export function AdminPanel({ tab, activeWeek, requests, companies, users, log, feedback, notes, tolls, ramps }: { tab: string; activeWeek: number; requests: Req[]; companies: Company[]; users: User[]; log: Log[]; feedback: FeedbackItem[]; notes: NoteItem[]; tolls: NetRow[]; ramps: RampRow[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [secret, setSecret] = useState<{ kind: "link" | "password"; value: string; who?: string } | null>(null);
@@ -326,7 +326,7 @@ export function AdminPanel({ tab, activeWeek, requests, companies, users, log, f
 
       {tab === "changes" && <ChangesTab notes={notes} />}
       {tab === "ideas" && <IdeasTab notes={notes} />}
-      {tab === "tolls" && <TollsTab network={tolls} />}
+      {tab === "tolls" && <TollsTab network={tolls} ramps={ramps} />}
 
       {tab === "log" && <DataTable rows={log} columns={logCols} searchText={(l) => [l.actor, l.action, l.company, JSON.stringify(l.details)].join(" ")} initialSort={{ key: "at", dir: "desc" }} />}
 
