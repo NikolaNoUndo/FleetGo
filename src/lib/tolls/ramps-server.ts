@@ -1,10 +1,10 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { matchStations, rampSystem, RAMP_SYSTEMS } from "./ramps";
+import { RAMP_SYSTEMS, stationPoints } from "./ramps";
+import { RS_SNAPSHOT, RS_SNAPSHOT_DATE } from "./rs-snapshot";
 
-const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
-const UA = { "User-Agent": "Roadline/1.0 (fleet app; toll stations)" };
+const HEADERS = { "User-Agent": "Roadline/1.0 (fleet app; toll prices)", Accept: "text/html,application/javascript,*/*" };
 
 /* ---------------------------------------------------------------- Serbia (Putevi Srbije) */
 
@@ -26,99 +26,93 @@ function nameList(js: string, name: string) {
 /** a row holds 5 prices per destination: Ia, I, II, III, IV */
 const category = (rows: number[][], col: number) => rows.map((r) => Array.from({ length: Math.floor(r.length / 5) }, (_, j) => r[j * 5 + col]));
 
-/** The official Serbian price list (both the closed system and the Belgrade bypass), straight from Putevi Srbije. */
-export async function fetchSerbianPrices() {
+type PriceList = { names: string[]; prices: Record<string, number[][]>; currency: string };
+
+/** The official Serbian price list (closed system and Belgrade bypass), straight from Putevi Srbije. */
+export async function fetchSerbianPrices(timeoutMs = 20000): Promise<Record<string, PriceList | null>> {
   let html = "";
   for (const url of PS_PAGES) {
-    const res = await fetch(url, { headers: UA, cache: "no-store", signal: AbortSignal.timeout(20000) }).catch(() => null);
+    const res = await fetch(url, { headers: HEADERS, cache: "no-store", signal: AbortSignal.timeout(timeoutMs) }).catch(() => null);
     if (res?.ok) {
       html = await res.text();
       if (/dist\[0\]/.test(html)) break;
     }
   }
   if (!/dist\[0\]/.test(html)) throw new Error("Cenovnik Puteva Srbije nije pronađen na njihovom sajtu.");
-  const js = await fetch(PS_JS, { headers: UA, cache: "no-store", signal: AbortSignal.timeout(20000) }).then((r) => r.text());
+  const js = await fetch(PS_JS, { headers: HEADERS, cache: "no-store", signal: AbortSignal.timeout(timeoutMs) }).then((r) => r.text());
   const main = matrixRows(html, "dist"), bypass = matrixRows(html, "dist1");
   const city = nameList(js, "city"), petlja = nameList(js, "petlja");
   if (city.length < 20 || main.length !== city.length) throw new Error(`Cenovnik nije u očekivanom obliku (${city.length} stanica, ${main.length} redova).`);
+  // sanity: Beograd → Niš jug has to be there, or the format changed under us
+  const b = city.indexOf("Beograd"), n = city.indexOf("Niš jug");
+  if (b < 0 || n < 0 || !(category(main, 4)[b]?.[n] > 0)) throw new Error("Cenovnik se ne čita kako treba (nema cene Beograd – Niš jug).");
+  const cats = (rows: number[][]) => ({ II: category(rows, 2), III: category(rows, 3), IV: category(rows, 4) });
   return {
-    RS: { names: city, prices: { III: category(main, 3), IV: category(main, 4) }, currency: "RSD" },
-    "RS-OB": petlja.length && bypass.length === petlja.length ? { names: petlja, prices: { III: category(bypass, 3), IV: category(bypass, 4) }, currency: "RSD" } : null,
+    RS: { names: city, prices: cats(main), currency: "RSD" },
+    "RS-OB": petlja.length && bypass.length === petlja.length ? { names: petlja, prices: cats(bypass), currency: "RSD" } : null,
   };
 }
 
-/* ---------------------------------------------------------------- stations from OpenStreetMap */
+/* ---------------------------------------------------------------- refresh and status */
 
-type OsmEl = { type: string; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
-
-async function overpass(query: string) {
-  let last: unknown = null;
-  for (const url of OVERPASS) {
-    try {
-      const res = await fetch(url, { method: "POST", headers: { ...UA, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ data: query }), cache: "no-store", signal: AbortSignal.timeout(25000) });
-      if (!res.ok) throw new Error(`Overpass ${res.status}`);
-      return ((await res.json()) as { elements: OsmEl[] }).elements;
-    } catch (e) {
-      last = e;
-    }
-  }
-  throw last instanceof Error ? last : new Error("Overpass");
+async function store(key: string, list: PriceList) {
+  const sys = RAMP_SYSTEMS.find((s) => s.key === key)!;
+  const { missing } = stationPoints(sys.stations, list.names);
+  const row = { names: list.names, prices: list.prices, currency: list.currency, source: sys.source, found: list.names.length - missing.length, missing, fetchedAt: new Date() };
+  await db.insert(schema.tollPrices).values({ system: key, ...row }).onConflictDoUpdate({ target: schema.tollPrices.system, set: row });
+  // station points used to come from the map server; the app keeps them now
+  await db.delete(schema.tollRamps).where(eq(schema.tollRamps.system, key));
+  return { key, stations: list.names.length, found: row.found, missing };
 }
 
-export async function fetchStationPoints(key: string) {
-  const s = rampSystem(key);
-  if (!s) throw new Error("system");
-  const bb = `(${s.bbox.join(",")})`;
-  const q =
-    s.stationTag === "toll_booth"
-      ? `[out:json][timeout:25];(node["barrier"="toll_booth"]${bb};way["barrier"="toll_booth"]${bb};node["highway"="motorway_junction"]["name"]${bb};);out center tags;`
-      : `[out:json][timeout:25];node["highway"="motorway_junction"]${bb};out tags;`;
-  const els = await overpass(q);
-  return els
-    .map((e) => ({ name: e.tags?.["name:sr-Latn"] ?? e.tags?.name ?? e.tags?.["name:sr"] ?? "", lat: e.lat ?? e.center?.lat ?? NaN, lon: e.lon ?? e.center?.lon ?? NaN }))
-    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
-}
-
-/* ---------------------------------------------------------------- refresh (admin) */
-
-/** Fetches the official price list and finds its stations on the map, for every ramp system of a country. */
-export async function refreshRamps(country: string) {
+/** Fetches the official price list for every ramp system of a country and stores it. */
+export async function refreshRamps(country: string, timeoutMs = 20000) {
   if (country !== "RS") throw new Error("Za ovu zemlju cenovnik od rampe do rampe još nije podržan.");
-  const lists = await fetchSerbianPrices();
-  const out: { key: string; stations: number; found: number; missing: string[] }[] = [];
+  const lists = await fetchSerbianPrices(timeoutMs);
+  const out = [];
   for (const sys of RAMP_SYSTEMS.filter((x) => x.country === country)) {
-    const list = lists[sys.key as keyof typeof lists];
-    if (!list) continue;
-    const points = await fetchStationPoints(sys.key);
-    const { points: matched, missing } = matchStations(list.names, points);
-    await db.transaction(async (tx) => {
-      await tx.delete(schema.tollRamps).where(eq(schema.tollRamps.system, sys.key));
-      for (let i = 0; i < matched.length; i += 500) await tx.insert(schema.tollRamps).values(matched.slice(i, i + 500).map((p) => ({ system: sys.key, station: p.station, lat: p.lat, lon: p.lon })));
-      const row = { names: list.names, prices: list.prices, currency: list.currency, source: sys.source, found: list.names.length - missing.length, missing, fetchedAt: new Date() };
-      await tx.insert(schema.tollPrices).values({ system: sys.key, ...row }).onConflictDoUpdate({ target: schema.tollPrices.system, set: row });
-    });
-    out.push({ key: sys.key, stations: list.names.length, found: list.names.length - missing.length, missing });
+    const list = lists[sys.key];
+    if (list) out.push(await store(sys.key, list));
   }
   return out;
 }
 
 export async function rampStatus() {
-  const rows = await db.select({ system: schema.tollPrices.system, found: schema.tollPrices.found, names: schema.tollPrices.names, missing: schema.tollPrices.missing, fetchedAt: schema.tollPrices.fetchedAt }).from(schema.tollPrices);
+  const rows = await db.select({ system: schema.tollPrices.system, names: schema.tollPrices.names, fetchedAt: schema.tollPrices.fetchedAt }).from(schema.tollPrices);
   return RAMP_SYSTEMS.map((s) => {
     const r = rows.find((x) => x.system === s.key);
-    return { key: s.key, country: s.country, name: s.name.sr, stations: r?.names.length ?? 0, found: r?.found ?? 0, missing: r?.missing ?? [], fetchedAt: r?.fetchedAt.toISOString() ?? null };
+    const names = r?.names ?? RS_SNAPSHOT[s.key as keyof typeof RS_SNAPSHOT]?.names ?? [];
+    const { missing } = stationPoints(s.stations, names);
+    return { key: s.key, country: s.country, name: s.name.sr, stations: names.length, found: names.length - missing.length, missing, fetchedAt: r?.fetchedAt.toISOString() ?? null, snapshot: RS_SNAPSHOT_DATE };
   });
 }
 
-/** Everything a calculation needs for one country's ramp systems (null when not loaded yet). */
+/* ---------------------------------------------------------------- for a calculation */
+
+const FRESH_MS = 30 * 86400_000;
+
+/**
+ * Everything a calculation needs for a country's ramp systems: the stored official list,
+ * refreshed from the operator's site when it's older than a month (or not there yet), and the
+ * copy kept in the app when the site can't be reached. Never empty for a country the app
+ * prices by ramp, so such a country is never priced per km.
+ */
 export async function rampData(country: string) {
   const systems = RAMP_SYSTEMS.filter((s) => s.country === country);
-  const out = [];
-  for (const s of systems) {
-    const [p] = await db.select().from(schema.tollPrices).where(eq(schema.tollPrices.system, s.key)).limit(1);
-    if (!p) continue;
-    const stations = await db.select({ station: schema.tollRamps.station, lat: schema.tollRamps.lat, lon: schema.tollRamps.lon }).from(schema.tollRamps).where(eq(schema.tollRamps.system, s.key));
-    out.push({ system: s, names: p.names, prices: p.prices, currency: p.currency, fetchedAt: p.fetchedAt, stations });
+  if (!systems.length) return [];
+  let rows = await db.select().from(schema.tollPrices);
+  if (systems.some((s) => { const r = rows.find((x) => x.system === s.key); return !r || !r.prices.II || Date.now() - r.fetchedAt.getTime() > FRESH_MS; })) {
+    try {
+      await refreshRamps(country, 8000);
+      rows = await db.select().from(schema.tollPrices);
+    } catch {
+      // the stored list (or the app's copy) carries on
+    }
   }
-  return out;
+  return systems.map((s) => {
+    const r = rows.find((x) => x.system === s.key);
+    const snap = RS_SNAPSHOT[s.key as keyof typeof RS_SNAPSHOT];
+    const list = r && r.prices.II ? { names: r.names, prices: r.prices, currency: r.currency, fetchedAt: r.fetchedAt, live: true } : { ...snap, fetchedAt: new Date(RS_SNAPSHOT_DATE), live: false };
+    return { system: s, ...list, stations: stationPoints(s.stations, list.names).points };
+  });
 }

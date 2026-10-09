@@ -13,7 +13,7 @@ const dt = (iso: string | null) => (iso ? new Intl.DateTimeFormat("sr-Latn-RS", 
 const nf = (n: number, d = 0) => n.toLocaleString("sr-Latn-RS", { maximumFractionDigits: d, minimumFractionDigits: d });
 
 /** "Putarina": the tolled road network from OpenStreetMap, and the rates used per country. */
-export type RampRow = { key: string; country: string; name: string; stations: number; found: number; missing: string[]; fetchedAt: string | null };
+export type RampRow = { key: string; country: string; name: string; stations: number; found: number; missing: string[]; fetchedAt: string | null; snapshot: string };
 
 export function TollsTab({ network, ramps }: { network: NetRow[]; ramps: RampRow[] }) {
   const router = useRouter();
@@ -205,7 +205,7 @@ function RampsSection({ ramps }: { ramps: RampRow[] }) {
       <header className="border-b border-line/70 px-4 py-3">
         <h2 className="text-sm font-semibold text-ink">Naplata od rampe do rampe</h2>
         <p className="mt-0.5 text-xs leading-relaxed text-ink-3">
-          Srbija, Hrvatska, Francuska i Španija naplaćuju po ulaznoj i izlaznoj stanici, ne po km. Za njih se cena uzima iz zvaničnog cenovnika operatera, a stanice se nalaze na mapi (OpenStreetMap). Za sada je povezan cenovnik Puteva Srbije; Hrvatska, Francuska i Španija se do tada računaju procenom po km.
+          Srbija, Hrvatska, Francuska i Španija naplaćuju po ulaznoj i izlaznoj stanici, ne po km. Srbija: lokacije stanica su ugrađene u aplikaciju, a cenovnik se sam preuzima sa sajta Puteva Srbije pri računanju (jednom mesečno); ako sajt ne odgovara, koristi se zvanični cenovnik sačuvan u aplikaciji. Dugme ispod ga osvežava odmah. Hrvatska, Francuska i Španija se do tada računaju procenom po km.
         </p>
       </header>
       {msg && <p className={cn("mx-4 mt-3 rounded-md px-3 py-2 text-xs", msg.ok ? "bg-good-soft text-good-ink" : "bg-bad-soft text-bad-ink")}>{msg.text}</p>}
@@ -215,7 +215,7 @@ function RampsSection({ ramps }: { ramps: RampRow[] }) {
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium text-ink">{TOLL_COUNTRIES.find((x) => x.code === c)?.name.sr}</span>
               <Button size="sm" disabled={!!busy} onClick={() => refresh(c)}>
-                {busy === c ? "Učitavam…" : "Osveži cenovnik i stanice"}
+                {busy === c ? "Učitavam…" : "Osveži cenovnik"}
               </Button>
             </div>
             {ramps
@@ -225,12 +225,12 @@ function RampsSection({ ramps }: { ramps: RampRow[] }) {
                   <span className="font-medium text-ink">{r.name}:</span>{" "}
                   {r.fetchedAt ? (
                     <>
-                      cenovnik od {dt(r.fetchedAt)}, na mapi pronađeno {r.found}/{r.stations} stanica
-                      {r.missing.length > 0 && <span className="text-warn-ink"> (nisu pronađene: {r.missing.join(", ")}; vožnje preko njih idu procenom po km)</span>}
+                      cenovnik sa sajta od {dt(r.fetchedAt)}, lokacija poznata za {r.found}/{r.stations} stanica
                     </>
                   ) : (
-                    <span className="text-ink-3">još nije učitano</span>
+                    <span className="text-ink-3">koristi se cenovnik sačuvan u aplikaciji ({r.snapshot.split("-").reverse().join(". ")}.), lokacija poznata za {r.found}/{r.stations} stanica</span>
                   )}
+                  {r.missing.length > 0 && <span className="text-warn-ink"> (bez lokacije: {r.missing.join(", ")})</span>}
                 </div>
               ))}
           </div>

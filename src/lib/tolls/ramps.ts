@@ -1,18 +1,17 @@
 /**
  * "Ramp to ramp" tolling (closed systems): you pay for the pair of stations where you got
- * on and off the motorway, from the operator's price list — not by the km. Serbia now;
+ * on and off the motorway, from the operator's price list — never by the km. Serbia now;
  * Croatia, France, Spain and the Polish concessions work the same way and come next.
  */
 import { distM } from "./grid";
+import { RS_BYPASS_STATIONS, RS_STATIONS } from "./rs-stations";
 
 export type RampSystem = {
   key: string;
   country: string;
   name: { sr: string; en: string };
-  /** how stations show on the map: toll booths, or motorway junctions (free-flow loops) */
-  stationTag: "toll_booth" | "junction";
-  /** where to look for them [south, west, north, east] */
-  bbox: [number, number, number, number];
+  /** where its stations are, by price-list name */
+  stations: Record<string, [number, number][]>;
   /** a GPS track passing closer than this to a station point went through it */
   passM: number;
   /** price-list category for a combination with this many axles */
@@ -20,25 +19,26 @@ export type RampSystem = {
   source: string;
 };
 
+/** Putevi Srbije: II = two axles, III = three, IV = four or more (truck + trailer together). */
+const srCategory = (axles: number) => (axles >= 4 ? "IV" : axles === 3 ? "III" : "II");
+
 export const RAMP_SYSTEMS: RampSystem[] = [
   {
     key: "RS",
     country: "RS",
     name: { sr: "Srbija, naplatne stanice", en: "Serbia, toll stations" },
-    stationTag: "toll_booth",
-    bbox: [42.2, 18.8, 46.2, 23.1],
+    stations: RS_STATIONS,
     passM: 350,
-    category: (axles) => (axles >= 4 ? "IV" : "III"),
+    category: srCategory,
     source: "https://www.putevi-srbije.rs/index.php/sr/kategorizacija-vozila-cenovnik-putarine",
   },
   {
     key: "RS-OB",
     country: "RS",
     name: { sr: "Obilaznica oko Beograda", en: "Belgrade bypass" },
-    stationTag: "junction",
-    bbox: [44.6, 20.2, 44.95, 20.6],
+    stations: RS_BYPASS_STATIONS,
     passM: 450,
-    category: (axles) => (axles >= 4 ? "IV" : "III"),
+    category: srCategory,
     source: "https://www.putevi-srbije.rs/index.php/sr/kategorizacija-vozila-cenovnik-putarine",
   },
 ];
@@ -120,10 +120,39 @@ function toSegment(p: { lat: number; lon: number }, a: { lat: number; lon: numbe
 export type RampTrip = { from: string; to: string; price: number; km: number };
 
 /**
- * One trip per stretch the truck drove on this system's network, from the first to the last
- * station it went through, priced from the official list station by station. `seg[i]` is the network key of the
- * step from point i-1 to i (null off the network). Stretches with fewer than two stations
- * found are left for the per-km estimate and returned as `unpricedKm`.
+ * The stations of a price list on the map, from the coordinates kept in the app (by the
+ * list's own names, so a reordered or extended list still lines up). Returns the names it
+ * has no place for.
+ */
+export function stationPoints(table: Record<string, [number, number][]>, names: string[]) {
+  const byNorm = new Map(Object.entries(table).map(([k, v]) => [normName(k), v]));
+  const points: { station: number; lat: number; lon: number }[] = [];
+  const missing: string[] = [];
+  names.forEach((n, i) => {
+    const at = table[n] ?? byNorm.get(normName(n));
+    if (!at) missing.push(n);
+    else for (const [lat, lon] of at) points.push({ station: i, lat, lon });
+  });
+  return { points, missing };
+}
+
+/** price from a to b in the official list (either direction: the list fills only one side for some pairs) */
+const pairPrice = (price: number[][], a: number, b: number) => {
+  const v = Number(price[a]?.[b]) || Number(price[b]?.[a]);
+  return Number.isFinite(v) && v > 0 ? v : 0;
+};
+
+/**
+ * One trip per stretch the truck drove on this system's network, priced the way the
+ * operator's calculator does: entry station → exit station, straight from the official list.
+ * `seg[i]` is the network key of the step from point i-1 to i (null off the network).
+ *
+ * The stations the truck went through are read off the track in order; a stretch whose first
+ * or last station is just off the track gets the nearest one within 3 km. A station showing up
+ * again means the truck turned back, so each direction is its own trip. Where the list has no
+ * price for the pair (two systems in a row, a half interchange) it's added up station by
+ * station. A stretch that touched fewer than two stations (a free city section, a gap in
+ * tracking) can't be priced and comes back in `unpriced`, never as a per-km guess.
  */
 export function rampTrips(
   track: { lat: number; lon: number }[],
@@ -157,35 +186,73 @@ export function rampTrips(
   if (cur) runs.push(cur);
 
   const trips: RampTrip[] = [];
-  let unpricedKm = 0;
+  const unpriced: { km: number; stations: number }[] = [];
+  /** metres along the track up to each point */
+  const cum = [0];
+  for (let i = 1; i < track.length; i++) cum.push(cum[i - 1] + distM(track[i - 1].lat, track[i - 1].lon, track[i].lat, track[i].lon));
   for (const r of runs) {
     if (r.km < 1) continue;
-    // stations passed, in the order the truck reached them (with 1 km of track on each side)
-    const passed: { station: number; at: number }[] = [];
+    // every time the track comes within reach of a station point counts as one pass
     const a = Math.max(1, r.from - 3), b = Math.min(track.length - 1, r.to + 3);
+    const passed: { station: number; at: number }[] = [];
     for (const s of stations) {
-      let at = -1;
-      for (let i = a; i <= b; i++) if (toSegment(s, track[i - 1], track[i]) <= passM) {
-        at = i;
-        break;
+      let inside = false;
+      for (let i = a; i <= b; i++) {
+        const near = toSegment(s, track[i - 1], track[i]) <= passM;
+        if (near && !inside) passed.push({ station: s.station, at: i });
+        inside = near;
       }
-      if (at >= 0 && !passed.some((p) => p.station === s.station && Math.abs(p.at - at) < 3)) passed.push({ station: s.station, at });
     }
     passed.sort((x, y) => x.at - y.at);
-    const seq = passed.map((x) => x.station).filter((st, i, all) => i === 0 || st !== all[i - 1]);
-    // station to station along the way: the official list is additive inside one system
-    // (Beograd–Jagodina + Jagodina–Niš = Beograd–Niš), and this also pays each barrier between systems
-    let p = 0, ok = seq.length >= 2;
-    for (let i = 1; i < seq.length && ok; i++) {
-      const v = Number(price[seq[i - 1]]?.[seq[i]]) || Number(price[seq[i]]?.[seq[i - 1]]);
-      if (!Number.isFinite(v)) ok = false;
-      else p += v;
+    let seq = passed.filter((p, i, all) => i === 0 || p.station !== all[i - 1].station);
+    // the stretch began or ended next to a station the track just missed
+    const nearest = (i: number) => {
+      let best = -1, bd = 3000;
+      for (const s of stations) {
+        const d = distM(track[i].lat, track[i].lon, s.lat, s.lon);
+        if (d < bd) (bd = d), (best = s.station);
+      }
+      return best;
+    };
+    const head = nearest(r.from), tail = nearest(r.to);
+    if (head >= 0 && seq[0]?.station !== head) seq = [{ station: head, at: r.from }, ...seq];
+    if (tail >= 0 && seq[seq.length - 1]?.station !== tail) seq = [...seq, { station: tail, at: r.to }];
+
+    // a station showing up again means the truck turned back: each direction is its own trip
+    const legs: (typeof seq)[] = [];
+    let leg: typeof seq = [];
+    for (const p of seq) {
+      if (leg.some((x) => x.station === p.station)) {
+        legs.push(leg);
+        leg = [leg[leg.length - 1]];
+      }
+      leg.push(p);
     }
-    if (!ok || p <= 0) {
-      unpricedKm += r.km;
-      continue;
+    legs.push(leg);
+
+    let priced = false;
+    for (const l of legs) {
+      if (l.length < 2) continue;
+      const first = l[0], last = l[l.length - 1];
+      // entry → exit straight from the list, like the operator's calculator
+      let total = pairPrice(price, first.station, last.station);
+      let end = last;
+      if (!total) {
+        // the list has no such pair (two systems, a half interchange): station by station,
+        // skipping a station it has no price for from here
+        let from = first;
+        for (let i = 1; i < l.length; i++) {
+          const v = pairPrice(price, from.station, l[i].station);
+          if (!v) continue;
+          total += v;
+          from = end = l[i];
+        }
+      }
+      if (total <= 0) continue;
+      priced = true;
+      trips.push({ from: names[first.station], to: names[end.station], price: total, km: Math.round((cum[end.at] - cum[first.at]) / 100) / 10 });
     }
-    trips.push({ from: names[seq[0]], to: names[seq[seq.length - 1]], price: p, km: Math.round(r.km * 10) / 10 });
+    if (!priced) unpriced.push({ km: Math.round(r.km * 10) / 10, stations: seq.length });
   }
-  return { trips, unpricedKm };
+  return { trips, unpriced, unpricedKm: unpriced.reduce((s, u) => s + u.km, 0) };
 }

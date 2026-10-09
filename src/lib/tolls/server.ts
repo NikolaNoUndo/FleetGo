@@ -8,9 +8,12 @@ import { loadSteps, tollCountry, TOLL_COUNTRIES } from "./countries";
 import { byRow, cellsAround, LON_CELLS } from "./grid";
 import { tollParts, tolledKm, totalAxles } from "./calc";
 import { fetchStep } from "./overpass";
-import { rampTrips } from "./ramps";
+import { RAMP_SYSTEMS, rampTrips } from "./ramps";
 import { rampData } from "./ramps-server";
+import { RS_SNAPSHOT_DATE } from "./rs-snapshot";
 import type { TollCalc, TollPart } from "./types";
+
+const RAMP_COUNTRIES = new Set(RAMP_SYSTEMS.map((s) => s.country));
 
 /** "2026-10-05" + "06:30" in Serbian time → ms since epoch (summer/winter time handled). */
 export function localMs(date: string, time: string | null, end = false) {
@@ -25,6 +28,8 @@ export function localMs(date: string, time: string | null, end = false) {
 
 /** True when the tour changed after its tolls were worked out (other dates, times or truck). */
 export function tollStale(t: { dateFrom: string; timeFrom: string | null; dateTo: string | null; timeTo: string | null; vehicleId: string | null; trailerId: string | null }, calc: TollCalc) {
+  // worked out before the country was priced ramp to ramp
+  if (calc.parts.some((p) => p.method !== "ramp" && RAMP_COUNTRIES.has(p.country.slice(0, 2)))) return true;
   if (calc.vehicleId !== t.vehicleId || (calc.trailerId ?? null) !== (t.trailerId ?? null)) return true;
   if (Math.abs(Date.parse(calc.from) - localMs(t.dateFrom, t.timeFrom)) > 60_000) return true;
   if (t.dateTo && Math.abs(Date.parse(calc.to) - Math.min(Date.parse(calc.at), localMs(t.dateTo, t.timeTo, true))) > 60_000) return true;
@@ -118,19 +123,22 @@ export async function calcTourToll(companyId: string, tourId: string): Promise<C
   const axles = totalAxles(vehicle, trailer);
   const rate = await companyRate(company);
   const notes: string[] = [];
-  // ramp to ramp: priced from the official entry–exit list; what can't be matched stays per km
+  // ramp to ramp: priced from the official entry–exit list, the way the operator's calculator
+  // does it; such a country is never priced per km
   const rampParts: TollPart[] = [];
   for (const country of [...new Set(Object.keys(km).map((k) => k.slice(0, 2)))]) {
     const systems = await rampData(country);
     if (!systems.length) continue;
-    let mainUnpriced: number | null = null, bypassKm = 0;
+    let unpricedKm = 0, unpricedRuns = 0;
     for (const s of systems) {
       const cat = s.system.category(axles);
-      const matrix = s.prices[cat];
+      const matrix = (s.prices as Record<string, number[][]>)[cat];
       if (!matrix) continue;
-      const { trips, unpricedKm } = rampTrips(track, seg, country, s.stations, s.names, matrix, s.system.passM);
-      if (s.system.key === country) mainUnpriced = unpricedKm;
-      else bypassKm += trips.reduce((x, t) => x + t.km, 0);
+      const { trips, unpriced } = rampTrips(track, seg, country, s.stations, s.names, matrix, s.system.passM);
+      if (s.system.key === country) {
+        unpricedRuns = unpriced.filter((u) => u.km >= 5).length;
+        unpricedKm = unpriced.reduce((x, u) => x + u.km, 0);
+      }
       if (!trips.length) continue;
       const local = trips.reduce((x, t) => x + t.price, 0);
       rampParts.push({
@@ -141,15 +149,17 @@ export async function calcTourToll(companyId: string, tourId: string): Promise<C
         rateCurrency: s.currency as TollPart["rateCurrency"],
         method: "ramp",
         trips,
+        category: cat,
       });
     }
-    if (mainUnpriced !== null) km[country] = Math.max(0, mainUnpriced - bypassKm);
-    if (systems.some((s) => Date.now() - s.fetchedAt.getTime() > 120 * 86400_000)) notes.push(`Cenovnik za ${tollCountry(country)?.name.sr} je stariji od 4 meseca; osveži ga u admin panelu.`);
+    for (const k of Object.keys(km)) if (k.slice(0, 2) === country) delete km[k];
+    const name = tollCountry(country)?.name.sr;
+    if (unpricedRuns > 0) notes.push(`${name}: ${Math.round(unpricedKm)} km autoputa bez prolaska kroz dve naplatne stanice (besplatna deonica ili prekid u praćenju), nije naplaćeno.`);
+    if (systems.some((s) => !s.live)) notes.push(`${name}: sajt Puteva Srbije nije odgovorio, korišćen je zvanični cenovnik sačuvan u aplikaciji (${RS_SNAPSHOT_DATE.split("-").reverse().join(". ")}.).`);
   }
-  const rampCountries = new Set(rampParts.map((p) => p.country.slice(0, 2)));
   const parts = [
     ...rampParts,
-    ...tollParts(km, days, axles, rate, tour.dateFrom).map((p) => ({ ...p, method: p.days ? ("vignette" as const) : ("km" as const), ...(rampCountries.has(p.country.slice(0, 2)) || tollCountry(p.country)?.charging === "ramp" ? { estimated: true } : {}) })),
+    ...tollParts(km, days, axles, rate, tour.dateFrom).map((p) => ({ ...p, method: p.days ? ("vignette" as const) : ("km" as const), ...(tollCountry(p.country)?.charging === "ramp" ? { estimated: true } : {}) })),
   ];
   const loaded = new Set(network.filter((n) => n.cells > 0).map((n) => n.country));
   const missing = TOLL_COUNTRIES.filter((c) => !loaded.has(c.code)).map((c) => c.name.sr);

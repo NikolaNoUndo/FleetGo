@@ -279,13 +279,13 @@ export function TollCard({
       {c && (
         <p className="mt-2 text-xs leading-relaxed text-ink-3">
           {sr
-            ? `Km po putevima pod naplatom iz praćenja × prosečna cena po km za ${c.axles} osovina. Izračunato ${when}.`
-            : `Km on tolled roads from tracking × average price per km for ${c.axles} axles. Worked out ${when}.`}
+            ? `${c.axles} osovina ukupno. Srbija: od ulazne do izlazne naplatne stanice po zvaničnom cenovniku Puteva Srbije, kao njihov kalkulator. Zemlje koje naplaćuju po km: km po putevima pod naplatom × zvanična cena po km. Izračunato ${when}.`
+            : `${c.axles} axles in total. Serbia: entry to exit toll station from the official Putevi Srbije price list, like their calculator. Countries that charge by the km: km on tolled roads × the official per-km price. Worked out ${when}.`}
           {c.stale && (
             <span className="mt-1 block text-warn-ink">
               {sr
-                ? "Datumi, vreme ili kamion ture su menjani posle računanja; izračunaj ponovo."
-                : "The tour's dates, times or truck changed since; calculate again."}
+                ? "Datumi, vreme ili kamion ture su menjani posle računanja, ili je računato na stari način; izračunaj ponovo."
+                : "The tour's dates, times or truck changed since, or it was worked out the old way; calculate again."}
             </span>
           )}
           {c.notes.map((n) => (
@@ -298,8 +298,8 @@ export function TollCard({
       {!c && !view.manual && (
         <p className="text-xs leading-relaxed text-ink-3">
           {sr
-            ? "Putarina se računa iz trase kamiona u praćenju: km po putevima pod naplatom u Srbiji, Hrvatskoj, Sloveniji, Italiji, Francuskoj, Mađarskoj, Austriji i Nemačkoj × cena po km za broj osovina. Za tačno vreme upiši vreme polaska i povratka na turi."
-            : "Tolls are worked out from the truck's track: km on tolled roads in Serbia, Croatia, Slovenia, Italy, France, Hungary, Austria and Germany × the price per km for the axle count. Enter departure and return times on the tour for an exact window."}
+            ? "Putarina se računa iz trase kamiona u praćenju, onako kako svaka zemlja naplaćuje: Srbija od ulazne do izlazne naplatne stanice po zvaničnom cenovniku, zemlje sa naplatom po km (Mađarska, Poljska, Nemačka, Austrija…) km × cena za broj osovina. Za tačno vreme upiši vreme polaska i povratka na turi."
+            : "Tolls are worked out from the truck's track the way each country charges: Serbia entry to exit station from the official price list, per-km countries (Hungary, Poland, Germany, Austria…) km × the price for the axle count. Enter departure and return times on the tour for an exact window."}
         </p>
       )}
     </div>

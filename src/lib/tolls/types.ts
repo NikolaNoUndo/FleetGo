@@ -15,6 +15,8 @@ export type TollPart = {
   method?: "km" | "ramp" | "vignette";
   /** ramp to ramp: each stretch with its entry and exit station and official price (in rateCurrency) */
   trips?: { from: string; to: string; price: number; km: number }[];
+  /** price-list category used (Serbia: II, III, IV) */
+  category?: string;
   /** the rate for this vehicle class is our estimate, not from a price list */
   estimated?: boolean;
 };

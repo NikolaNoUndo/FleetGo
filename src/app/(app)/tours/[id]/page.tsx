@@ -33,6 +33,7 @@ import {
 } from "@/lib/tours";
 import { TollCard, type TollView } from "@/components/toll-card";
 import { tollKey } from "@/lib/tolls/countries";
+import { rampSystem } from "@/lib/tolls/ramps";
 import { tollStale } from "@/lib/tolls/server";
 import { getMoney } from "@/lib/money-server";
 import { fmtDate, fmtNum } from "@/lib/format";
@@ -122,14 +123,14 @@ export default async function TourPage(props: PageProps<"/tours/[id]">) {
               label: `${t.from} → ${t.to}`,
               price: `${num(t.price, p.rateCurrency === "EUR" ? 2 : 0)} ${p.rateCurrency}`,
             })),
-            name: tollKey(p.country)?.name[sr ? "sr" : "en"] ?? p.country,
+            name: (p.method === "ramp" ? rampSystem(p.country)?.name : tollKey(p.country)?.name)?.[sr ? "sr" : "en"] ?? p.country,
             km: p.km,
             amountFmt: m.fmt(m.conv(p.eur, "EUR")),
             rate:
               p.method === "ramp"
                 ? sr
-                  ? "po zvaničnom cenovniku, od ulazne do izlazne stanice"
-                  : "official price list, entry to exit station"
+                  ? `zvanični cenovnik Puteva Srbije${p.category ? `, kategorija ${p.category}` : ""}, od ulazne do izlazne stanice`
+                  : `official Putevi Srbije price list${p.category ? `, category ${p.category}` : ""}, entry to exit station`
                 : p.days
                   ? sr
                     ? `rovinieta, ${p.days} ${p.days === 1 ? "dan" : "dana"}`
